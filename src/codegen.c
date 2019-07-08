@@ -8,16 +8,16 @@
 void emit_label(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, ":\n");
+  vfprintf(stdout, fmt, ap);
+  fprintf(stdout, ":\n");
 }
 
 void emit(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  fprintf(stderr, "  ");
-  vfprintf(stderr, fmt, ap);
-  fprintf(stderr, "\n");
+  fprintf(stdout, "  ");
+  vfprintf(stdout, fmt, ap);
+  fprintf(stdout, "\n");
 }
 
 void codegen_expr(Node* node);

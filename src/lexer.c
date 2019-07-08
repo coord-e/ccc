@@ -80,7 +80,13 @@ void print_tokens(Token* t) {
       printf("(+), ");
       break;
     case TK_MINUS:
-      printf("(+), ");
+      printf("(-), ");
+      break;
+    case TK_STAR:
+      printf("(*), ");
+      break;
+    case TK_SLASH:
+      printf("(/), ");
       break;
     case TK_NUMBER:
       printf("num(%d), ", t->number);

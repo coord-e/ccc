@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "lexer.h"
+#include "codegen.h"
 #include "parser.h"
 #include "error.h"
 
@@ -13,12 +14,8 @@ int main(int argc, char **argv) {
 
   char* input = argv[1];
   Token* tokens = tokenize(input);
-  print_tokens(tokens);
-
   Node* tree = parse(tokens);
-  print_tree(tree);
-
-  error("codegen is not implemented yet");
+  codegen(tree);
 
   return 0;
 }

@@ -3,4 +3,6 @@
 
 void error(char *fmt, ...);
 
+#define CCC_UNREACHABLE error("unreachable (%s:%d)", __FILE__, __LINE__)
+
 #endif

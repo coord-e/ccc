@@ -100,6 +100,8 @@ void print_tokens(Token* t) {
     case TK_END:
       printf("end\n");
       return;
+    default:
+      CCC_UNREACHABLE;
   }
   print_tokens(t->next);
 }

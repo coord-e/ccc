@@ -42,7 +42,7 @@ void codegen_binop(Node* node) {
       emit("idiv rdi");
       break;
     default:
-      error("unreachable (codegen_binop)");
+      CCC_UNREACHABLE;
   }
   emit("push rax");
 }
@@ -56,7 +56,7 @@ void codegen_expr(Node* node) {
       codegen_binop(node);
       return;
     default:
-      error("unreachable (codegen)");
+      CCC_UNREACHABLE;
   }
 }
 

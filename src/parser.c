@@ -120,6 +120,8 @@ void print_binop(BinopKind kind) {
     case BINOP_DIV:
       printf("/");
       return;
+    default:
+      CCC_UNREACHABLE;
   }
 }
 
@@ -137,6 +139,8 @@ void print_tree_(Node* node) {
       print_tree_(node->rhs);
       printf(")");
       return;
+    default:
+      CCC_UNREACHABLE;
   }
 }
 

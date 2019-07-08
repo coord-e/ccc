@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "lexer.h"
+#include "error.h"
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -12,6 +13,8 @@ int main(int argc, char **argv) {
   char* input = argv[1];
   Token* tokens = tokenize(input);
   print_tokens(tokens);
+
+  error("parser is not implemented yet");
 
   return 0;
 }

@@ -21,17 +21,27 @@ Node *new_node_binop(BinopKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
+void consume(Token** t) {
+  t = &t->next;
+}
+
+Token* consuming(Token** t) {
+  Token* p = *t;
+  consume(t);
+  return p;
+}
+
 Node* term(Token** t) {
-  if (tk->kind == TK_LPAREN) {
+  if (consuming(t)->kind == TK_LPAREN) {
     Node* node = expr(t);
-    if (tk->kind == TK_RPAREN) {
+    if (consuming(t)->kind == TK_RPAREN) {
       return node;
     } else {
       error("unmatched parentheses.");
     }
   } else {
-    if (tk->kind == TK_NUMBER) {
-      return new_node_num(tk->number);
+    if ((*t)->kind == TK_NUMBER) {
+      return new_node_num(consuming(t)->number);
     } else {
       error("unexpected token.");
     }
@@ -41,11 +51,8 @@ Node* term(Token** t) {
 Node* mul(Token** t) {
   Node* node = term(t);
 
-  // immutable version of `t`
-  Token* tk = *t;
-
   for (;;) {
-    switch (tk->kind) {
+    switch (consuming(t)->kind) {
     case TK_STAR:
       node = new_node_binop(BINOP_MUL, node, term(t));
     case TK_SLASH:
@@ -59,11 +66,8 @@ Node* mul(Token** t) {
 Node* add(Token** t) {
   Node* node = mul(t);
 
-  // immutable version of `t`
-  Token* tk = *t;
-
   for (;;) {
-    switch (tk->kind) {
+    switch (consuming(t)->kind) {
       case TK_PLUS:
         node = new_node_binop(BINOP_ADD, node, mul(t));
       case TK_MINUS:

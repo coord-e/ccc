@@ -168,3 +168,5 @@ tags
 [._]*.un~
 
 # End of https://www.gitignore.io/api/c,linux,emacs,vim,macos
+
+build/

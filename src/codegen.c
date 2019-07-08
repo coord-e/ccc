@@ -11,7 +11,6 @@ void emit(char *fmt, ...) {
   fprintf(stderr, "  ");
   vfprintf(stderr, fmt, ap);
   fprintf(stderr, "\n");
-  exit(1);
 }
 
 void codegen_binop(Node* node) {

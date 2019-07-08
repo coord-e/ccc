@@ -88,6 +88,12 @@ void print_tokens(Token* t) {
     case TK_SLASH:
       printf("(/), ");
       break;
+    case TK_LPAREN:
+      printf("((), ");
+      break;
+    case TK_RPAREN:
+      printf("()), ");
+      break;
     case TK_NUMBER:
       printf("num(%d), ", t->number);
       break;

@@ -123,7 +123,7 @@ void print_binop(BinopKind kind) {
   }
 }
 
-void print_tree(Node* node) {
+void print_tree_(Node* node) {
   switch(node->kind) {
     case ND_NUM:
       printf("%d", node->num);
@@ -132,10 +132,15 @@ void print_tree(Node* node) {
       printf("(");
       print_binop(node->binop);
       printf(" ");
-      print_tree(node->lhs);
+      print_tree_(node->lhs);
       printf(" ");
-      print_tree(node->rhs);
+      print_tree_(node->rhs);
       printf(")");
       return;
   }
+}
+
+void print_tree(Node* node) {
+  print_tree_(node);
+  printf("\n");
 }

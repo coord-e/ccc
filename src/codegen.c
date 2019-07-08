@@ -5,6 +5,13 @@
 #include "codegen.h"
 #include "error.h"
 
+void emit_label(char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, ":\n");
+}
+
 void emit(char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -13,9 +20,11 @@ void emit(char *fmt, ...) {
   fprintf(stderr, "\n");
 }
 
+void codegen_expr(Node* node);
+
 void codegen_binop(Node* node) {
-  codegen(node->lhs);
-  codegen(node->rhs);
+  codegen_expr(node->lhs);
+  codegen_expr(node->rhs);
   emit("pop rdi");
   emit("pop rax");
   switch(node->binop) {
@@ -38,7 +47,7 @@ void codegen_binop(Node* node) {
   emit("push rax");
 }
 
-void codegen(Node* node) {
+void codegen_expr(Node* node) {
   switch(node->kind) {
     case ND_NUM:
       emit("push %d", node->num);
@@ -49,5 +58,13 @@ void codegen(Node* node) {
     default:
       error("unreachable (codegen)");
   }
+}
+
+void codegen(Node* node) {
+  emit(".intel_syntax noprefix");
+  emit(".global main");
+  emit_label("main");
+  codegen_expr(node);
   emit("pop rax");
+  emit("ret");
 }

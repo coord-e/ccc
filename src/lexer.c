@@ -12,12 +12,6 @@ Token *new_token(TokenKind kind, Token *cur) {
   return tok;
 }
 
-Token* new_binop(BinopKind op, Token *cur) {
-  Token* tok = new_token(TK_BINOP, cur);
-  tok->binop = op;
-  return tok;
-}
-
 Token* new_number(char** strp, Token *cur) {
   Token* tok = new_token(TK_NUMBER, cur);
   tok->number = strtol(*strp, strp, 10);
@@ -42,11 +36,11 @@ Token* tokenize(char* p) {
 
     switch (*p) {
       case '+':
-        cur = new_binop(BINOP_PLUS, cur);
+        cur = new_token(TK_PLUS, cur);
         p++;
         continue;
       case '-':
-        cur = new_binop(BINOP_MINUS, cur);
+        cur = new_token(TK_MINUS, cur);
         p++;
         continue;
       default:
@@ -64,23 +58,13 @@ Token* tokenize(char* p) {
   return head.next;
 }
 
-void print_binop(BinopKind kind) {
-  switch(kind) {
-    case BINOP_PLUS:
-      printf("+");
-      break;
-    case BINOP_MINUS:
-      printf("-");
-      break;
-  }
-}
-
 void print_tokens(Token* t) {
   switch(t->kind) {
-    case TK_BINOP:
-      printf("bop(");
-      print_binop(t->binop);
-      printf("), ");
+    case TK_PLUS:
+      printf("(+), ");
+      break;
+    case TK_MINUS:
+      printf("(+), ");
       break;
     case TK_NUMBER:
       printf("num(%d), ", t->number);

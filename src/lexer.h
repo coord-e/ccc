@@ -1,16 +1,13 @@
 #ifndef CCC_TOKEN_H
 #define CCC_TOKEN_H
 
+#include "binop.h"
+
 typedef enum {
   TK_BINOP,   // binary operators
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens
 } TokenKind;
-
-typedef enum {
-  BINOP_PLUS,
-  BINOP_MINUS,
-} BinopKind;
 
 typedef struct Token Token;
 

@@ -1,11 +1,11 @@
 #ifndef CCC_PARSER_H
 #define CCC_PARSER_H
 
+#include "lexer.h"
+#include "binop.h"
+
 typedef enum {
-  ND_ADD,
-  ND_SUB,
-  ND_MUL,
-  ND_DIV,
+  ND_BINOP,
   ND_NUM,
 } NodeKind;
 
@@ -16,7 +16,8 @@ struct Node {
   NodeKind kind;
   Node *lhs;
   Node *rhs;
-  int num;  // for ND_NUM
+  BinopKind binop;  // for ND_BINOP
+  int num;          // for ND_NUM
 };
 
 // parse a list of tokens into AST.

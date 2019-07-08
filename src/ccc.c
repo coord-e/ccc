@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "lexer.h"
+#include "parser.h"
 #include "error.h"
 
 int main(int argc, char **argv) {
@@ -14,7 +15,10 @@ int main(int argc, char **argv) {
   Token* tokens = tokenize(input);
   print_tokens(tokens);
 
-  error("parser is not implemented yet");
+  Node* tree = parse(tokens);
+  print_tree(tree);
+
+  error("codegen is not implemented yet");
 
   return 0;
 }

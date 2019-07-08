@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "parser.h"
 #include "error.h"
@@ -93,4 +94,38 @@ Node* expr(Token** t) {
 // currently this parses expressions
 Node* parse(Token* t) {
   return expr(&t);
+}
+
+void print_binop(BinopKind kind) {
+  switch(kind) {
+    case BINOP_ADD:
+      printf("+");
+      return;
+    case BINOP_SUB:
+      printf("-");
+      return;
+    case BINOP_MUL:
+      printf("*");
+      return;
+    case BINOP_DIV:
+      printf("/");
+      return;
+  }
+}
+
+void print_tree(Node* node) {
+  switch(node->kind) {
+    case ND_NUM:
+      printf("%d", node->num);
+      return;
+    case ND_BINOP:
+      printf("(");
+      print_binop(node->binop);
+      printf(" ");
+      print_tree(node->lhs);
+      printf(" ");
+      print_tree(node->rhs);
+      printf(")");
+      return;
+  }
 }

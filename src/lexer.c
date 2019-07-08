@@ -43,6 +43,22 @@ Token* tokenize(char* p) {
         cur = new_token(TK_MINUS, cur);
         p++;
         continue;
+      case '*':
+        cur = new_token(TK_STAR, cur);
+        p++;
+        continue;
+      case '/':
+        cur = new_token(TK_SLASH, cur);
+        p++;
+        continue;
+      case '(':
+        cur = new_token(TK_LPAREN, cur);
+        p++;
+        continue;
+      case ')':
+        cur = new_token(TK_RPAREN, cur);
+        p++;
+        continue;
       default:
         if (isdigit(*p)) {
           // call of `new_number` updates p

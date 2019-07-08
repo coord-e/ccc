@@ -4,6 +4,10 @@
 typedef enum {
   TK_PLUS,
   TK_MINUS,
+  TK_STAR,
+  TK_SLASH,
+  TK_LPAREN,
+  TK_RPAREN,
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens
 } TokenKind;

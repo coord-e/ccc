@@ -86,7 +86,7 @@ void print_tokens(Token* t) {
       printf("num(%d), ", t->number);
       break;
     case TK_END:
-      printf("end");
+      printf("end\n");
       return;
   }
   print_tokens(t->next);

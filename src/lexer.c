@@ -74,34 +74,34 @@ Token* tokenize(char* p) {
   return head.next;
 }
 
-void print_tokens(Token* t) {
+void print_tokens(FILE* p, Token* t) {
   switch(t->kind) {
     case TK_PLUS:
-      printf("(+), ");
+      fprintf(p, "(+), ");
       break;
     case TK_MINUS:
-      printf("(-), ");
+      fprintf(p, "(-), ");
       break;
     case TK_STAR:
-      printf("(*), ");
+      fprintf(p, "(*), ");
       break;
     case TK_SLASH:
-      printf("(/), ");
+      fprintf(p, "(/), ");
       break;
     case TK_LPAREN:
-      printf("((), ");
+      fprintf(p, "((), ");
       break;
     case TK_RPAREN:
-      printf("()), ");
+      fprintf(p, "()), ");
       break;
     case TK_NUMBER:
-      printf("num(%d), ", t->number);
+      fprintf(p, "num(%d), ", t->number);
       break;
     case TK_END:
-      printf("end\n");
+      fprintf(p, "end\n");
       return;
     default:
       CCC_UNREACHABLE;
   }
-  print_tokens(t->next);
+  print_tokens(p, t->next);
 }

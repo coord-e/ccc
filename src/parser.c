@@ -106,45 +106,45 @@ Node* parse(Token* t) {
   return expr(&t);
 }
 
-void print_binop(BinopKind kind) {
+void print_binop(FILE* p, BinopKind kind) {
   switch(kind) {
     case BINOP_ADD:
-      printf("+");
+      fprintf(p, "+");
       return;
     case BINOP_SUB:
-      printf("-");
+      fprintf(p, "-");
       return;
     case BINOP_MUL:
-      printf("*");
+      fprintf(p, "*");
       return;
     case BINOP_DIV:
-      printf("/");
+      fprintf(p, "/");
       return;
     default:
       CCC_UNREACHABLE;
   }
 }
 
-void print_tree_(Node* node) {
+void print_tree_(FILE* p, Node* node) {
   switch(node->kind) {
     case ND_NUM:
-      printf("%d", node->num);
+      fprintf(p, "%d", node->num);
       return;
     case ND_BINOP:
-      printf("(");
-      print_binop(node->binop);
-      printf(" ");
-      print_tree_(node->lhs);
-      printf(" ");
-      print_tree_(node->rhs);
-      printf(")");
+      fprintf(p, "(");
+      print_binop(p, node->binop);
+      fprintf(p, " ");
+      print_tree_(p, node->lhs);
+      fprintf(p, " ");
+      print_tree_(p, node->rhs);
+      fprintf(p, ")");
       return;
     default:
       CCC_UNREACHABLE;
   }
 }
 
-void print_tree(Node* node) {
-  print_tree_(node);
-  printf("\n");
+void print_tree(FILE* p, Node* node) {
+  print_tree_(p, node);
+  fprintf(p, "\n");
 }

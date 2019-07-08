@@ -1,6 +1,8 @@
 #ifndef CCC_PARSER_H
 #define CCC_PARSER_H
 
+#include <stdio.h>
+
 #include "lexer.h"
 #include "binop.h"
 
@@ -24,6 +26,6 @@ struct Node {
 Node* parse(Token* tokens);
 
 // print a AST for debugging purpose
-void print_tree(Node* tree);
+void print_tree(FILE*, Node* tree);
 
 #endif

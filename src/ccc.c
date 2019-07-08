@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
   char* input = argv[1];
   Token* tokens = tokenize(input);
   Node* tree = parse(tokens);
-  codegen(tree);
+  codegen(stdout, tree);
 
   return 0;
 }

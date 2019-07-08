@@ -5,66 +5,66 @@
 #include "codegen.h"
 #include "error.h"
 
-void emit_label(char *fmt, ...) {
+void emit_label(FILE* p, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  vfprintf(stdout, fmt, ap);
-  fprintf(stdout, ":\n");
+  vfprintf(p, fmt, ap);
+  fprintf(p, ":\n");
 }
 
-void emit(char *fmt, ...) {
+void emit(FILE* p, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  fprintf(stdout, "  ");
-  vfprintf(stdout, fmt, ap);
-  fprintf(stdout, "\n");
+  fprintf(p, "  ");
+  vfprintf(p, fmt, ap);
+  fprintf(p, "\n");
 }
 
-void codegen_expr(Node* node);
+void codegen_expr(FILE*, Node* node);
 
-void codegen_binop(Node* node) {
-  codegen_expr(node->lhs);
-  codegen_expr(node->rhs);
-  emit("pop rdi");
-  emit("pop rax");
+void codegen_binop(FILE* p, Node* node) {
+  codegen_expr(p, node->lhs);
+  codegen_expr(p, node->rhs);
+  emit(p, "pop rdi");
+  emit(p, "pop rax");
   switch(node->binop) {
     case BINOP_ADD:
-      emit("add rax, rdi");
+      emit(p, "add rax, rdi");
       break;
     case BINOP_SUB:
-      emit("sub rax, rdi");
+      emit(p, "sub rax, rdi");
       break;
     case BINOP_MUL:
-      emit("imul rax, rdi");
+      emit(p, "imul rax, rdi");
       break;
     case BINOP_DIV:
-      emit("cqo");
-      emit("idiv rdi");
+      emit(p, "cqo");
+      emit(p, "idiv rdi");
       break;
     default:
       CCC_UNREACHABLE;
   }
-  emit("push rax");
+  emit(p, "push rax");
 }
 
-void codegen_expr(Node* node) {
+void codegen_expr(FILE* p, Node* node) {
   switch(node->kind) {
     case ND_NUM:
-      emit("push %d", node->num);
+      emit(p, "push %d", node->num);
       return;
     case ND_BINOP:
-      codegen_binop(node);
+      codegen_binop(p, node);
       return;
     default:
       CCC_UNREACHABLE;
   }
 }
 
-void codegen(Node* node) {
-  emit(".intel_syntax noprefix");
-  emit(".global main");
-  emit_label("main");
-  codegen_expr(node);
-  emit("pop rax");
-  emit("ret");
+void codegen(FILE* p, Node* node) {
+  emit(p, ".intel_syntax noprefix");
+  emit(p, ".global main");
+  emit_label(p, "main");
+  codegen_expr(p, node);
+  emit(p, "pop rax");
+  emit(p, "ret");
 }

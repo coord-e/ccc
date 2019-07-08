@@ -1,6 +1,8 @@
 #ifndef CCC_TOKEN_H
 #define CCC_TOKEN_H
 
+#include <stdio.h>
+
 typedef enum {
   TK_PLUS,
   TK_MINUS,
@@ -24,6 +26,6 @@ struct Token {
 Token* tokenize(char* input);
 
 // print a list of tokens returned from `tokenize` for debugging purpose.
-void print_tokens(Token* tokens);
+void print_tokens(FILE*, Token* tokens);
 
 #endif

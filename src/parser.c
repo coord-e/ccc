@@ -1,4 +1,8 @@
+#include <stdlib.h>
+#include <stddef.h>
+
 #include "parser.h"
+#include "error.h"
 
 // utilities to build AST
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
@@ -22,7 +26,7 @@ Node *new_node_binop(BinopKind kind, Node *lhs, Node *rhs) {
 }
 
 void consume(Token** t) {
-  t = &t->next;
+  t = &(*t)->next;
 }
 
 Token* consuming(Token** t) {
@@ -30,6 +34,8 @@ Token* consuming(Token** t) {
   consume(t);
   return p;
 }
+
+Node* expr(Token** t);
 
 Node* term(Token** t) {
   if (consuming(t)->kind == TK_LPAREN) {
@@ -86,5 +92,5 @@ Node* expr(Token** t) {
 // parse tokens into AST
 // currently this parses expressions
 Node* parse(Token* t) {
-  return expr(t);
+  return expr(&t);
 }

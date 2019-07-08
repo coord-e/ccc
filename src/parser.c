@@ -27,7 +27,7 @@ Node *new_node_binop(BinopKind kind, Node *lhs, Node *rhs) {
 }
 
 void consume(Token** t) {
-  t = &(*t)->next;
+  *t = (*t)->next;
 }
 
 Token* consuming(Token** t) {
@@ -39,9 +39,11 @@ Token* consuming(Token** t) {
 Node* expr(Token** t);
 
 Node* term(Token** t) {
-  if (consuming(t)->kind == TK_LPAREN) {
+  if ((*t)->kind == TK_LPAREN) {
+    consume(t);
     Node* node = expr(t);
-    if (consuming(t)->kind == TK_RPAREN) {
+    if ((*t)->kind == TK_RPAREN) {
+      consume(t);
       return node;
     } else {
       error("unmatched parentheses.");
@@ -59,11 +61,15 @@ Node* mul(Token** t) {
   Node* node = term(t);
 
   for (;;) {
-    switch (consuming(t)->kind) {
+    switch ((*t)->kind) {
     case TK_STAR:
+      consume(t);
       node = new_node_binop(BINOP_MUL, node, term(t));
+      break;
     case TK_SLASH:
+      consume(t);
       node = new_node_binop(BINOP_DIV, node, term(t));
+      break;
     default:
       return node;
     }
@@ -74,11 +80,15 @@ Node* add(Token** t) {
   Node* node = mul(t);
 
   for (;;) {
-    switch (consuming(t)->kind) {
+    switch ((*t)->kind) {
       case TK_PLUS:
+        consume(t);
         node = new_node_binop(BINOP_ADD, node, mul(t));
+        break;
       case TK_MINUS:
+        consume(t);
         node = new_node_binop(BINOP_SUB, node, mul(t));
+        break;
       default:
         return node;
     }

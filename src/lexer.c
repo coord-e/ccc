@@ -72,3 +72,31 @@ Token* tokenize(char* p) {
   end_tokens(cur);
   return head.next;
 }
+
+void print_binop(BinopKind kind) {
+  switch(kind) {
+    case BINOP_PLUS:
+      printf("+");
+      break;
+    case BINOP_MINUS:
+      printf("-");
+      break;
+  }
+}
+
+void print_tokens(Token* t) {
+  switch(t->kind) {
+    case TK_BINOP:
+      printf("bop(");
+      print_binop(t->binop);
+      printf("), ");
+      break;
+    case TK_NUMBER:
+      printf("num(%d), ", t->number);
+      break;
+    case TK_END:
+      printf("end");
+      return;
+  }
+  print_tokens(t->next);
+}

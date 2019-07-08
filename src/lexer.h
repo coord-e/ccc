@@ -21,6 +21,10 @@ struct Token {
   BinopKind binop;  // for TK_BINOP
 };
 
-Token* tokenize(char*);
+// divide `input` into a linked list of `Token`s.
+Token* tokenize(char* input);
+
+// print a list of tokens returned from `tokenize` for debugging purpose.
+void print_tokens(Token* tokens);
 
 #endif

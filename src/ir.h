@@ -37,7 +37,7 @@ typedef struct {
 } IR;
 
 // build IR from ast
-IR* generate_ir(Node* ast);
+IR* generate_IR(Node* ast);
 
 // free the memory space used in IR
 void release_IR(IR*);

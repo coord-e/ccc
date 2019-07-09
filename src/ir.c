@@ -69,7 +69,7 @@ Reg gen_ir(Env* env, Node* node) {
   }
 }
 
-IR* generate_ir(Node* node) {
+IR* generate_IR(Node* node) {
   Env* env = new_env();
 
   Reg r = gen_ir(env, node);

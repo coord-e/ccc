@@ -3,29 +3,31 @@
 #include <ctype.h>
 
 #include "lexer.h"
+#include "list.h"
 #include "error.h"
 
-Token *new_token(TokenKind kind, Token *cur) {
-  Token *tok = calloc(1, sizeof(Token));
-  tok->kind = kind;
-  cur->next = tok;
-  return tok;
+DEFINE_LIST(Token, TokenList)
+
+TokenList* add_token(TokenKind kind, TokenList *cur) {
+  Token t;
+  t.kind = kind;
+  return scons_TokenList(t, cur);
 }
 
-Token* new_number(char** strp, Token *cur) {
-  Token* tok = new_token(TK_NUMBER, cur);
-  tok->number = strtol(*strp, strp, 10);
-  return tok;
+// will seek `strp` to the end of number
+TokenList* add_number(char** strp, TokenList* cur) {
+  TokenList* t = add_token(TK_NUMBER, cur);
+  t->head.number = strtol(*strp, strp, 10);
+  return t;
 }
 
-void end_tokens(Token* cur) {
-  new_token(TK_END, cur);
+void end_tokens(TokenList* cur) {
+  add_token(TK_END, cur);
 }
 
-Token* tokenize(char* p) {
-  Token head;
-  head.next = NULL;
-  Token *cur = &head;
+TokenList* tokenize(char* p) {
+  TokenList* init = nil_TokenList();
+  TokenList* cur = init;
 
   while (*p) {
     if (isspace(*p)) {
@@ -36,33 +38,33 @@ Token* tokenize(char* p) {
 
     switch (*p) {
       case '+':
-        cur = new_token(TK_PLUS, cur);
+        cur = add_token(TK_PLUS, cur);
         p++;
         continue;
       case '-':
-        cur = new_token(TK_MINUS, cur);
+        cur = add_token(TK_MINUS, cur);
         p++;
         continue;
       case '*':
-        cur = new_token(TK_STAR, cur);
+        cur = add_token(TK_STAR, cur);
         p++;
         continue;
       case '/':
-        cur = new_token(TK_SLASH, cur);
+        cur = add_token(TK_SLASH, cur);
         p++;
         continue;
       case '(':
-        cur = new_token(TK_LPAREN, cur);
+        cur = add_token(TK_LPAREN, cur);
         p++;
         continue;
       case ')':
-        cur = new_token(TK_RPAREN, cur);
+        cur = add_token(TK_RPAREN, cur);
         p++;
         continue;
       default:
         if (isdigit(*p)) {
           // call of `new_number` updates p
-          cur = new_number(&p, cur);
+          cur = add_number(&p, cur);
           continue;
         }
     }
@@ -71,11 +73,11 @@ Token* tokenize(char* p) {
   }
 
   end_tokens(cur);
-  return head.next;
+  return init;
 }
 
-void print_tokens(FILE* p, Token* t) {
-  switch(t->kind) {
+void print_token(FILE* p, Token t) {
+  switch(t.kind) {
     case TK_PLUS:
       fprintf(p, "(+), ");
       break;
@@ -95,13 +97,14 @@ void print_tokens(FILE* p, Token* t) {
       fprintf(p, "()), ");
       break;
     case TK_NUMBER:
-      fprintf(p, "num(%d), ", t->number);
+      fprintf(p, "num(%d), ", t.number);
       break;
     case TK_END:
-      fprintf(p, "end\n");
+      fprintf(p, "end");
       return;
     default:
       CCC_UNREACHABLE;
   }
-  print_tokens(p, t->next);
 }
+
+DEFINE_LIST_PRINTER(print_token, TokenList)

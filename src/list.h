@@ -87,8 +87,7 @@
     free(list);                                                                \
   }
 
-#define DECLARE_LIST_PRINTER(print_data, Name)                                 \
-  void print_##Name(FILE *f, Name *l);
+#define DECLARE_LIST_PRINTER(Name) void print_##Name(FILE *f, Name *l);
 
 #define DEFINE_LIST_PRINTER(print_data, Name)                                  \
   void p_print_##Name(FILE *f, Name *l) {                                      \

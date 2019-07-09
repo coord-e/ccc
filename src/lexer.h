@@ -22,10 +22,8 @@ struct Token {
   int number;        // for TK_NUMBER
 };
 
-void print_token(FILE*, Token);
-
 DECLARE_LIST(Token, TokenList)
-DECLARE_LIST_PRINTER(print_token, TokenList)
+DECLARE_LIST_PRINTER(TokenList)
 
 // divide `input` into a linked list of `Token`s.
 TokenList* tokenize(char* input);

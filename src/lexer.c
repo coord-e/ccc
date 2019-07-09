@@ -3,7 +3,11 @@
 #include <ctype.h>
 
 #include "lexer.h"
+#include "list.h"
 #include "error.h"
+
+DEFINE_LIST(Token, TokenList)
+DEFINE_LIST_PRINTER(print_token, TokenList)
 
 TokenList* add_token(TokenKind kind, TokenList *cur) {
   Token t;

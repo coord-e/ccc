@@ -30,27 +30,31 @@ void consume(TokenList** t) {
   *t = tail_TokenList(*t);
 }
 
-TokenList* consuming(TokenList** t) {
+Token consuming(TokenList** t) {
   TokenList* p = *t;
   consume(t);
-  return p;
+  return head_TokenList(p);
+}
+
+TokenKind head_of(TokenList** t) {
+  return head_TokenList(*t).kind;
 }
 
 Node* expr(TokenList** t);
 
 Node* term(TokenList** t) {
-  if (head_TokenList(*t).kind == TK_LPAREN) {
+  if (head_of(t) == TK_LPAREN) {
     consume(t);
     Node* node = expr(t);
-    if (head_TokenList(*t).kind == TK_RPAREN) {
+    if (head_of(t) == TK_RPAREN) {
       consume(t);
       return node;
     } else {
       error("unmatched parentheses.");
     }
   } else {
-    if (head_TokenList(*t).kind == TK_NUMBER) {
-      return new_node_num(head_TokenList(consuming(t)).number);
+    if (head_of(t) == TK_NUMBER) {
+      return new_node_num(consuming(t).number);
     } else {
       error("unexpected token.");
     }
@@ -61,7 +65,7 @@ Node* mul(TokenList** t) {
   Node* node = term(t);
 
   for (;;) {
-    switch (head_TokenList(*t).kind) {
+    switch (head_of(t)) {
     case TK_STAR:
       consume(t);
       node = new_node_binop(BINOP_MUL, node, term(t));
@@ -80,7 +84,7 @@ Node* add(TokenList** t) {
   Node* node = mul(t);
 
   for (;;) {
-    switch (head_TokenList(*t).kind) {
+    switch (head_of(t)) {
       case TK_PLUS:
         consume(t);
         node = new_node_binop(BINOP_ADD, node, mul(t));

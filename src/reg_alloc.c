@@ -12,7 +12,7 @@ typedef struct {
   // alloc_regs
   unsigned num_regs;    // permitted number of registers
   IntVec* used_regs;    // index: real reg, value: virtual reg or zero (not used)
-  IntVec* result;       // index: virtual reg, value: real reg
+  IntVec* result;       // index: virtual reg, value: real reg or -1 (spill)
 } Env;
 
 Env* init_env(unsigned num_regs, unsigned reg_count) {
@@ -89,6 +89,26 @@ bool find_unused(Env* env, int target, int* r) {
   return false;
 }
 
+int select_spill_target(Env* env, int vi) {
+  int candidate = vi;
+  for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
+    // i: virtual register index
+    int last = get_IntVec(env->last_uses, i);
+    int t_def = get_IntVec(env->first_uses, vi);
+    if (last < t_def) {
+      // not active here
+      continue;
+    }
+
+    int c_last = get_IntVec(env->last_uses, candidate);
+    if (c_last < last) {
+      // update if `i`'s last occurrence is after `candidate`'s
+      candidate = i;
+    }
+  }
+  return candidate;
+}
+
 void alloc_regs(Env* env) {
   for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
     // i: virtual register index
@@ -103,7 +123,16 @@ void alloc_regs(Env* env) {
       continue;
     }
 
-    error("spill not implemented!");
+    // spilling
+
+    int t_vi = select_spill_target(env, i);
+    int prev = get_IntVec(env->result, t_vi);
+
+    // mark as spilled
+    set_IntVec(env->result, t_vi, -1);
+
+    set_IntVec(env->result, i, prev);
+    set_IntVec(env->used_regs, prev, i);
   }
 }
 

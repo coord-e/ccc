@@ -23,7 +23,7 @@ struct Node {
 };
 
 // parse a list of tokens into AST.
-Node* parse(Token* tokens);
+Node* parse(TokenList* tokens);
 
 // print a AST for debugging purpose
 void print_tree(FILE*, Node* tree);

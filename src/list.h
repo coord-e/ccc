@@ -14,7 +14,7 @@
   Name *cons_##Name(T value, const Name *list);                                \
   Name *single_##Name(T value);                                                \
   Name *append_##Name(Name *a, const Name *b);                                 \
-  Name *scons_##Name(T value, Name *list);                                     \
+  Name *snoc_##Name(T value, Name *list);                                     \
   T head_##Name(const Name *list);                                             \
   Name *tail_##Name(const Name *list);                                         \
   bool is_nil_##Name(const Name *list);                                        \
@@ -55,7 +55,7 @@
       return append_##Name(a->tail, b);                                        \
     }                                                                          \
   }                                                                            \
-  Name *scons_##Name(T value, Name *list) {                                    \
+  Name *snoc_##Name(T value, Name *list) {                                    \
     return append_##Name(list, single_##Name(value));                          \
   }                                                                            \
   T head_##Name(const Name *list) {                                            \

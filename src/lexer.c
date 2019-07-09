@@ -11,7 +11,7 @@ DEFINE_LIST(Token, TokenList)
 TokenList* add_token(TokenKind kind, TokenList *cur) {
   Token t;
   t.kind = kind;
-  return scons_TokenList(t, cur);
+  return snoc_TokenList(t, cur);
 }
 
 // will seek `strp` to the end of number

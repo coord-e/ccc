@@ -4,12 +4,13 @@
 #include <stdio.h>
 
 #include "lexer.h"
+#include "list.h"
+#include "parser.h"
 #include "binop.h"
 
 typedef enum {
   IR_BIN,
   IR_IMM,
-  IR_MOV,
   IR_RET,
 } IRInstKind;
 
@@ -29,5 +30,8 @@ typedef union IRInst {
 
 DECLARE_LIST(IRInst, IR)
 DECLARE_LIST_PRINTER(IR)
+
+// build IR from ast
+IR* generate_ir(Node* ast);
 
 #endif

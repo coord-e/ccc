@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "codegen.h"
 #include "parser.h"
+#include "ir.h"
 #include "error.h"
 
 int main(int argc, char **argv) {
@@ -13,11 +14,18 @@ int main(int argc, char **argv) {
   }
 
   char* input = argv[1];
+
   TokenList* tokens = tokenize(input);
   print_TokenList(stderr, tokens);
+
   Node* tree = parse(tokens);
   release_TokenList(tokens);
   print_tree(stderr, tree);
+
+  IR* ir = generate_ir(tree);
+  print_IR(stderr, ir);
+  release_IR(ir);
+
   codegen(stdout, tree);
 
   return 0;

@@ -7,7 +7,7 @@
 
 #include "error.h"
 
-#define DECLARE_VECTOR(T, Name)                                                 \
+#define DECLARE_VECTOR(T, Name)                                                \
   typedef struct Name Name;                                                    \
   Name *new_##Name(unsigned capacity);                                         \
   T get_##Name(const Name *, unsigned idx);                                    \
@@ -15,10 +15,12 @@
   void set_##Name(Name *, unsigned idx, T value);                              \
   unsigned length_##Name(const Name *);                                        \
   unsigned capacity_##Name(const Name *);                                      \
+  void resize_##Name(Name *, unsigned size);                                   \
+  void reserve_##Name(Name *, unsigned size);                                  \
   T *data_##Name(Name *);                                                      \
   void release_##Name(Name *);
 
-#define DEFINE_VECTOR(T, Name)                                                  \
+#define DEFINE_VECTOR(T, Name)                                                 \
   struct Name {                                                                \
     T *data;                                                                   \
     unsigned capacity;                                                         \
@@ -39,10 +41,19 @@
     assert(a->length > idx);                                                   \
     a->data[idx] = value;                                                      \
   }                                                                            \
+  void reserve_##Name(Name *v, unsigned size) {                                \
+    v->capacity = size;                                                        \
+    v->data = realloc(v->data, sizeof(T) * size);                              \
+  }                                                                            \
+  void resize_##Name(Name *v, unsigned size) {                                 \
+    if (v->capacity < size) {                                                  \
+      reserve_##Name(v, size);                                                 \
+    }                                                                          \
+    v->length = size;                                                          \
+  }                                                                            \
   void push_##Name(Name *a, T value) {                                         \
     if (a->length == a->capacity) {                                            \
-      a->capacity *= 2;                                                        \
-      a->data = realloc(a->data, sizeof(T) * a->capacity);                     \
+      reserve_##Name(a, a->capacity * 2);                                      \
     }                                                                          \
     a->data[a->length++] = value;                                              \
   }                                                                            \

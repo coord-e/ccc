@@ -3,8 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "error.h"
+#include <assert.h>
 
 #define DECLARE_VECTOR(T, Name)                                                \
   typedef struct Name Name;                                                    \
@@ -76,5 +75,9 @@
     }                                                                          \
     fprintf(f, end);                                                           \
   }
+
+// often used common definitions
+DECLARE_VECTOR(int, IntVec)
+DECLARE_VECTOR_PRINTER(IntVec)
 
 #endif

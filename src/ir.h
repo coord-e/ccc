@@ -29,17 +29,20 @@ typedef struct IRInst {
 } IRInst;
 
 DECLARE_LIST(IRInst, IRInstList)
-DECLARE_LIST_PRINTER(IRInstList)
 
 // IR is a list of `IRInst` ... with some metadata
-typedef struct IR {
+typedef struct {
   IRInstList* insts;
   unsigned reg_count;
-};
+} IR;
 
 // build IR from ast
 IR* generate_ir(Node* ast);
 
+// free the memory space used in IR
 void release_IR(IR*);
+
+// print for debugging purpose
+void print_IR(FILE*, IR*);
 
 #endif

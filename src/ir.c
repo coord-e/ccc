@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "error.h"
 
-DEFINE_LIST(IRInst, IR)
+DEFINE_LIST(IRInst, IRInstList)
 
 typedef struct {
   unsigned reg_count;
@@ -122,3 +122,5 @@ void print_inst(FILE* p, IRInst i) {
 }
 
 DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IRInstList)
+
+void print_IR(FILE* p, IR* ir) { print_IRInstList(p, ir->insts); };

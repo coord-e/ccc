@@ -105,4 +105,8 @@
     }                                                                          \
   }
 
+// often used common definitions
+DECLARE_LIST(int, IntList)
+DECLARE_LIST_PRINTER(IntList)
+
 #endif

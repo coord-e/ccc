@@ -16,7 +16,7 @@
   Name* single_##Name(T value) {                \
     Name* l = malloc(sizeof(Name));             \
     l->head = value;                            \
-    l->next = NULL;                             \
+    l->tail = NULL;                             \
     return l;                                   \
   }                                             \
   Name* cons_##Name(T value, Name* list) {      \

@@ -170,10 +170,15 @@ void rewrite_IR(Env* env, IRInstList* insts) {
   rewrite_IR(env, tail_IRInstList(insts));
 }
 
-void reg_alloc(unsigned num_regs, IR* ir) {
+IR* reg_alloc(unsigned num_regs, IR* ir) {
   Env* env = init_env(num_regs, ir->reg_count);
   collect_last_uses(env, ir->insts);
   alloc_regs(env);
   rewrite_IR(env, ir->insts);
-  print_IRInstList(stdout, env->insts);
+  release_IR(ir);
+
+  IR* new_ir = calloc(1, sizeof(IR));
+  new_ir->reg_count = num_regs;
+  new_ir->insts = env->insts;
+  return new_ir;
 }

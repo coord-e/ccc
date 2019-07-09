@@ -23,12 +23,11 @@ int main(int argc, char **argv) {
   release_TokenList(tokens);
   print_tree(stderr, tree);
 
-  IR* ir = generate_IR(tree);
-  print_IR(stderr, ir);
+  IR* ir1 = generate_IR(tree);
+  IR* ir2 = reg_alloc(5, ir1);
+  print_IR(stderr, ir2);
 
-  reg_alloc(8, ir);
-
-  release_IR(ir);
+  release_IR(ir2);
 
   codegen(stdout, tree);
 

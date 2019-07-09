@@ -2,6 +2,7 @@
 #define CCC_TOKEN_H
 
 #include <stdio.h>
+#include "list.h"
 
 typedef enum {
   TK_PLUS,
@@ -18,14 +19,15 @@ typedef struct Token Token;
 
 struct Token {
   TokenKind kind;
-  Token *next;
   int number;        // for TK_NUMBER
 };
 
-// divide `input` into a linked list of `Token`s.
-Token* tokenize(char* input);
+void print_token(FILE*, Token);
 
-// print a list of tokens returned from `tokenize` for debugging purpose.
-void print_tokens(FILE*, Token* tokens);
+DEFINE_LIST(Token, TokenList)
+DEFINE_LIST_PRINTER(print_token, TokenList)
+
+// divide `input` into a linked list of `Token`s.
+TokenList* tokenize(char* input);
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef CCC_LIST_H
 #define CCC_LIST_H
 
+#include <stdio.h>
+
 // a simple linked list
 #define DEFINE_LIST(T, Name)                    \
   typedef struct Name Name;                     \
@@ -25,3 +27,16 @@
   void append_##Name(T value, Name* list) {     \
     list->tail = single_##Name(value);          \
   }
+
+#define DEFINE_LIST_PRINTER(print_data, Name)                          \
+  void p_print_##Name(FILE* f, Name* l) {                         \
+    print_data(f, l->head);                                       \
+    if (l->tail == NULL) {                                        \
+      return;                                                     \
+    } else {                                                      \
+      p_print_##Name(l->tail);                                    \
+    }                                                             \
+  }                                                               \
+  void print_##Name(FILE* f, Name* l) { p_print_##Name(f, l); fprintf(f, "\n"); }
+
+#endif

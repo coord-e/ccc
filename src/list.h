@@ -11,14 +11,14 @@
   typedef struct Name Name;                                                    \
   Name *init_##Name();                                                         \
   Name *nil_##Name();                                                          \
-  Name *cons_##Name(T value, Name *list);                                      \
+  Name *cons_##Name(T value, const Name *list);                                \
   Name *single_##Name(T value);                                                \
-  Name *append_##Name(Name *a, Name *b);                                       \
+  Name *append_##Name(Name *a, const Name *b);                                 \
   Name *scons_##Name(T value, Name *list);                                     \
-  T head_##Name(Name *list);                                                   \
-  Name *tail_##Name(Name *list);                                               \
-  bool is_nil_##Name(Name *list);                                              \
-  unsigned length_##Name(Name *list);                                          \
+  T head_##Name(const Name *list);                                             \
+  Name *tail_##Name(const Name *list);                                         \
+  bool is_nil_##Name(const Name *list);                                        \
+  unsigned length_##Name(const Name *list);                                    \
   void release_##Name(Name *list);
 
 #define DEFINE_LIST(T, Name)                                                   \
@@ -39,15 +39,15 @@
     l->tail = NULL;                                                            \
     return l;                                                                  \
   }                                                                            \
-  Name *cons_##Name(T value, Name *list) {                                     \
+  Name *cons_##Name(T value, const Name *list) {                               \
     Name *l = init_##Name(value);                                              \
     l->is_nil = false;                                                         \
     l->head = value;                                                           \
-    l->tail = list;                                                            \
+    l->tail = (Name *)list;                                                    \
     return l;                                                                  \
   }                                                                            \
   Name *single_##Name(T value) { return cons_##Name(value, nil_##Name()); }    \
-  Name *append_##Name(Name *a, Name *b) {                                      \
+  Name *append_##Name(Name *a, const Name *b) {                                \
     if (a->is_nil) {                                                           \
       *a = *b;                                                                 \
       return a;                                                                \
@@ -58,22 +58,22 @@
   Name *scons_##Name(T value, Name *list) {                                    \
     return append_##Name(list, single_##Name(value));                          \
   }                                                                            \
-  T head_##Name(Name *list) {                                                  \
+  T head_##Name(const Name *list) {                                            \
     if (list->is_nil) {                                                        \
       error("head");                                                           \
     } else {                                                                   \
       return list->head;                                                       \
     }                                                                          \
   }                                                                            \
-  Name *tail_##Name(Name *list) {                                              \
+  Name *tail_##Name(const Name *list) {                                        \
     if (list->is_nil) {                                                        \
       error("tail");                                                           \
     } else {                                                                   \
       return list->tail;                                                       \
     }                                                                          \
   }                                                                            \
-  bool is_nil_##Name(Name *list) { return list->is_nil; }                      \
-  unsigned length_##Name(Name *list) {                                         \
+  bool is_nil_##Name(const Name *list) { return list->is_nil; }                \
+  unsigned length_##Name(const Name *list) {                                   \
     if (list->is_nil) {                                                        \
       return 0;                                                                \
     } else {                                                                   \

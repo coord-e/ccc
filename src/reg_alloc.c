@@ -15,7 +15,10 @@ Env* init_env(unsigned reg_count) {
 }
 
 void set_as_used(Env* env, Reg r) {
-  set_IntVec(env->last_uses, r.virtual, env->inst_count);
+  // zero -> unused
+  if (r.virtual != 0) {
+    set_IntVec(env->last_uses, r.virtual - 1, env->inst_count);
+  }
 }
 
 void collect_last_uses(Env* env, IRInstList* insts) {

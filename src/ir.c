@@ -20,7 +20,9 @@ Env* new_env() {
 
 Reg new_reg(Env* env) {
   unsigned i = env->reg_count++;
-  Reg r = { .virtual = i, .real = -1 };
+  // zero denotes unused here (=zero-initialized)
+  // TODO: Use better representation of unused
+  Reg r = { .virtual = (i + 1), .real = 0 };
   return r;
 }
 

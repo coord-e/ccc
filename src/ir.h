@@ -15,8 +15,8 @@ typedef enum {
 } IRInstKind;
 
 typedef struct Reg {
-  int virtual;
-  int real;
+  unsigned virtual;
+  unsigned real;
 } Reg;
 
 typedef struct IRInst {

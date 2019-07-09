@@ -4,6 +4,7 @@
 #include "lexer.h"
 #include "codegen.h"
 #include "parser.h"
+#include "reg_alloc.h"
 #include "ir.h"
 #include "error.h"
 
@@ -24,6 +25,9 @@ int main(int argc, char **argv) {
 
   IR* ir = generate_ir(tree);
   print_IR(stderr, ir);
+
+  reg_alloc(8, ir);
+
   release_IR(ir);
 
   codegen(stdout, tree);

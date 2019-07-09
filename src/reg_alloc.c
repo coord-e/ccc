@@ -90,7 +90,7 @@ bool find_unused(Env* env, int target, int* r) {
       }
     }
 
-    *r = vi;
+    *r = i;
     return true;
   }
   return false;

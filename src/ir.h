@@ -28,10 +28,18 @@ typedef struct IRInst {
   Reg ra; // argument register
 } IRInst;
 
-DECLARE_LIST(IRInst, IR)
-DECLARE_LIST_PRINTER(IR)
+DECLARE_LIST(IRInst, IRInstList)
+DECLARE_LIST_PRINTER(IRInstList)
+
+// IR is a list of `IRInst` ... with some metadata
+typedef struct IR {
+  IRInstList* insts;
+  unsigned reg_count;
+};
 
 // build IR from ast
 IR* generate_ir(Node* ast);
+
+void release_IR(IR*);
 
 #endif

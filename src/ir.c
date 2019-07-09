@@ -5,29 +5,21 @@
 DEFINE_LIST(IRInst, IR)
 
 typedef struct {
-  int reg_count;
-  IR* ir;
-  IR* ir_cursor;
+  unsigned reg_count;
+  IRInstList* insts;
+  IRInstList* cursor;
 } Env;
 
 Env* new_env() {
   Env* env = calloc(1, sizeof(Env));
   env->reg_count = 0;
-  env->ir = nil_IR();
-  env->ir_cursor = env->ir;
+  env->insts = nil_IRInstList();
+  env->cursor = env->cursor;
   return env;
 }
 
-// release `Env`, but not containing `ir`
-// extract `ir` and return it
-IR* release_env(Env* env) {
-  IR* out = env->ir;
-  free(env);
-  return out;
-}
-
 Reg new_reg(Env* env) {
-  int i = env->reg_count++;
+  unsigned i = env->reg_count++;
   Reg r = { .virtual = i, .real = -1 };
   return r;
 }
@@ -35,7 +27,7 @@ Reg new_reg(Env* env) {
 // TODO: Consider eliminating copies of `IRInst`
 
 void add_inst(Env *env, IRInst inst) {
-  env->ir_cursor = snoc_IR(inst, env->ir_cursor);
+  env->cursor = snoc_IRInstList(inst, env->cursor);
 }
 
 Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
@@ -77,10 +69,24 @@ Reg gen_ir(Env* env, Node* node) {
 
 IR* generate_ir(Node* node) {
   Env* env = new_env();
+
   Reg r = gen_ir(env, node);
   IRInst ret = { .kind = IR_RET, .ra = r };
   add_inst(env, ret);
-  return release_env(env);
+
+  IRInstList* insts = env->insts;
+  unsigned reg_count = env->reg_count;
+  free(env);
+
+  IR* ir = calloc(1, sizeof(IR));
+  ir->insts = insts;
+  ir->reg_count = reg_count;
+  return ir;
+}
+
+void release_IR(IR* ir) {
+  release_IRInstList(ir->insts);
+  free(ir);
 }
 
 void print_reg(FILE* p, Reg r) {
@@ -115,4 +121,4 @@ void print_inst(FILE* p, IRInst i) {
   }
 }
 
-DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IR)
+DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IRInstList)

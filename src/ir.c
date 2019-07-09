@@ -92,7 +92,7 @@ void release_IR(IR* ir) {
 }
 
 void print_reg(FILE* p, Reg r) {
-  if (r.virtual == -1) {
+  if (r.virtual == 0) {
     fprintf(p, "r%d", r.real);
   } else {
     fprintf(p, "v%d", r.virtual);

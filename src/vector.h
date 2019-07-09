@@ -1,9 +1,9 @@
 #ifndef CCC_VECTOR_H
 #define CCC_VECTOR_H
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #define DECLARE_VECTOR(T, Name)                                                \
   typedef struct Name Name;                                                    \

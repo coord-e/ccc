@@ -3,6 +3,6 @@
 
 #include "ir.h"
 
-IR* reg_alloc(int num_regs, IR* ir);
+void reg_alloc(unsigned num_regs, IR* ir);
 
 #endif

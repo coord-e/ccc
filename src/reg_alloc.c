@@ -14,26 +14,26 @@ Env* init_env(unsigned reg_count) {
   return e;
 }
 
-void add_use(Env* env, Reg r) {
+void set_as_used(Env* env, Reg r) {
   set_IntVec(env->last_uses, r.virtual, env->inst_count);
 }
 
-void last_use(Env* env, IRInstList* insts) {
+void collect_last_uses(Env* env, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
     return;
   }
 
   IRInst i = head_IRInstList(insts);
-  add_use(env, i.rd);
-  add_use(env, i.ra);
+  set_as_used(env, i.rd);
+  set_as_used(env, i.ra);
 
   env->inst_count++;
 
-  last_use(env, tail_IRInstList(insts));
+  collect_last_uses(env, tail_IRInstList(insts));
 }
 
 IR* reg_alloc(int num_regs, IR* ir) {
   Env* env = init_env(ir->reg_count);
-  last_use(env, ir->insts);
+  collect_last_uses(env, ir->insts);
   return ir;
 }

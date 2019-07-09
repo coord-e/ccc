@@ -11,7 +11,7 @@ typedef struct {
   IntVec* first_uses;   // index: virtual reg, value: ic or -1 (not appeared yet)
   // alloc_regs
   unsigned num_regs;    // permitted number of registers
-  IntVec* used_regs;    // index: real reg, value: virtual reg or zero (not used)
+  IntVec* used_regs;    // index: real reg, value: virtual reg or -1 (not used)
   IntVec* result;       // index: virtual reg, value: real reg or -1 (spill)
   // rewrite_IR
   IRInstList* insts;    // a list of newly created instructions
@@ -30,6 +30,7 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
   e->num_regs = num_regs;
   e->used_regs = new_IntVec(reg_count);
   resize_IntVec(e->used_regs, reg_count);
+  fill_IntVec(e->used_regs, -1);
   e->result = new_IntVec(reg_count);
   resize_IntVec(e->result, reg_count);
 
@@ -77,9 +78,9 @@ bool find_unused(Env* env, int target, int* r) {
     // iterating over usable registers
     // i: real reg index
 
-    // zero -> unused
+    // -1 -> unused
     int vi = get_IntVec(env->used_regs, i);
-    if (vi != 0) {
+    if (vi != -1) {
       // already allocated
       int last = get_IntVec(env->last_uses, vi);
       int t_def = get_IntVec(env->first_uses, target);

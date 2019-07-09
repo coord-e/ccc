@@ -24,17 +24,15 @@
     l->tail = NULL;                                                            \
     return l;                                                                  \
   }                                                                            \
-  static Name *single_##Name(T value) {                                        \
-    Name *l = init_##Name();                                                   \
-    l->is_nil = false;                                                         \
-    l->tail = nil_##Name();                                                    \
-    l->head = value;                                                           \
-    return l;                                                                  \
-  }                                                                            \
   static Name *cons_##Name(T value, Name *list) {                              \
-    Name *l = single_##Name(value);                                            \
+    Name *l = init_##Name(value);                                              \
+    l->is_nil = false;                                                         \
+    l->head = value;                                                           \
     l->tail = list;                                                            \
     return l;                                                                  \
+  }                                                                            \
+  static Name *single_##Name(T value) {                                        \
+    return cons_##Name(value, nil_##Name());                                   \
   }                                                                            \
   static Name *append_##Name(T value, Name *list) {                            \
     if (list->is_nil) {                                                        \

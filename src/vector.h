@@ -11,6 +11,7 @@
   T get_##Name(const Name *, unsigned idx);                                    \
   void push_##Name(Name *, T value);                                           \
   void set_##Name(Name *, unsigned idx, T value);                              \
+  void fill_##Name(Name *, T value);                                           \
   unsigned length_##Name(const Name *);                                        \
   unsigned capacity_##Name(const Name *);                                      \
   void resize_##Name(Name *, unsigned size);                                   \
@@ -38,6 +39,11 @@
   void set_##Name(Name *a, unsigned idx, T value) {                            \
     assert(a->length > idx);                                                   \
     a->data[idx] = value;                                                      \
+  }                                                                            \
+  void fill_##Name(Name *a, T value) {                                         \
+    for (unsigned i = 0; i < a->length; i++) {                                 \
+      a->data[i] = value;                                                      \
+    }                                                                          \
   }                                                                            \
   void reserve_##Name(Name *v, unsigned size) {                                \
     v->capacity = size;                                                        \

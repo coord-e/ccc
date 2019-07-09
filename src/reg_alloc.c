@@ -93,12 +93,12 @@ void alloc_regs(Env* env) {
   for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
     // i: virtual register index
 
-    int rn;
-    if(find_unused(env, i, &rn)) {
+    int ri;
+    if(find_unused(env, i, &ri)) {
       // store the mapping from virtual reg to real reg
-      set_IntVec(env->result, i, rn);
+      set_IntVec(env->result, i, ri);
       // mark as used
-      set_IntVec(env->used_regs, rn, i);
+      set_IntVec(env->used_regs, ri, i);
 
       continue;
     }

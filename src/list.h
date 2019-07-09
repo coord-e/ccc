@@ -9,7 +9,7 @@
   struct Name {                                 \
     T head;                                     \
     Name* tail;                                 \
-  }                                             \
+  };                                            \
   Name* init_##Name() {                         \
     return NULL;                                \
   }                                             \
@@ -38,7 +38,7 @@
     if (l->tail == NULL) {                                        \
       return;                                                     \
     } else {                                                      \
-      p_print_##Name(l->tail);                                    \
+      p_print_##Name(f, l->tail);                                 \
     }                                                             \
   }                                                               \
   void print_##Name(FILE* f, Name* l) { p_print_##Name(f, l); fprintf(f, "\n"); }

@@ -14,7 +14,7 @@ Env* new_env() {
   Env* env = calloc(1, sizeof(Env));
   env->reg_count = 0;
   env->insts = nil_IRInstList();
-  env->cursor = env->cursor;
+  env->cursor = env->insts;
   return env;
 }
 

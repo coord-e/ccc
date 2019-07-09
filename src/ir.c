@@ -94,7 +94,9 @@ void print_reg(FILE* p, Reg r) {
 void print_inst(FILE* p, IRInst i) {
   switch(i.kind) {
     case IR_IMM:
-      fprintf(p, "IMM %d", i.imm);
+      fprintf(p, "IMM ");
+      print_reg(p, i.rd);
+      fprintf(p, " <- %d", i.imm);
       break;
     case IR_RET:
       fprintf(p, "RET ");

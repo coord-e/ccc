@@ -8,7 +8,7 @@
 TokenList* add_token(TokenKind kind, TokenList *cur) {
   Token t;
   t.kind = kind;
-  return cons_TokenList(t, cur);
+  return append_TokenList(t, cur);
 }
 
 // will seek `strp` to the end of number
@@ -18,12 +18,13 @@ TokenList* add_number(char** strp, TokenList* cur) {
   return t;
 }
 
-TokenList* end_tokens(TokenList* cur) {
-  return add_token(TK_END, cur);
+void end_tokens(TokenList* cur) {
+  add_token(TK_END, cur);
 }
 
 TokenList* tokenize(char* p) {
-  TokenList* cur = init_TokenList();
+  TokenList* init = init_TokenList();
+  TokenList* cur = init;
 
   while (*p) {
     if (isspace(*p)) {
@@ -68,8 +69,8 @@ TokenList* tokenize(char* p) {
     error("Unexpected charcter: %c", *p);
   }
 
-  cur = end_tokens(cur);
-  return cur;
+  end_tokens(cur);
+  return init;
 }
 
 void print_token(FILE* p, Token t) {

@@ -24,11 +24,13 @@
     l->tail = list;                             \
     return l;                                   \
   }                                             \
-  void append_##Name(T value, Name* list) {     \
+  Name* append_##Name(T value, Name* list) {    \
     if(list->tail == NULL) {                    \
-      list->tail = single_##Name(value);        \
+      Name* l = single_##Name(value);           \
+      list->tail = l;                           \
+      return l;                                 \
     } else {                                    \
-      append_##Name(value, list->tail);         \
+      return append_##Name(value, list->tail);  \
     }                                           \
   }
 

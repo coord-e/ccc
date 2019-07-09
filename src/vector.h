@@ -1,7 +1,6 @@
 #ifndef CCC_VECTOR_H
 #define CCC_VECTOR_H
 
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -63,6 +62,19 @@
   void release_##Name(Name *a) {                                               \
     free(a->data);                                                             \
     free(a);                                                                   \
+  }
+
+#define DECLARE_VECTOR_PRINTER(Name) void print_##Name(FILE *f, Name *v);
+
+#define DEFINE_VECTOR_PRINTER(print_data, sep, end, Name)                      \
+  void print_##Name(FILE *f, Name *v) {                                        \
+    for (unsigned i = 0; i < v->length; i++) {                                 \
+      if (i != 0) {                                                            \
+        fprintf(f, sep);                                                       \
+      }                                                                        \
+      print_data(f, v->data[i]);                                               \
+    }                                                                          \
+    fprintf(f, end);                                                           \
   }
 
 #endif

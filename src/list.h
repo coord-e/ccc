@@ -17,6 +17,8 @@
   Name *scons_##Name(T value, Name *list);                                     \
   T head_##Name(Name *list);                                                   \
   Name *tail_##Name(Name *list);                                               \
+  bool is_nil_##Name(Name *list);                                              \
+  unsigned length_##Name(Name *list);                                          \
   void release_##Name(Name *list);
 
 #define DEFINE_LIST(T, Name)                                                   \
@@ -68,6 +70,14 @@
       error("tail");                                                           \
     } else {                                                                   \
       return list->tail;                                                       \
+    }                                                                          \
+  }                                                                            \
+  bool is_nil_##Name(Name *list) { return list->is_nil; }                      \
+  unsigned length_##Name(Name *list) {                                         \
+    if (list->is_nil) {                                                        \
+      return 0;                                                                \
+    } else {                                                                   \
+      return 1 + length_##Name(list->tail);                                    \
     }                                                                          \
   }                                                                            \
   void release_##Name(Name *list) {                                            \

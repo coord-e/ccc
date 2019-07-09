@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
   TokenList* tokens = tokenize(input);
   print_TokenList(stderr, tokens);
   Node* tree = parse(tokens);
+  release_TokenList(tokens);
   print_tree(stderr, tree);
   codegen(stdout, tree);
 

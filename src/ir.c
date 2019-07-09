@@ -36,4 +36,4 @@ void print_inst(FILE* p, IRInst i) {
   }
 }
 
-DEFINE_LIST_PRINTER(print_inst, IR)
+DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IR)

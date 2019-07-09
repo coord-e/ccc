@@ -79,25 +79,25 @@ TokenList* tokenize(char* p) {
 void print_token(FILE* p, Token t) {
   switch(t.kind) {
     case TK_PLUS:
-      fprintf(p, "(+), ");
+      fprintf(p, "(+)");
       break;
     case TK_MINUS:
-      fprintf(p, "(-), ");
+      fprintf(p, "(-)");
       break;
     case TK_STAR:
-      fprintf(p, "(*), ");
+      fprintf(p, "(*)");
       break;
     case TK_SLASH:
-      fprintf(p, "(/), ");
+      fprintf(p, "(/)");
       break;
     case TK_LPAREN:
-      fprintf(p, "((), ");
+      fprintf(p, "(()");
       break;
     case TK_RPAREN:
-      fprintf(p, "()), ");
+      fprintf(p, "())");
       break;
     case TK_NUMBER:
-      fprintf(p, "num(%d), ", t.number);
+      fprintf(p, "num(%d)", t.number);
       break;
     case TK_END:
       fprintf(p, "end");
@@ -107,4 +107,4 @@ void print_token(FILE* p, Token t) {
   }
 }
 
-DEFINE_LIST_PRINTER(print_token, TokenList)
+DEFINE_LIST_PRINTER(print_token, ", ", "\n", TokenList)

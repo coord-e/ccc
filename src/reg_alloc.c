@@ -13,6 +13,9 @@ typedef struct {
   unsigned num_regs;    // permitted number of registers
   IntVec* used_regs;    // index: real reg, value: virtual reg or zero (not used)
   IntVec* result;       // index: virtual reg, value: real reg or -1 (spill)
+  // rewrite_IR
+  IRInstList* insts;    // a list of newly created instructions
+  IRInstList* cursor;   // pointer to current head of the list
 } Env;
 
 Env* init_env(unsigned num_regs, unsigned reg_count) {
@@ -29,6 +32,9 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
   resize_IntVec(e->used_regs, reg_count);
   e->result = new_IntVec(reg_count);
   resize_IntVec(e->result, reg_count);
+
+  e->insts = nil_IRInstList();
+  e->cursor = e->insts;
   return e;
 }
 
@@ -136,9 +142,37 @@ void alloc_regs(Env* env) {
   }
 }
 
+void append_inst(Env* env, IRInst i) {
+  env->cursor = snoc_IRInstList(i, env->cursor);
+}
+
+Reg update_reg(Env* env, Reg r) {
+  if(r.virtual == 0) {
+    // zero -> unused
+    return r;
+  }
+  r.real = get_IntVec(env->result, r.virtual - 1);
+  r.virtual = 0;
+  return r;
+}
+
+void rewrite_IR(Env* env, IRInstList* insts) {
+  if(is_nil_IRInstList(insts)) {
+    return;
+  }
+
+  IRInst i = head_IRInstList(insts);
+  i.rd = update_reg(env, i.rd);
+  i.ra = update_reg(env, i.ra);
+  append_inst(env, i);
+
+  rewrite_IR(env, tail_IRInstList(insts));
+}
+
 void reg_alloc(unsigned num_regs, IR* ir) {
   Env* env = init_env(num_regs, ir->reg_count);
   collect_last_uses(env, ir->insts);
-  env->inst_count = 0;
   alloc_regs(env);
+  rewrite_IR(env, ir->insts);
+  print_IRInstList(stdout, env->insts);
 }

@@ -25,7 +25,11 @@
     return l;                                   \
   }                                             \
   void append_##Name(T value, Name* list) {     \
-    list->tail = single_##Name(value);          \
+    if(list->tail == NULL) {                    \
+      list->tail = single_##Name(value);        \
+    } else {                                    \
+      append_##Name(value, list->tail);         \
+    }                                           \
   }
 
 #define DEFINE_LIST_PRINTER(print_data, Name)                          \

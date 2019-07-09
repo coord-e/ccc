@@ -23,7 +23,7 @@ void end_tokens(TokenList* cur) {
 }
 
 TokenList* tokenize(char* p) {
-  TokenList* init = init_TokenList();
+  TokenList* init = nil_TokenList();
   TokenList* cur = init;
 
   while (*p) {

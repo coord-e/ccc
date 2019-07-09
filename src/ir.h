@@ -19,7 +19,7 @@ typedef struct Reg {
   int real;
 } Reg;
 
-typedef union IRInst {
+typedef struct IRInst {
   IRInstKind kind;
   BinopKind binop;    // for ND_BIN
   int imm;            // for ND_IMM

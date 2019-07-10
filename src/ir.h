@@ -12,6 +12,9 @@ typedef enum {
   IR_BIN,
   IR_IMM,
   IR_RET,
+  IR_STORE,
+  IR_LOAD,
+  IR_SUBS,
 } IRInstKind;
 
 typedef struct Reg {
@@ -23,6 +26,7 @@ typedef struct IRInst {
   IRInstKind kind;
   BinopKind binop;    // for ND_BIN
   int imm;            // for ND_IMM
+  int offset;         // for ND_LOAD, ND_STORE, ND_SUBS
 
   Reg rd; // destination register
   Reg ra; // argument register

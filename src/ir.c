@@ -118,6 +118,18 @@ void print_inst(FILE* p, IRInst i) {
       fprintf(p, " ");
       print_reg(p, i.ra);
       break;
+    case IR_LOAD:
+      fprintf(p, "LOAD ");
+      print_reg(p, i.rd);
+      fprintf(p, " <= %d", i.offset);
+      break;
+    case IR_STORE:
+      fprintf(p, "STORE %d <= ", i.offset);
+      print_reg(p, i.ra);
+      break;
+    case IR_SUBS:
+      fprintf(p, "SUBS %d", i.offset);
+      break;
     default:
       CCC_UNREACHABLE;
   }

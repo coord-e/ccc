@@ -100,6 +100,12 @@ int select_spill_target(Env* env, int vi) {
   int candidate = vi;
   for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
     // i: virtual register index
+
+    if (get_IntVec(env->result, i) == -1) {
+      // already spilled
+      continue;
+    }
+
     int last = get_IntVec(env->last_uses, i);
     int t_def = get_IntVec(env->first_uses, vi);
     if (last < t_def) {

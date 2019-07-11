@@ -27,9 +27,9 @@ int main(int argc, char **argv) {
   IR* ir2 = reg_alloc(5, ir1);
   print_IR(stderr, ir2);
 
+  codegen(stdout, ir2);
   release_IR(ir2);
 
-  codegen(stdout, tree);
 
   return 0;
 }

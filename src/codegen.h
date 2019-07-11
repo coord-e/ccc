@@ -2,9 +2,11 @@
 
 #include <stdio.h>
 
-#include "parser.h"
+#include "ir.h"
 
-// generate x86_64 code and output it to stdout
-void codegen(FILE*, Node* node);
+// generate x86_64 code and output it
+void codegen(FILE*, IR*);
+
+extern size_t num_regs;
 
 #endif

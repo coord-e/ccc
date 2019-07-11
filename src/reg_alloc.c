@@ -234,7 +234,6 @@ IR* reg_alloc(unsigned num_regs, IR* ir) {
   collect_last_uses(env, ir->insts);
   alloc_regs(env);
   rewrite_IR(env, ir->insts);
-  release_IR(ir);
 
   emit_spill_subs(env);
 

@@ -49,10 +49,10 @@ void codegen_insts(FILE* p, IRInstList* insts) {
       codegen_binop(p, h);
       break;
     case IR_LOAD:
-      emit(p, "mov %s, [%d]", reg_of(h->rd), h->stack_idx);
+      emit(p, "mov %s, %d(%%rbp)", reg_of(h->rd), -8 * h->stack_idx);
       break;
     case IR_STORE:
-      emit(p, "mov [%d], %s", h->stack_idx, reg_of(h->ra));
+      emit(p, "mov %d(%%rbp), %s", -8 * h->stack_idx, reg_of(h->ra));
       break;
     case IR_SUBS:
       emit(p, "sub %%rsp, %d", h->stack_idx);

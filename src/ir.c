@@ -22,7 +22,7 @@ Reg new_reg(Env* env) {
   unsigned i = env->reg_count++;
   // zero denotes unused here (=zero-initialized)
   // TODO: Use better representation of unused
-  Reg r = { .virtual = (i + 1), .real = 0 };
+  Reg r = { .virtual = (i + 1), .real = -1 };
   return r;
 }
 
@@ -92,10 +92,10 @@ void release_IR(IR* ir) {
 }
 
 void print_reg(FILE* p, Reg r) {
-  if (r.virtual == 0) {
-    fprintf(p, "r%d", r.real);
-  } else {
+  if (r.real == -1) {
     fprintf(p, "v%d", r.virtual);
+  } else {
+    fprintf(p, "r%d", r.real);
   }
 }
 
@@ -121,14 +121,14 @@ void print_inst(FILE* p, IRInst i) {
     case IR_LOAD:
       fprintf(p, "LOAD ");
       print_reg(p, i.rd);
-      fprintf(p, " <= %d", i.offset);
+      fprintf(p, " <= %d", i.stack_idx);
       break;
     case IR_STORE:
-      fprintf(p, "STORE %d <= ", i.offset);
+      fprintf(p, "STORE %d <= ", i.stack_idx);
       print_reg(p, i.ra);
       break;
     case IR_SUBS:
-      fprintf(p, "SUBS %d", i.offset);
+      fprintf(p, "SUBS %d", i.stack_idx);
       break;
     default:
       CCC_UNREACHABLE;

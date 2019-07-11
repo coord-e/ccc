@@ -14,6 +14,8 @@ typedef struct {
   IntVec* used_regs;    // index: real reg, value: virtual reg or -1 (not used)
   IntVec* result;       // index: virtual reg, value: real reg or -1 (spill)
   // rewrite_IR
+  unsigned stack_count; // counts allocated stack areas
+  IntVec* stacks;       // index: virtual reg, value: stack index or -1 (not used)
   IRInstList* insts;    // a list of newly created instructions
   IRInstList* cursor;   // pointer to current head of the list
 } Env;
@@ -27,13 +29,18 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
   resize_IntVec(e->first_uses, reg_count);
   fill_IntVec(e->first_uses, -1);
 
-  e->num_regs = num_regs;
+  // reserve one reg for spilling
+  e->num_regs = num_regs - 1;
   e->used_regs = new_IntVec(reg_count);
   resize_IntVec(e->used_regs, reg_count);
   fill_IntVec(e->used_regs, -1);
   e->result = new_IntVec(reg_count);
   resize_IntVec(e->result, reg_count);
 
+  e->stack_count = 0;
+  e->stacks = new_IntVec(reg_count);
+  resize_IntVec(e->stacks, reg_count);
+  fill_IntVec(e->stacks, -1);
   e->insts = nil_IRInstList();
   e->cursor = e->insts;
   return e;
@@ -153,14 +160,50 @@ void append_inst(Env* env, IRInst i) {
   env->cursor = snoc_IRInstList(i, env->cursor);
 }
 
-Reg update_reg(Env* env, Reg r) {
-  if(r.virtual == 0) {
+bool update_reg(Env* env, Reg* r) {
+  if(r->virtual == 0) {
     // zero -> unused
-    return r;
+    return false;
   }
-  r.real = get_IntVec(env->result, r.virtual - 1);
-  r.virtual = 0;
-  return r;
+
+  int ri = get_IntVec(env->result, r->virtual - 1);
+  if (ri == -1) {
+    // spilled
+    r->real = env->num_regs; // reserved reg
+    return true;
+  } else {
+    r->real = ri;
+    return false;
+  }
+}
+
+int stack_idx_of(Env* env, int vi) {
+  int idx = get_IntVec(env->stacks, vi);
+  if (idx != -1) {
+    return idx;
+  } else {
+    int new_i = env->stack_count++;
+    set_IntVec(env->stacks, vi, new_i);
+    return new_i;
+  }
+}
+
+void emit_spill_load(Env* env, Reg r) {
+  IRInst load = {
+    .kind = IR_LOAD,
+    .stack_idx = stack_idx_of(env, r.virtual - 1),
+    .rd = r,
+  };
+  append_inst(env, load);
+}
+
+void emit_spill_store(Env* env, Reg r) {
+  IRInst store = {
+    .kind = IR_STORE,
+    .stack_idx = stack_idx_of(env, r.virtual - 1),
+    .ra = r,
+  };
+  append_inst(env, store);
 }
 
 void rewrite_IR(Env* env, IRInstList* insts) {
@@ -169,9 +212,16 @@ void rewrite_IR(Env* env, IRInstList* insts) {
   }
 
   IRInst i = head_IRInstList(insts);
-  i.rd = update_reg(env, i.rd);
-  i.ra = update_reg(env, i.ra);
+  bool rd_spilled = update_reg(env, &i.rd);
+  bool ra_spilled = update_reg(env, &i.ra);
+
+  if (ra_spilled) emit_spill_load(env, i.ra);
+  if (rd_spilled) emit_spill_load(env, i.rd);
+
   append_inst(env, i);
+
+  if (ra_spilled) emit_spill_store(env, i.ra);
+  if (rd_spilled) emit_spill_store(env, i.rd);
 
   rewrite_IR(env, tail_IRInstList(insts));
 }

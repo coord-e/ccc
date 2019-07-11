@@ -26,6 +26,8 @@ typedef struct {
   RegKind kind;
   unsigned virtual;
   unsigned real;
+
+  bool is_used; // TODO: Use better way to represent unsued register slot
 } Reg;
 
 typedef struct IRInst {

@@ -47,8 +47,7 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
 }
 
 void set_as_used(Env* env, Reg r) {
-  // zero -> unused
-  if (r.virtual == 0) {
+  if (!r.is_used) {
     return;
   }
   int idx = r.virtual - 1;
@@ -161,8 +160,7 @@ void append_inst(Env* env, IRInst* i) {
 }
 
 bool update_reg(Env* env, Reg* r) {
-  if(r->virtual == 0) {
-    // zero -> unused
+  if(!r->is_used) {
     return false;
   }
 

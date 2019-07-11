@@ -27,7 +27,7 @@ Env* new_env() {
 
 Reg new_reg(Env* env) {
   unsigned i = env->reg_count++;
-  Reg r = { .kind = REG_VIRT, .virtual = (i + 1), .real = -1 };
+  Reg r = { .kind = REG_VIRT, .virtual = (i + 1), .real = -1, .is_used = true };
   return r;
 }
 

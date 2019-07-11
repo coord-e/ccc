@@ -26,7 +26,7 @@ typedef struct IRInst {
   IRInstKind kind;
   BinopKind binop;    // for ND_BIN
   int imm;            // for ND_IMM
-  int stack_idx;      // for ND_STORE, ND_LOAD
+  unsigned stack_idx; // for ND_STORE, ND_LOAD
 
   Reg rd; // destination register
   Reg ra; // argument register

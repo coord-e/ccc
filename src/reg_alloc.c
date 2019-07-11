@@ -206,6 +206,14 @@ void emit_spill_store(Env* env, Reg r) {
   append_inst(env, store);
 }
 
+void emit_spill_subs(Env* env) {
+  IRInst subs = {
+    .kind = IR_SUBS,
+    .stack_idx = env->stack_count,
+  };
+  env->insts = cons_IRInstList(subs, env->insts);
+}
+
 void rewrite_IR(Env* env, IRInstList* insts) {
   if(is_nil_IRInstList(insts)) {
     return;
@@ -232,6 +240,8 @@ IR* reg_alloc(unsigned num_regs, IR* ir) {
   alloc_regs(env);
   rewrite_IR(env, ir->insts);
   release_IR(ir);
+
+  emit_spill_subs(env);
 
   IR* new_ir = calloc(1, sizeof(IR));
   new_ir->reg_count = num_regs;

@@ -42,20 +42,21 @@ void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
     case IR_RET:
-      emit(p, "mov %%rax, %s", reg_of(h->ra));
+      emit(p, "mov rax, %s", reg_of(h->ra));
+      emit(p, "mov rsp, rbp");
       emit(p, "ret");
       break;
     case IR_BIN:
       codegen_binop(p, h);
       break;
     case IR_LOAD:
-      emit(p, "mov %s, %d(%%rbp)", reg_of(h->rd), -8 * h->stack_idx);
+      emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
       break;
     case IR_STORE:
-      emit(p, "mov %d(%%rbp), %s", -8 * h->stack_idx, reg_of(h->ra));
+      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, reg_of(h->ra));
       break;
     case IR_SUBS:
-      emit(p, "sub %%rsp, %d", h->stack_idx);
+      emit(p, "sub rsp, %d", 8 * h->stack_idx + 8);
       break;
     default:
       CCC_UNREACHABLE;
@@ -78,10 +79,10 @@ void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "imul %s, %s", rd, ra);
       return;
     case BINOP_DIV:
-      emit(p, "mov %%rax, %s", rd);
+      emit(p, "mov rax, %s", rd);
       emit(p, "cqo");
       emit(p, "idiv %s", ra);
-      emit(p, "mov %s, %%rax", rd);
+      emit(p, "mov %s, rax", rd);
       return;
     default:
       CCC_UNREACHABLE;

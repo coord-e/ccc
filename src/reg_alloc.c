@@ -167,6 +167,7 @@ bool update_reg(Env* env, Reg* r) {
   }
 
   int ri = get_IntVec(env->result, r->virtual - 1);
+  r->kind = REG_REAL;
   if (ri == -1) {
     // spilled
     r->real = env->num_regs; // reserved reg

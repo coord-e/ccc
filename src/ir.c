@@ -20,9 +20,7 @@ Env* new_env() {
 
 Reg new_reg(Env* env) {
   unsigned i = env->reg_count++;
-  // zero denotes unused here (=zero-initialized)
-  // TODO: Use better representation of unused
-  Reg r = { .virtual = (i + 1), .real = -1 };
+  Reg r = { .kind = REG_VIRT, .virtual = (i + 1), .real = -1 };
   return r;
 }
 
@@ -92,10 +90,15 @@ void release_IR(IR* ir) {
 }
 
 void print_reg(FILE* p, Reg r) {
-  if (r.real == -1) {
-    fprintf(p, "v%d", r.virtual);
-  } else {
-    fprintf(p, "r%d", r.real);
+  switch(r.kind) {
+    case REG_VIRT:
+      fprintf(p, "v%d", r.virtual);
+      break;
+    case REG_REAL:
+      fprintf(p, "r%d", r.real);
+      break;
+    default:
+      CCC_UNREACHABLE;
   }
 }
 

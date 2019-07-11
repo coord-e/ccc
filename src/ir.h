@@ -17,7 +17,13 @@ typedef enum {
   IR_SUBS,
 } IRInstKind;
 
-typedef struct Reg {
+typedef enum {
+  REG_VIRT,
+  REG_REAL,
+} RegKind;
+
+typedef struct {
+  RegKind kind;
   unsigned virtual;
   unsigned real;
 } Reg;

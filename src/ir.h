@@ -38,7 +38,10 @@ typedef struct IRInst {
   Reg ra; // argument register
 } IRInst;
 
-DECLARE_LIST(IRInst, IRInstList)
+IRInst* new_inst(IRInstKind);
+void release_inst(IRInst*);
+
+DECLARE_LIST(IRInst*, IRInstList)
 
 // IR is a list of `IRInst` ... with some metadata
 typedef struct {

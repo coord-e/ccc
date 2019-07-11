@@ -69,9 +69,9 @@ void collect_last_uses(Env* env, IRInstList* insts) {
     return;
   }
 
-  IRInst i = head_IRInstList(insts);
-  set_as_used(env, i.rd);
-  set_as_used(env, i.ra);
+  IRInst* i = head_IRInstList(insts);
+  set_as_used(env, i->rd);
+  set_as_used(env, i->ra);
 
   env->inst_count++;
 
@@ -156,7 +156,7 @@ void alloc_regs(Env* env) {
   }
 }
 
-void append_inst(Env* env, IRInst i) {
+void append_inst(Env* env, IRInst* i) {
   env->cursor = snoc_IRInstList(i, env->cursor);
 }
 
@@ -190,28 +190,22 @@ int stack_idx_of(Env* env, int vi) {
 }
 
 void emit_spill_load(Env* env, Reg r) {
-  IRInst load = {
-    .kind = IR_LOAD,
-    .stack_idx = stack_idx_of(env, r.virtual - 1),
-    .rd = r,
-  };
+  IRInst* load = new_inst(IR_LOAD);
+  load->stack_idx = stack_idx_of(env, r.virtual - 1);
+  load->rd = r;
   append_inst(env, load);
 }
 
 void emit_spill_store(Env* env, Reg r) {
-  IRInst store = {
-    .kind = IR_STORE,
-    .stack_idx = stack_idx_of(env, r.virtual - 1),
-    .ra = r,
-  };
+  IRInst* store = new_inst(IR_STORE);
+  store->stack_idx = stack_idx_of(env, r.virtual - 1);
+  store->ra = r;
   append_inst(env, store);
 }
 
 void emit_spill_subs(Env* env) {
-  IRInst subs = {
-    .kind = IR_SUBS,
-    .stack_idx = env->stack_count,
-  };
+  IRInst* subs = new_inst(IR_SUBS);
+  subs->stack_idx = env->stack_count;
   env->insts = cons_IRInstList(subs, env->insts);
 }
 
@@ -220,17 +214,17 @@ void rewrite_IR(Env* env, IRInstList* insts) {
     return;
   }
 
-  IRInst i = head_IRInstList(insts);
-  bool rd_spilled = update_reg(env, &i.rd);
-  bool ra_spilled = update_reg(env, &i.ra);
+  IRInst* i = head_IRInstList(insts);
+  bool rd_spilled = update_reg(env, &i->rd);
+  bool ra_spilled = update_reg(env, &i->ra);
 
-  if (ra_spilled) emit_spill_load(env, i.ra);
-  if (rd_spilled) emit_spill_load(env, i.rd);
+  if (ra_spilled) emit_spill_load(env, i->ra);
+  if (rd_spilled) emit_spill_load(env, i->rd);
 
   append_inst(env, i);
 
-  if (ra_spilled) emit_spill_store(env, i.ra);
-  if (rd_spilled) emit_spill_store(env, i.rd);
+  if (ra_spilled) emit_spill_store(env, i->ra);
+  if (rd_spilled) emit_spill_store(env, i->rd);
 
   rewrite_IR(env, tail_IRInstList(insts));
 }

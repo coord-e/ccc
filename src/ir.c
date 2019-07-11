@@ -2,8 +2,14 @@
 #include "parser.h"
 #include "error.h"
 
-static void release_inst(IRInst i) {}
-DEFINE_LIST(release_inst, IRInst, IRInstList)
+IRInst* new_inst(IRInstKind kind) {
+  IRInst* i = calloc(1, sizeof(IRInst));
+  i->kind = kind;
+  return i;
+}
+void release_inst(IRInst* i) { free(i); }
+
+DEFINE_LIST(release_inst, IRInst*, IRInstList)
 
 typedef struct {
   unsigned reg_count;
@@ -27,28 +33,24 @@ Reg new_reg(Env* env) {
 
 // TODO: Consider eliminating copies of `IRInst`
 
-void add_inst(Env *env, IRInst inst) {
+void add_inst(Env *env, IRInst* inst) {
   env->cursor = snoc_IRInstList(inst, env->cursor);
 }
 
 Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
-  IRInst i = {
-    .kind = IR_BIN,
-    .binop = op,
-    .rd = lhs,
-    .ra = rhs,
-  };
+  IRInst* i = new_inst(IR_BIN);
+  i->binop = op;
+  i->rd = lhs;
+  i->ra = rhs;
   add_inst(env, i);
   return lhs;
 }
 
 Reg new_imm(Env* env, int num) {
   Reg r = new_reg(env);
-  IRInst i = {
-    .kind = IR_IMM,
-    .imm = num,
-    .rd = r,
-  };
+  IRInst* i = new_inst(IR_IMM);
+  i->imm = num;
+  i->rd = r;
   add_inst(env, i);
   return r;
 }
@@ -72,7 +74,8 @@ IR* generate_IR(Node* node) {
   Env* env = new_env();
 
   Reg r = gen_ir(env, node);
-  IRInst ret = { .kind = IR_RET, .ra = r };
+  IRInst* ret = new_inst(IR_RET);
+  ret->ra = r;
   add_inst(env, ret);
 
   IRInstList* insts = env->insts;
@@ -103,36 +106,36 @@ void print_reg(FILE* p, Reg r) {
   }
 }
 
-void print_inst(FILE* p, IRInst i) {
-  switch(i.kind) {
+void print_inst(FILE* p, IRInst* i) {
+  switch(i->kind) {
     case IR_IMM:
       fprintf(p, "IMM ");
-      print_reg(p, i.rd);
-      fprintf(p, " <- %d", i.imm);
+      print_reg(p, i->rd);
+      fprintf(p, " <- %d", i->imm);
       break;
     case IR_RET:
       fprintf(p, "RET ");
-      print_reg(p, i.ra);
+      print_reg(p, i->ra);
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
-      print_reg(p, i.rd);
+      print_reg(p, i->rd);
       fprintf(p, " ");
-      print_binop(p, i.binop);
+      print_binop(p, i->binop);
       fprintf(p, " ");
-      print_reg(p, i.ra);
+      print_reg(p, i->ra);
       break;
     case IR_LOAD:
       fprintf(p, "LOAD ");
-      print_reg(p, i.rd);
-      fprintf(p, " <= %d", i.stack_idx);
+      print_reg(p, i->rd);
+      fprintf(p, " <= %d", i->stack_idx);
       break;
     case IR_STORE:
-      fprintf(p, "STORE %d <= ", i.stack_idx);
-      print_reg(p, i.ra);
+      fprintf(p, "STORE %d <= ", i->stack_idx);
+      print_reg(p, i->ra);
       break;
     case IR_SUBS:
-      fprintf(p, "SUBS %d", i.stack_idx);
+      fprintf(p, "SUBS %d", i->stack_idx);
       break;
     default:
       CCC_UNREACHABLE;

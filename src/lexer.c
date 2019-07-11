@@ -6,7 +6,9 @@
 #include "list.h"
 #include "error.h"
 
-DEFINE_LIST(Token, TokenList)
+// nothing to do because `Token` is not allocated in heap
+static release_token(Token t) {}
+DEFINE_LIST(release_token, Token, TokenList)
 
 TokenList* add_token(TokenKind kind, TokenList *cur) {
   Token t;

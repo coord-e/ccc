@@ -2,7 +2,8 @@
 #include "parser.h"
 #include "error.h"
 
-DEFINE_LIST(IRInst, IRInstList)
+static void release_inst(IRInst i) {}
+DEFINE_LIST(release_inst, IRInst, IRInstList)
 
 typedef struct {
   unsigned reg_count;

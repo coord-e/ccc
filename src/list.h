@@ -22,7 +22,7 @@
   unsigned length_##Name(const Name *list);                                    \
   void release_##Name(Name *list);
 
-#define DEFINE_LIST(T, Name)                                                   \
+#define DEFINE_LIST(release_data, T, Name)                                     \
   struct Name {                                                                \
     bool is_nil;                                                               \
     T head;                                                                    \
@@ -83,6 +83,7 @@
   }                                                                            \
   void release_##Name(Name *list) {                                            \
     if (!list->is_nil) {                                                       \
+      release_data(list->head);                                                \
       release_##Name(list->tail);                                              \
     }                                                                          \
     free(list);                                                                \

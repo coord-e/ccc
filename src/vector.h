@@ -19,7 +19,7 @@
   T *data_##Name(Name *);                                                      \
   void release_##Name(Name *);
 
-#define DEFINE_VECTOR(T, Name)                                                 \
+#define DEFINE_VECTOR(release_data, T, Name)                                   \
   struct Name {                                                                \
     T *data;                                                                   \
     unsigned capacity;                                                         \
@@ -65,6 +65,9 @@
   unsigned capacity_##Name(const Name *a) { return a->capacity; }              \
   T *data_##Name(Name *a) { return a->data; }                                  \
   void release_##Name(Name *a) {                                               \
+    for (unsigned i = 0; i < a->length; i++) {                                 \
+      release_data(a->data[i]);                                                \
+    }                                                                          \
     free(a->data);                                                             \
     free(a);                                                                   \
   }

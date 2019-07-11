@@ -93,5 +93,7 @@ void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
   emit(p, ".global main");
   emit_label(p, "main");
+  emit(p, "push rbp");
+  emit(p, "mov rbp, rsp");
   codegen_insts(p, ir->insts);
 }

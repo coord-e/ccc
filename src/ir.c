@@ -31,8 +31,6 @@ Reg new_reg(Env* env) {
   return r;
 }
 
-// TODO: Consider eliminating copies of `IRInst`
-
 void add_inst(Env *env, IRInst* inst) {
   env->cursor = snoc_IRInstList(inst, env->cursor);
 }

@@ -13,7 +13,7 @@ typedef struct {
   // alloc_regs
   unsigned num_regs;    // permitted number of registers
   IntVec* used_regs;    // index: real reg, value: virtual reg or -1 (not used)
-  IntVec* result;       // index: virtual reg, value: real reg or -1 (spill)
+  IntVec* result;       // index: virtual reg, value: real reg or -1 (spill) or -2 (not filled yet)
   // rewrite_IR
   unsigned stack_count; // counts allocated stack areas
   IntVec* stacks;       // index: virtual reg, value: stack index or -1 (not used)
@@ -38,6 +38,7 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
   fill_IntVec(e->used_regs, -1);
   e->result = new_IntVec(reg_count);
   resize_IntVec(e->result, reg_count);
+  fill_IntVec(e->result, -2);
 
   e->stack_count = 0;
   e->stacks = new_IntVec(reg_count);
@@ -114,13 +115,9 @@ int select_spill_target(Env* env, int vi) {
   for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
     // i: virtual register index
 
-    if (get_IntVec(env->result, i) == -1) {
-      // already spilled
-      continue;
-    }
-
-    if (get_IntVec(env->used_regs, i) == -1) {
-      // not allocated yet
+    int r = get_IntVec(env->result, i);
+    if (r == -1 || r == -2) {
+      // already spilled or not allocated yet
       continue;
     }
 

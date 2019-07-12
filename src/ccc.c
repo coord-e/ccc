@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
   print_tree(stderr, tree);
 
   IR* ir1 = generate_IR(tree);
+  release_tree(tree);
   IR* ir2 = reg_alloc(num_regs, ir1);
   print_IR(stderr, ir2);
 

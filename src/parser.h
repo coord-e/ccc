@@ -29,4 +29,7 @@ Node* parse(TokenList* tokens);
 void print_tree(FILE*, Node* tree);
 void print_binop(FILE*, BinopKind kind);
 
+// free the memory space used in AST
+void release_tree(Node*);
+
 #endif

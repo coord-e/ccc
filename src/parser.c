@@ -152,3 +152,13 @@ void print_tree(FILE* p, Node* node) {
   print_tree_(p, node);
   fprintf(p, "\n");
 }
+
+void release_tree(Node* node) {
+  if (node == NULL) {
+    return;
+  }
+
+  release_tree(node->lhs);
+  release_tree(node->rhs);
+  free(node);
+}

@@ -27,5 +27,6 @@ Node* parse(TokenList* tokens);
 
 // print a AST for debugging purpose
 void print_tree(FILE*, Node* tree);
+void print_binop(FILE*, BinopKind kind);
 
 #endif

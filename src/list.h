@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "error.h"
 
@@ -14,14 +15,14 @@
   Name *cons_##Name(T value, const Name *list);                                \
   Name *single_##Name(T value);                                                \
   Name *append_##Name(Name *a, const Name *b);                                 \
-  Name *snoc_##Name(T value, Name *list);                                     \
+  Name *snoc_##Name(T value, Name *list);                                      \
   T head_##Name(const Name *list);                                             \
   Name *tail_##Name(const Name *list);                                         \
   bool is_nil_##Name(const Name *list);                                        \
   unsigned length_##Name(const Name *list);                                    \
   void release_##Name(Name *list);
 
-#define DEFINE_LIST(T, Name)                                                   \
+#define DEFINE_LIST(release_data, T, Name)                                     \
   struct Name {                                                                \
     bool is_nil;                                                               \
     T head;                                                                    \
@@ -55,7 +56,7 @@
       return append_##Name(a->tail, b);                                        \
     }                                                                          \
   }                                                                            \
-  Name *snoc_##Name(T value, Name *list) {                                    \
+  Name *snoc_##Name(T value, Name *list) {                                     \
     return append_##Name(list, single_##Name(value));                          \
   }                                                                            \
   T head_##Name(const Name *list) {                                            \
@@ -82,6 +83,7 @@
   }                                                                            \
   void release_##Name(Name *list) {                                            \
     if (!list->is_nil) {                                                       \
+      release_data(list->head);                                                \
       release_##Name(list->tail);                                              \
     }                                                                          \
     free(list);                                                                \
@@ -89,18 +91,23 @@
 
 #define DECLARE_LIST_PRINTER(Name) void print_##Name(FILE *f, Name *l);
 
-#define DEFINE_LIST_PRINTER(print_data, Name)                                  \
-  void p_print_##Name(FILE *f, Name *l) {                                      \
-    if (l->is_nil) {                                                           \
-      return;                                                                  \
-    } else {                                                                   \
-      print_data(f, l->head);                                                  \
-      p_print_##Name(f, l->tail);                                              \
-    }                                                                          \
-  }                                                                            \
+#define DEFINE_LIST_PRINTER(print_data, sep, end, Name)                        \
   void print_##Name(FILE *f, Name *l) {                                        \
-    p_print_##Name(f, l);                                                      \
-    fprintf(f, "\n");                                                          \
+    if (l->is_nil) {                                                           \
+      fprintf(f, end);                                                         \
+      return;                                                                  \
+    }                                                                          \
+    print_data(f, l->head);                                                    \
+    if (l->tail->is_nil) {                                                     \
+      fprintf(f, end);                                                         \
+    } else {                                                                   \
+      fprintf(f, sep);                                                         \
+      print_##Name(f, l->tail);                                                \
+    }                                                                          \
   }
+
+// often used common definitions
+DECLARE_LIST(int, IntList)
+DECLARE_LIST_PRINTER(IntList)
 
 #endif

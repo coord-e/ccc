@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include "codegen.h"
 #include "error.h"
@@ -74,10 +75,21 @@ void codegen_insts(FILE* p, IRInstList* insts) {
 }
 
 void codegen_binop(FILE* p, IRInst* inst) {
+  // extract ids for comparison
+  unsigned rd_id = inst->rd.real;
+  unsigned lhs_id = get_RegVec(inst->ras, 0).real;
+  unsigned rhs_id = get_RegVec(inst->ras, 1).real;
+  // A = B op A instruction can't be emitted
+  assert(rd_id != rhs_id);
+
   const char* rd = reg_of(inst->rd);
   const char* lhs = nth_reg_of(0, inst->ras);
   const char* rhs = nth_reg_of(1, inst->ras);
-  emit(p, "mov %s, %s", rd, lhs);
+
+  if (rd_id != lhs_id) {
+    emit(p, "mov %s, %s", rd, lhs);
+  }
+
   switch(inst->binop) {
     case BINOP_ADD:
       emit(p, "add %s, %s", rd, rhs);

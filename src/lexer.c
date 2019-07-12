@@ -10,20 +10,20 @@
 static void release_token(Token t) {}
 DEFINE_LIST(release_token, Token, TokenList)
 
-TokenList* add_token(TokenKind kind, TokenList *cur) {
+static TokenList* add_token(TokenKind kind, TokenList *cur) {
   Token t;
   t.kind = kind;
   return snoc_TokenList(t, cur);
 }
 
 // will seek `strp` to the end of number
-TokenList* add_number(char** strp, TokenList* cur) {
+static TokenList* add_number(char** strp, TokenList* cur) {
   TokenList* t = add_token(TK_NUMBER, cur);
   t->head.number = strtol(*strp, strp, 10);
   return t;
 }
 
-void end_tokens(TokenList* cur) {
+static void end_tokens(TokenList* cur) {
   add_token(TK_END, cur);
 }
 
@@ -78,7 +78,7 @@ TokenList* tokenize(char* p) {
   return init;
 }
 
-void print_token(FILE* p, Token t) {
+static void print_token(FILE* p, Token t) {
   switch(t.kind) {
     case TK_PLUS:
       fprintf(p, "(+)");

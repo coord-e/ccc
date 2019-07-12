@@ -21,7 +21,7 @@ typedef struct {
   IRInstList* cursor;   // pointer to current head of the list
 } Env;
 
-Env* init_env(unsigned num_regs, unsigned reg_count) {
+static Env* init_env(unsigned num_regs, unsigned reg_count) {
   Env* e = calloc(1, sizeof(Env));
   e->inst_count = 0;
   e->last_uses = new_IntVec(reg_count);
@@ -50,7 +50,7 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
 }
 
 // save `insts` and release other part of env
-IRInstList* take_insts_and_release(Env *env) {
+static IRInstList* take_insts_and_release(Env *env) {
   IRInstList* insts = env->insts;
 
   release_IntVec(env->last_uses);
@@ -65,7 +65,7 @@ IRInstList* take_insts_and_release(Env *env) {
   return insts;
 }
 
-void set_as_used(Env* env, Reg r) {
+static void set_as_used(Env* env, Reg r) {
   if (!r.is_used) {
     return;
   }
@@ -83,7 +83,7 @@ void set_as_used(Env* env, Reg r) {
   }
 }
 
-void collect_last_uses(Env* env, IRInstList* insts) {
+static void collect_last_uses(Env* env, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
     return;
   }
@@ -101,7 +101,7 @@ void collect_last_uses(Env* env, IRInstList* insts) {
 
 // if found, return `true` and set real reg index to `r`
 // `target`: virtual register index targetted in `alloc_regs`
-bool find_unused(Env* env, int target, int* r) {
+static bool find_unused(Env* env, int target, int* r) {
   for (unsigned i = 0; i < env->num_regs; i++) {
     // iterating over usable registers
     // i: real reg index
@@ -124,7 +124,7 @@ bool find_unused(Env* env, int target, int* r) {
   return false;
 }
 
-int select_spill_target(Env* env, int vi) {
+static int select_spill_target(Env* env, int vi) {
   int candidate = vi;
   for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
     // i: virtual register index
@@ -152,7 +152,7 @@ int select_spill_target(Env* env, int vi) {
   return candidate;
 }
 
-void alloc_regs(Env* env) {
+static void alloc_regs(Env* env) {
   for(unsigned i = 0; i < length_IntVec(env->sorted_regs); i++) {
     int vi = get_IntVec(env->sorted_regs, i);
     // vi: virtual register index
@@ -180,11 +180,11 @@ void alloc_regs(Env* env) {
   }
 }
 
-void append_inst(Env* env, IRInst* i) {
+static void append_inst(Env* env, IRInst* i) {
   env->cursor = snoc_IRInstList(i, env->cursor);
 }
 
-void update_reg(Env* env, Reg* r) {
+static void update_reg(Env* env, Reg* r) {
   if(!r->is_used) {
     return;
   }
@@ -201,7 +201,7 @@ void update_reg(Env* env, Reg* r) {
   }
 }
 
-int stack_idx_of(Env* env, int vi) {
+static int stack_idx_of(Env* env, int vi) {
   int idx = get_IntVec(env->stacks, vi);
   if (idx != -1) {
     return idx;
@@ -212,7 +212,7 @@ int stack_idx_of(Env* env, int vi) {
   }
 }
 
-void emit_spill_load(Env* env, Reg r) {
+static void emit_spill_load(Env* env, Reg r) {
   if (!r.is_spilled) {
     return;
   }
@@ -223,7 +223,7 @@ void emit_spill_load(Env* env, Reg r) {
   append_inst(env, load);
 }
 
-void emit_spill_store(Env* env, Reg r) {
+static void emit_spill_store(Env* env, Reg r) {
   if (!r.is_spilled) {
     return;
   }
@@ -235,13 +235,13 @@ void emit_spill_store(Env* env, Reg r) {
   append_inst(env, store);
 }
 
-void emit_spill_subs(Env* env) {
+static void emit_spill_subs(Env* env) {
   IRInst* subs = new_inst(IR_SUBS);
   subs->stack_idx = env->stack_count;
   env->insts = cons_IRInstList(subs, env->insts);
 }
 
-void rewrite_IR(Env* env, IRInstList* insts) {
+static void rewrite_IR(Env* env, IRInstList* insts) {
   if(is_nil_IRInstList(insts)) {
     return;
   }

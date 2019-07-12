@@ -25,7 +25,7 @@ typedef struct {
   IRInstList* cursor;
 } Env;
 
-Env* new_env() {
+static Env* new_env() {
   Env* env = calloc(1, sizeof(Env));
   env->reg_count = 0;
   env->insts = nil_IRInstList();
@@ -33,17 +33,17 @@ Env* new_env() {
   return env;
 }
 
-Reg new_reg(Env* env) {
+static Reg new_reg(Env* env) {
   unsigned i = env->reg_count++;
   Reg r = { .kind = REG_VIRT, .virtual = i, .real = 0, .is_used = true };
   return r;
 }
 
-void add_inst(Env *env, IRInst* inst) {
+static void add_inst(Env *env, IRInst* inst) {
   env->cursor = snoc_IRInstList(inst, env->cursor);
 }
 
-Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
+static Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
   Reg dest = new_reg(env);
 
   IRInst* i1 = new_inst(IR_MOV);
@@ -61,7 +61,7 @@ Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
   return dest;
 }
 
-Reg new_imm(Env* env, int num) {
+static Reg new_imm(Env* env, int num) {
   Reg r = new_reg(env);
   IRInst* i = new_inst(IR_IMM);
   i->imm = num;
@@ -70,7 +70,7 @@ Reg new_imm(Env* env, int num) {
   return r;
 }
 
-Reg gen_ir(Env* env, Node* node) {
+static Reg gen_ir(Env* env, Node* node) {
   switch(node->kind) {
     case ND_NUM:
       return new_imm(env, node->num);
@@ -108,7 +108,7 @@ void release_IR(IR* ir) {
   free(ir);
 }
 
-void print_reg(FILE* p, Reg r) {
+static void print_reg(FILE* p, Reg r) {
   switch(r.kind) {
     case REG_VIRT:
       fprintf(p, "v%d", r.virtual);
@@ -123,7 +123,7 @@ void print_reg(FILE* p, Reg r) {
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
 
-void print_inst(FILE* p, IRInst* i) {
+static void print_inst(FILE* p, IRInst* i) {
   if (i->rd.is_used) {
     print_reg(p, i->rd);
     fprintf(p, " = ");

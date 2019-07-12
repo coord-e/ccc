@@ -11,14 +11,14 @@ static const char* regs[] = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15
 // declared as an extern variable in codegen.h
 size_t num_regs = sizeof(regs) / sizeof(*regs);
 
-void emit_label(FILE* p, char *fmt, ...) {
+static void emit_label(FILE* p, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   vfprintf(p, fmt, ap);
   fprintf(p, ":\n");
 }
 
-void emit(FILE* p, char *fmt, ...) {
+static void emit(FILE* p, char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   fprintf(p, "  ");
@@ -26,17 +26,17 @@ void emit(FILE* p, char *fmt, ...) {
   fprintf(p, "\n");
 }
 
-const char* reg_of(Reg r) {
+static const char* reg_of(Reg r) {
   return regs[r.real];
 }
 
-const char* nth_reg_of(unsigned i, RegVec* rs) {
+static const char* nth_reg_of(unsigned i, RegVec* rs) {
   return reg_of(get_RegVec(rs, i));
 }
 
-void codegen_binop(FILE* p, IRInst* inst);
+static void codegen_binop(FILE* p, IRInst* inst);
 
-void codegen_insts(FILE* p, IRInstList* insts) {
+static void codegen_insts(FILE* p, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
     return;
   }
@@ -74,7 +74,7 @@ void codegen_insts(FILE* p, IRInstList* insts) {
   codegen_insts(p, tail_IRInstList(insts));
 }
 
-void codegen_binop(FILE* p, IRInst* inst) {
+static void codegen_binop(FILE* p, IRInst* inst) {
   // extract ids for comparison
   unsigned rd_id = inst->rd.real;
   unsigned lhs_id = get_RegVec(inst->ras, 0).real;

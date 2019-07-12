@@ -6,7 +6,7 @@
 #include "error.h"
 
 // utilities to build AST
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+static Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   Node *node = calloc(1, sizeof(Node));
   node->kind = kind;
   node->lhs = lhs;
@@ -14,35 +14,35 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
   return node;
 }
 
-Node *new_node_num(int num) {
+static Node *new_node_num(int num) {
   Node *node = new_node(ND_NUM, NULL, NULL);
   node->num = num;
   return node;
 }
 
-Node *new_node_binop(BinopKind kind, Node *lhs, Node *rhs) {
+static Node *new_node_binop(BinopKind kind, Node *lhs, Node *rhs) {
   Node* node = new_node(ND_BINOP, lhs, rhs);
   node->binop = kind;
   return node;
 }
 
-void consume(TokenList** t) {
+static void consume(TokenList** t) {
   *t = tail_TokenList(*t);
 }
 
-Token consuming(TokenList** t) {
+static Token consuming(TokenList** t) {
   TokenList* p = *t;
   consume(t);
   return head_TokenList(p);
 }
 
-TokenKind head_of(TokenList** t) {
+static TokenKind head_of(TokenList** t) {
   return head_TokenList(*t).kind;
 }
 
-Node* expr(TokenList** t);
+static Node* expr(TokenList** t);
 
-Node* term(TokenList** t) {
+static Node* term(TokenList** t) {
   if (head_of(t) == TK_LPAREN) {
     consume(t);
     Node* node = expr(t);
@@ -61,7 +61,7 @@ Node* term(TokenList** t) {
   }
 }
 
-Node* mul(TokenList** t) {
+static Node* mul(TokenList** t) {
   Node* node = term(t);
 
   for (;;) {
@@ -80,7 +80,7 @@ Node* mul(TokenList** t) {
   }
 }
 
-Node* add(TokenList** t) {
+static Node* add(TokenList** t) {
   Node* node = mul(t);
 
   for (;;) {
@@ -100,7 +100,7 @@ Node* add(TokenList** t) {
 }
 
 // the expression parser
-Node* expr(TokenList** t) {
+static Node* expr(TokenList** t) {
   return add(t);
 }
 
@@ -129,7 +129,7 @@ void print_binop(FILE* p, BinopKind kind) {
   }
 }
 
-void print_tree_(FILE* p, Node* node) {
+static void print_tree_(FILE* p, Node* node) {
   switch(node->kind) {
     case ND_NUM:
       fprintf(p, "%d", node->num);

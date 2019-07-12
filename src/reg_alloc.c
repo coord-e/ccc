@@ -52,7 +52,7 @@ void set_as_used(Env* env, Reg r) {
   if (!r.is_used) {
     return;
   }
-  int idx = r.virtual - 1;
+  int idx = r.virtual;
 
   // last_uses
   set_IntVec(env->last_uses, idx, env->inst_count);
@@ -178,7 +178,7 @@ void update_reg(Env* env, Reg* r) {
     return;
   }
 
-  int ri = get_IntVec(env->result, r->virtual - 1);
+  int ri = get_IntVec(env->result, r->virtual);
   r->kind = REG_REAL;
   if (ri == -1) {
     // spilled
@@ -207,7 +207,7 @@ void emit_spill_load(Env* env, Reg r) {
   }
 
   IRInst* load = new_inst(IR_LOAD);
-  load->stack_idx = stack_idx_of(env, r.virtual - 1);
+  load->stack_idx = stack_idx_of(env, r.virtual);
   load->rd = r;
   append_inst(env, load);
 }
@@ -218,7 +218,7 @@ void emit_spill_store(Env* env, Reg r) {
   }
 
   IRInst* store = new_inst(IR_STORE);
-  store->stack_idx = stack_idx_of(env, r.virtual - 1);
+  store->stack_idx = stack_idx_of(env, r.virtual);
   store->ras = new_RegVec(1);
   push_RegVec(store->ras, r);
   append_inst(env, store);

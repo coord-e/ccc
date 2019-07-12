@@ -6,7 +6,8 @@
 #include "codegen.h"
 #include "error.h"
 
-static const char* regs[] = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rbx"};
+static const char* regs[]  = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rbx"};
+static const char* regs8[] = {"r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b", "bl"};
 
 // declared as an extern variable in codegen.h
 size_t num_regs = sizeof(regs) / sizeof(*regs);
@@ -74,6 +75,12 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
   codegen_insts(p, tail_IRInstList(insts));
 }
 
+static void codegen_cmp(FILE* p, const char* s, unsigned rd_id, unsigned rhs_id) {
+  emit(p, "cmp %s, %s", regs[rd_id], regs[rhs_id]);
+  emit(p, "set%s %s", s, regs8[rd_id]);
+  emit(p, "movzb %s, %s", regs[rd_id], regs8[rd_id]);
+}
+
 static void codegen_binop(FILE* p, IRInst* inst) {
   // extract ids for comparison
   unsigned rd_id  = inst->rd.real;
@@ -105,6 +112,24 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "cqo");
       emit(p, "idiv %s", rhs);
       emit(p, "mov %s, rax", rd);
+      return;
+    case BINOP_EQ:
+      codegen_cmp(p, "e", rd_id, rhs_id);
+      return;
+    case BINOP_NE:
+      codegen_cmp(p, "ne", rd_id, rhs_id);
+      return;
+    case BINOP_GT:
+      codegen_cmp(p, "g", rd_id, rhs_id);
+      return;
+    case BINOP_GE:
+      codegen_cmp(p, "ge", rd_id, rhs_id);
+      return;
+    case BINOP_LT:
+      codegen_cmp(p, "l", rd_id, rhs_id);
+      return;
+    case BINOP_LE:
+      codegen_cmp(p, "le", rd_id, rhs_id);
       return;
     default:
       CCC_UNREACHABLE;

@@ -61,18 +61,33 @@ static Node* term(TokenList** t) {
   }
 }
 
+static Node* unary(TokenList** t) {
+  switch (head_of(t)) {
+    case TK_PLUS:
+      consume(t);
+      // parse `+n` as `n`
+      return term(t);
+    case TK_MINUS:
+      consume(t);
+      // parse `-n` as `0 - n`
+      return new_node_binop(BINOP_SUB, new_node_num(0), term(t));
+    default:
+      return term(t);
+  }
+}
+
 static Node* mul(TokenList** t) {
-  Node* node = term(t);
+  Node* node = unary(t);
 
   for (;;) {
     switch (head_of(t)) {
       case TK_STAR:
         consume(t);
-        node = new_node_binop(BINOP_MUL, node, term(t));
+        node = new_node_binop(BINOP_MUL, node, unary(t));
         break;
       case TK_SLASH:
         consume(t);
-        node = new_node_binop(BINOP_DIV, node, term(t));
+        node = new_node_binop(BINOP_DIV, node, unary(t));
         break;
       default:
         return node;
@@ -99,9 +114,55 @@ static Node* add(TokenList** t) {
   }
 }
 
+static Node* relational(TokenList** t) {
+  Node* node = add(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_GT:
+        consume(t);
+        node = new_node_binop(BINOP_GT, node, add(t));
+        break;
+      case TK_GE:
+        consume(t);
+        node = new_node_binop(BINOP_GE, node, add(t));
+        break;
+      case TK_LT:
+        consume(t);
+        node = new_node_binop(BINOP_LT, node, add(t));
+        break;
+      case TK_LE:
+        consume(t);
+        node = new_node_binop(BINOP_LE, node, add(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Node* equality(TokenList** t) {
+  Node* node = relational(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_EQ:
+        consume(t);
+        node = new_node_binop(BINOP_EQ, node, relational(t));
+        break;
+      case TK_NE:
+        consume(t);
+        node = new_node_binop(BINOP_NE, node, relational(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
 // the expression parser
 static Node* expr(TokenList** t) {
-  return add(t);
+  return equality(t);
 }
 
 // parse tokens into AST
@@ -123,6 +184,24 @@ void print_binop(FILE* p, BinopKind kind) {
       return;
     case BINOP_DIV:
       fprintf(p, "/");
+      return;
+    case BINOP_EQ:
+      fprintf(p, "==");
+      return;
+    case BINOP_NE:
+      fprintf(p, "!=");
+      return;
+    case BINOP_GT:
+      fprintf(p, ">");
+      return;
+    case BINOP_GE:
+      fprintf(p, ">=");
+      return;
+    case BINOP_LT:
+      fprintf(p, "<");
+      return;
+    case BINOP_LE:
+      fprintf(p, "<=");
       return;
     default:
       CCC_UNREACHABLE;

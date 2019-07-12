@@ -9,6 +9,7 @@ typedef struct {
   unsigned inst_count;  // counts instructions in loop
   IntVec* last_uses;    // index: virtual reg, value: ic
   IntVec* first_uses;   // index: virtual reg, value: ic or -1 (not appeared yet)
+  IntVec* sorted_regs;  // virtual registers are stored in order of first occurrence
   // alloc_regs
   unsigned num_regs;    // permitted number of registers
   IntVec* used_regs;    // index: real reg, value: virtual reg or -1 (not used)
@@ -28,6 +29,7 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
   e->first_uses = new_IntVec(reg_count);
   resize_IntVec(e->first_uses, reg_count);
   fill_IntVec(e->first_uses, -1);
+  e->sorted_regs = new_IntVec(reg_count);
 
   // reserve one reg for spilling
   e->num_regs = num_regs - 1;
@@ -60,6 +62,7 @@ void set_as_used(Env* env, Reg r) {
   if (get_IntVec(env->first_uses, idx) == -1) {
     // first occurrence
     set_IntVec(env->first_uses, idx, env->inst_count);
+    push_IntVec(env->sorted_regs, idx);
   }
 }
 
@@ -129,29 +132,30 @@ int select_spill_target(Env* env, int vi) {
 }
 
 void alloc_regs(Env* env) {
-  for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
-    // i: virtual register index
+  for(unsigned i = 0; i < length_IntVec(env->sorted_regs); i++) {
+    int vi = get_IntVec(env->sorted_regs, i);
+    // vi: virtual register index
 
     int ri;
-    if(find_unused(env, i, &ri)) {
+    if(find_unused(env, vi, &ri)) {
       // store the mapping from virtual reg to real reg
-      set_IntVec(env->result, i, ri);
+      set_IntVec(env->result, vi, ri);
       // mark as used
-      set_IntVec(env->used_regs, ri, i);
+      set_IntVec(env->used_regs, ri, vi);
 
       continue;
     }
 
     // spilling
 
-    int t_vi = select_spill_target(env, i);
+    int t_vi = select_spill_target(env, vi);
     int prev = get_IntVec(env->result, t_vi);
 
     // mark as spilled
     set_IntVec(env->result, t_vi, -1);
 
-    set_IntVec(env->result, i, prev);
-    set_IntVec(env->used_regs, prev, i);
+    set_IntVec(env->result, vi, prev);
+    set_IntVec(env->used_regs, prev, vi);
   }
 }
 

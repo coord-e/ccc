@@ -163,4 +163,4 @@ DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IRInstList)
 
 void print_IR(FILE* p, IR* ir) {
   print_IRInstList(p, ir->insts);
-};
+}

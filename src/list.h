@@ -61,16 +61,14 @@
   T head_##Name(const Name* list) {                                            \
     if (list->is_nil) {                                                        \
       error("head");                                                           \
-    } else {                                                                   \
-      return list->head;                                                       \
     }                                                                          \
+    return list->head;                                                         \
   }                                                                            \
   Name* tail_##Name(const Name* list) {                                        \
     if (list->is_nil) {                                                        \
       error("tail");                                                           \
-    } else {                                                                   \
-      return list->tail;                                                       \
     }                                                                          \
+    return list->tail;                                                         \
   }                                                                            \
   bool is_nil_##Name(const Name* list) { return list->is_nil; }                \
   unsigned length_##Name(const Name* list) {                                   \
@@ -93,14 +91,14 @@
 #define DEFINE_LIST_PRINTER(print_data, sep, end, Name)                        \
   void print_##Name(FILE* f, Name* l) {                                        \
     if (l->is_nil) {                                                           \
-      fprintf(f, end);                                                         \
+      fputs(end, f);                                                           \
       return;                                                                  \
     }                                                                          \
     print_data(f, l->head);                                                    \
     if (l->tail->is_nil) {                                                     \
-      fprintf(f, end);                                                         \
+      fputs(end, f);                                                           \
     } else {                                                                   \
-      fprintf(f, sep);                                                         \
+      fputs(sep, f);                                                           \
       print_##Name(f, l->tail);                                                \
     }                                                                          \
   }

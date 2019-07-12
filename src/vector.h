@@ -83,11 +83,11 @@
   void print_##Name(FILE* f, Name* v) {                                        \
     for (unsigned i = 0; i < v->length; i++) {                                 \
       if (i != 0) {                                                            \
-        fprintf(f, sep);                                                       \
+        fputs(sep, f);                                                         \
       }                                                                        \
       print_data(f, v->data[i]);                                               \
     }                                                                          \
-    fprintf(f, end);                                                           \
+    fputs(end, f);                                                             \
   }
 
 // often used common definitions

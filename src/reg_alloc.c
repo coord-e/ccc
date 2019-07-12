@@ -49,6 +49,22 @@ Env* init_env(unsigned num_regs, unsigned reg_count) {
   return e;
 }
 
+// save `insts` and release other part of env
+IRInstList* take_insts_and_release(Env *env) {
+  IRInstList* insts = env->insts;
+
+  release_IntVec(env->last_uses);
+  release_IntVec(env->first_uses);
+  release_IntVec(env->sorted_regs);
+  release_IntVec(env->used_regs);
+  release_IntVec(env->result);
+  release_IntVec(env->stacks);
+
+  free(env);
+
+  return insts;
+}
+
 void set_as_used(Env* env, Reg r) {
   if (!r.is_used) {
     return;
@@ -263,6 +279,6 @@ IR* reg_alloc(unsigned num_regs, IR* ir) {
 
   IR* new_ir = calloc(1, sizeof(IR));
   new_ir->reg_count = num_regs;
-  new_ir->insts = env->insts;
+  new_ir->insts = take_insts_and_release(env);
   return new_ir;
 }

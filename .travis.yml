@@ -1,0 +1,8 @@
+dist: xenial
+language: c
+compiler:
+  - clang
+  - gcc
+
+script:
+  - make test

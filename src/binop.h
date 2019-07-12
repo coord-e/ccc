@@ -6,6 +6,12 @@ typedef enum {
   BINOP_SUB,
   BINOP_MUL,
   BINOP_DIV,
+  BINOP_EQ,
+  BINOP_NE,
+  BINOP_GT,
+  BINOP_GE,
+  BINOP_LT,
+  BINOP_LE,
 } BinopKind;
 
 #endif

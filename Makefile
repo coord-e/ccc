@@ -7,6 +7,7 @@ SRCS := $(shell find $(SRC_DIR) -name *.c)
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
+CFLAGS ?= -Wall -std=c11 -pedantic
 CPPFLAGS ?= -MMD -MP
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)

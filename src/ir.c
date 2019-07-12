@@ -51,11 +51,14 @@ RegVec* single_regvec(Reg r) {
 
 Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
   IRInst* i = new_inst(IR_BIN);
+  Reg dest = new_reg(env);
   i->binop = op;
-  i->rd = lhs;
-  i->ras = single_regvec(rhs);
+  i->rd = dest;
+  i->ras = new_RegVec(2);
+  push_RegVec(i->ras, lhs);
+  push_RegVec(i->ras, rhs);
   add_inst(env, i);
-  return lhs;
+  return dest;
 }
 
 Reg new_imm(Env* env, int num) {

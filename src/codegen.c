@@ -72,21 +72,23 @@ void codegen_insts(FILE* p, IRInstList* insts) {
 
 void codegen_binop(FILE* p, IRInst* inst) {
   const char* rd = reg_of(inst->rd);
-  const char* ra = nth_reg_of(0, inst->ras);
+  const char* lhs = nth_reg_of(0, inst->ras);
+  const char* rhs = nth_reg_of(1, inst->ras);
+  emit(p, "mov %s, %s", rd, lhs);
   switch(inst->binop) {
     case BINOP_ADD:
-      emit(p, "add %s, %s", rd, ra);
+      emit(p, "add %s, %s", rd, rhs);
       return;
     case BINOP_SUB:
-      emit(p, "sub %s, %s", rd, ra);
+      emit(p, "sub %s, %s", rd, rhs);
       return;
     case BINOP_MUL:
-      emit(p, "imul %s, %s", rd, ra);
+      emit(p, "imul %s, %s", rd, rhs);
       return;
     case BINOP_DIV:
       emit(p, "mov rax, %s", rd);
       emit(p, "cqo");
-      emit(p, "idiv %s", ra);
+      emit(p, "idiv %s", rhs);
       emit(p, "mov %s, rax", rd);
       return;
     default:

@@ -6,8 +6,7 @@
 #include "codegen.h"
 #include "error.h"
 
-static const char* regs[] = {"r8",  "r9",  "r10", "r11", "r12",
-                             "r13", "r14", "r15", "rbx"};
+static const char* regs[] = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rbx"};
 
 // declared as an extern variable in codegen.h
 size_t num_regs = sizeof(regs) / sizeof(*regs);
@@ -63,8 +62,7 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
       break;
     case IR_STORE:
-      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8,
-           nth_reg_of(0, h->ras));
+      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
       break;
     case IR_SUBS:
       emit(p, "sub rsp, %d", 8 * h->stack_idx);

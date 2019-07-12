@@ -5,3 +5,4 @@ AlignTrailingComments: true
 AlignEscapedNewlinesLeft: false
 BreakBeforeBraces: Attach
 UseTab: Never
+ColumnLimit: 100

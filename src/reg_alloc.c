@@ -8,9 +8,8 @@ typedef struct {
   // collect_last_uses
   unsigned inst_count;  // counts instructions in loop
   IntVec* last_uses;    // index: virtual reg, value: ic
-  IntVec* first_uses;  // index: virtual reg, value: ic or -1 (not appeared yet)
-  IntVec*
-      sorted_regs;  // virtual registers are stored in order of first occurrence
+  IntVec* first_uses;   // index: virtual reg, value: ic or -1 (not appeared yet)
+  IntVec* sorted_regs;  // virtual registers are stored in order of first occurrence
   // alloc_regs
   unsigned num_regs;  // permitted number of registers
   IntVec* used_regs;  // index: real reg, value: virtual reg or -1 (not used)
@@ -18,9 +17,9 @@ typedef struct {
                       // (not filled yet)
   // rewrite_IR
   unsigned stack_count;  // counts allocated stack areas
-  IntVec* stacks;     // index: virtual reg, value: stack index or -1 (not used)
-  IRInstList* insts;  // a list of newly created instructions
-  IRInstList* cursor;  // pointer to current head of the list
+  IntVec* stacks;        // index: virtual reg, value: stack index or -1 (not used)
+  IRInstList* insts;     // a list of newly created instructions
+  IRInstList* cursor;    // pointer to current head of the list
 } Env;
 
 static Env* init_env(unsigned num_regs, unsigned reg_count) {

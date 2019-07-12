@@ -45,6 +45,9 @@ void codegen_insts(FILE* p, IRInstList* insts) {
     case IR_IMM:
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
+    case IR_MOV:
+      emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
+      break;
     case IR_RET:
       emit(p, "mov rax, %s", nth_reg_of(0, h->ras));
       emit(p, "mov rsp, rbp");

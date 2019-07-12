@@ -50,14 +50,21 @@ RegVec* single_regvec(Reg r) {
 }
 
 Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
-  IRInst* i = new_inst(IR_BIN);
   Reg dest = new_reg(env);
-  i->binop = op;
-  i->rd = dest;
-  i->ras = new_RegVec(2);
-  push_RegVec(i->ras, lhs);
-  push_RegVec(i->ras, rhs);
-  add_inst(env, i);
+
+  IRInst* i1 = new_inst(IR_MOV);
+  i1->rd = dest;
+  i1->ras = single_regvec(lhs);
+  add_inst(env, i1);
+
+  IRInst* i2 = new_inst(IR_BIN);
+  i2->binop = op;
+  i2->rd = dest;
+  i2->ras = new_RegVec(2);
+  push_RegVec(i2->ras, dest);
+  push_RegVec(i2->ras, rhs);
+  add_inst(env, i2);
+
   return dest;
 }
 
@@ -134,6 +141,9 @@ void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_RET:
       fprintf(p, "RET ");
+      break;
+    case IR_MOV:
+      fprintf(p, "MOV ");
       break;
     case IR_BIN:
       fprintf(p, "BIN ");

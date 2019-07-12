@@ -16,6 +16,7 @@ typedef enum {
   IR_STORE,
   IR_LOAD,
   IR_SUBS,
+  IR_MOV,
 } IRInstKind;
 
 typedef enum {

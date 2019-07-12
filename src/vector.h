@@ -9,6 +9,7 @@
   typedef struct Name Name;                                                    \
   Name *new_##Name(unsigned capacity);                                         \
   T get_##Name(const Name *, unsigned idx);                                    \
+  T *ptr_##Name(const Name *, unsigned idx);                                   \
   void push_##Name(Name *, T value);                                           \
   void set_##Name(Name *, unsigned idx, T value);                              \
   void fill_##Name(Name *, T value);                                           \
@@ -35,6 +36,10 @@
   T get_##Name(const Name *a, unsigned idx) {                                  \
     assert(a->length > idx);                                                   \
     return a->data[idx];                                                       \
+  }                                                                            \
+  T *ptr_##Name(const Name *a, unsigned idx) {                                 \
+    assert(a->length > idx);                                                   \
+    return a->data + idx;                                                      \
   }                                                                            \
   void set_##Name(Name *a, unsigned idx, T value) {                            \
     assert(a->length > idx);                                                   \

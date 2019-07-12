@@ -43,7 +43,7 @@ typedef struct IRInst {
   unsigned stack_idx; // for ND_STORE, ND_LOAD
 
   Reg rd;      // destination register
-  RegVec* ras; // argument registers
+  RegVec* ras; // argument registers (won't be null)
 } IRInst;
 
 IRInst* new_inst(IRInstKind);

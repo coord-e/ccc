@@ -5,12 +5,12 @@
 IRInst* new_inst(IRInstKind kind) {
   IRInst* i = calloc(1, sizeof(IRInst));
   i->kind = kind;
+  i->ras = new_RegVec(1);
   return i;
 }
 void release_inst(IRInst* i) {
-  if (i->ras != NULL) {
-    release_RegVec(i->ras);
-  }
+  assert(i->ras != NULL);
+  release_RegVec(i->ras);
   free(i);
 }
 
@@ -43,24 +43,17 @@ void add_inst(Env *env, IRInst* inst) {
   env->cursor = snoc_IRInstList(inst, env->cursor);
 }
 
-RegVec* single_regvec(Reg r) {
-  RegVec* v = new_RegVec(1);
-  push_RegVec(v, r);
-  return v;
-}
-
 Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
   Reg dest = new_reg(env);
 
   IRInst* i1 = new_inst(IR_MOV);
   i1->rd = dest;
-  i1->ras = single_regvec(lhs);
+  push_RegVec(i1->ras, lhs);
   add_inst(env, i1);
 
   IRInst* i2 = new_inst(IR_BIN);
   i2->binop = op;
   i2->rd = dest;
-  i2->ras = new_RegVec(2);
   push_RegVec(i2->ras, dest);
   push_RegVec(i2->ras, rhs);
   add_inst(env, i2);
@@ -97,7 +90,7 @@ IR* generate_IR(Node* node) {
 
   Reg r = gen_ir(env, node);
   IRInst* ret = new_inst(IR_RET);
-  ret->ras = single_regvec(r);
+  push_RegVec(ret->ras, r);
   add_inst(env, ret);
 
   IRInstList* insts = env->insts;

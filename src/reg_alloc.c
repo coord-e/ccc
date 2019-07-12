@@ -90,10 +90,8 @@ void collect_last_uses(Env* env, IRInstList* insts) {
 
   IRInst* inst = head_IRInstList(insts);
   set_as_used(env, inst->rd);
-  if (inst->ras != NULL) {
-    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-      set_as_used(env, get_RegVec(inst->ras, i));
-    }
+  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+    set_as_used(env, get_RegVec(inst->ras, i));
   }
 
   env->inst_count++;
@@ -250,16 +248,9 @@ void rewrite_IR(Env* env, IRInstList* insts) {
 
   IRInst* inst = head_IRInstList(insts);
   update_reg(env, &inst->rd);
-  if (inst->ras != NULL) {
-    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-      update_reg(env, ptr_RegVec(inst->ras, i));
-    }
-  }
-
-  if (inst->ras != NULL) {
-    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-      emit_spill_load(env, get_RegVec(inst->ras, i));
-    }
+  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+    update_reg(env, ptr_RegVec(inst->ras, i));
+    emit_spill_load(env, get_RegVec(inst->ras, i));
   }
 
   append_inst(env, inst);

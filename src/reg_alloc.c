@@ -240,7 +240,6 @@ void rewrite_IR(Env* env, IRInstList* insts) {
     }
   }
 
-  emit_spill_load(env, inst->rd);
   if (inst->ras != NULL) {
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       emit_spill_load(env, get_RegVec(inst->ras, i));
@@ -250,11 +249,6 @@ void rewrite_IR(Env* env, IRInstList* insts) {
   append_inst(env, inst);
 
   emit_spill_store(env, inst->rd);
-  if (inst->ras != NULL) {
-    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-      emit_spill_store(env, get_RegVec(inst->ras, i));
-    }
-  }
 
   rewrite_IR(env, tail_IRInstList(insts));
 }

@@ -10,7 +10,6 @@
 // a simple linked list
 #define DECLARE_LIST(T, Name)                                                  \
   typedef struct Name Name;                                                    \
-  Name *init_##Name();                                                         \
   Name *nil_##Name();                                                          \
   Name *cons_##Name(T value, const Name *list);                                \
   Name *single_##Name(T value);                                                \

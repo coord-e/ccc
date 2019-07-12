@@ -65,7 +65,7 @@ void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
       break;
     case IR_SUBS:
-      emit(p, "sub rsp, %d", 8 * h->stack_idx + 8);
+      emit(p, "sub rsp, %d", 8 * h->stack_idx);
       break;
     default:
       CCC_UNREACHABLE;

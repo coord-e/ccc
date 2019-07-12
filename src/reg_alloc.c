@@ -115,9 +115,15 @@ int select_spill_target(Env* env, int vi) {
       continue;
     }
 
+    if (get_IntVec(env->used_regs, i) == -1) {
+      // not allocated yet
+      continue;
+    }
+
     int last = get_IntVec(env->last_uses, i);
+    int first = get_IntVec(env->first_uses, i);
     int t_def = get_IntVec(env->first_uses, vi);
-    if (last < t_def) {
+    if (last < t_def || first > t_def) {
       // not active here
       continue;
     }

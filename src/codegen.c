@@ -29,6 +29,10 @@ const char* reg_of(Reg r) {
   return regs[r.real];
 }
 
+const char* nth_reg_of(unsigned i, RegVec* rs) {
+  return reg_of(get_RegVec(rs, i));
+}
+
 void codegen_binop(FILE* p, IRInst* inst);
 
 void codegen_insts(FILE* p, IRInstList* insts) {
@@ -42,7 +46,7 @@ void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
     case IR_RET:
-      emit(p, "mov rax, %s", reg_of(h->ra));
+      emit(p, "mov rax, %s", nth_reg_of(0, h->ras));
       emit(p, "mov rsp, rbp");
       emit(p, "pop rbp");
       emit(p, "ret");
@@ -54,7 +58,7 @@ void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
       break;
     case IR_STORE:
-      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, reg_of(h->ra));
+      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
       break;
     case IR_SUBS:
       emit(p, "sub rsp, %d", 8 * h->stack_idx + 8);
@@ -68,7 +72,7 @@ void codegen_insts(FILE* p, IRInstList* insts) {
 
 void codegen_binop(FILE* p, IRInst* inst) {
   const char* rd = reg_of(inst->rd);
-  const char* ra = reg_of(inst->ra);
+  const char* ra = nth_reg_of(0, inst->ras);
   switch(inst->binop) {
     case BINOP_ADD:
       emit(p, "add %s, %s", rd, ra);

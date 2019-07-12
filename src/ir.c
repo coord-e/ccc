@@ -7,9 +7,17 @@ IRInst* new_inst(IRInstKind kind) {
   i->kind = kind;
   return i;
 }
-void release_inst(IRInst* i) { free(i); }
+void release_inst(IRInst* i) {
+  if (i->ras != NULL) {
+    release_RegVec(i->ras);
+  }
+  free(i);
+}
 
 DEFINE_LIST(release_inst, IRInst*, IRInstList)
+
+static void release_reg(Reg r) {}
+DEFINE_VECTOR(release_reg, Reg, RegVec)
 
 typedef struct {
   unsigned reg_count;
@@ -35,11 +43,17 @@ void add_inst(Env *env, IRInst* inst) {
   env->cursor = snoc_IRInstList(inst, env->cursor);
 }
 
+RegVec* single_regvec(Reg r) {
+  RegVec* v = new_RegVec(1);
+  push_RegVec(v, r);
+  return v;
+}
+
 Reg new_binop(Env *env, BinopKind op, Reg lhs, Reg rhs) {
   IRInst* i = new_inst(IR_BIN);
   i->binop = op;
   i->rd = lhs;
-  i->ra = rhs;
+  i->ras = single_regvec(rhs);
   add_inst(env, i);
   return lhs;
 }
@@ -73,7 +87,7 @@ IR* generate_IR(Node* node) {
 
   Reg r = gen_ir(env, node);
   IRInst* ret = new_inst(IR_RET);
-  ret->ra = r;
+  ret->ras = single_regvec(r);
   add_inst(env, ret);
 
   IRInstList* insts = env->insts;
@@ -104,39 +118,39 @@ void print_reg(FILE* p, Reg r) {
   }
 }
 
+DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
+
 void print_inst(FILE* p, IRInst* i) {
+  if (i->rd.is_used) {
+    print_reg(p, i->rd);
+    fprintf(p, " = ");
+  }
   switch(i->kind) {
     case IR_IMM:
       fprintf(p, "IMM ");
-      print_reg(p, i->rd);
-      fprintf(p, " <- %d", i->imm);
       break;
     case IR_RET:
       fprintf(p, "RET ");
-      print_reg(p, i->ra);
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
-      print_reg(p, i->rd);
-      fprintf(p, " ");
       print_binop(p, i->binop);
       fprintf(p, " ");
-      print_reg(p, i->ra);
       break;
     case IR_LOAD:
-      fprintf(p, "LOAD ");
-      print_reg(p, i->rd);
-      fprintf(p, " <= %d", i->stack_idx);
+      fprintf(p, "LOAD %d", i->stack_idx);
       break;
     case IR_STORE:
-      fprintf(p, "STORE %d <= ", i->stack_idx);
-      print_reg(p, i->ra);
+      fprintf(p, "STORE %d", i->stack_idx);
       break;
     case IR_SUBS:
       fprintf(p, "SUBS %d", i->stack_idx);
       break;
     default:
       CCC_UNREACHABLE;
+  }
+  if (i->ras != NULL) {
+    print_RegVec(p, i->ras);
   }
 }
 

@@ -71,9 +71,13 @@ void collect_last_uses(Env* env, IRInstList* insts) {
     return;
   }
 
-  IRInst* i = head_IRInstList(insts);
-  set_as_used(env, i->rd);
-  set_as_used(env, i->ra);
+  IRInst* inst = head_IRInstList(insts);
+  set_as_used(env, inst->rd);
+  if (inst->ras != NULL) {
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      set_as_used(env, get_RegVec(inst->ras, i));
+    }
+  }
 
   env->inst_count++;
 
@@ -169,9 +173,9 @@ void append_inst(Env* env, IRInst* i) {
   env->cursor = snoc_IRInstList(i, env->cursor);
 }
 
-bool update_reg(Env* env, Reg* r) {
+void update_reg(Env* env, Reg* r) {
   if(!r->is_used) {
-    return false;
+    return;
   }
 
   int ri = get_IntVec(env->result, r->virtual - 1);
@@ -179,10 +183,10 @@ bool update_reg(Env* env, Reg* r) {
   if (ri == -1) {
     // spilled
     r->real = env->num_regs; // reserved reg
-    return true;
+    r->is_spilled = true;
   } else {
     r->real = ri;
-    return false;
+    r->is_spilled = false;
   }
 }
 
@@ -198,6 +202,10 @@ int stack_idx_of(Env* env, int vi) {
 }
 
 void emit_spill_load(Env* env, Reg r) {
+  if (!r.is_spilled) {
+    return;
+  }
+
   IRInst* load = new_inst(IR_LOAD);
   load->stack_idx = stack_idx_of(env, r.virtual - 1);
   load->rd = r;
@@ -205,9 +213,14 @@ void emit_spill_load(Env* env, Reg r) {
 }
 
 void emit_spill_store(Env* env, Reg r) {
+  if (!r.is_spilled) {
+    return;
+  }
+
   IRInst* store = new_inst(IR_STORE);
   store->stack_idx = stack_idx_of(env, r.virtual - 1);
-  store->ra = r;
+  store->ras = new_RegVec(1);
+  push_RegVec(store->ras, r);
   append_inst(env, store);
 }
 
@@ -222,17 +235,29 @@ void rewrite_IR(Env* env, IRInstList* insts) {
     return;
   }
 
-  IRInst* i = head_IRInstList(insts);
-  bool rd_spilled = update_reg(env, &i->rd);
-  bool ra_spilled = update_reg(env, &i->ra);
+  IRInst* inst = head_IRInstList(insts);
+  update_reg(env, &inst->rd);
+  if (inst->ras != NULL) {
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      update_reg(env, ptr_RegVec(inst->ras, i));
+    }
+  }
 
-  if (ra_spilled) emit_spill_load(env, i->ra);
-  if (rd_spilled) emit_spill_load(env, i->rd);
+  emit_spill_load(env, inst->rd);
+  if (inst->ras != NULL) {
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      emit_spill_load(env, get_RegVec(inst->ras, i));
+    }
+  }
 
-  append_inst(env, i);
+  append_inst(env, inst);
 
-  if (ra_spilled) emit_spill_store(env, i->ra);
-  if (rd_spilled) emit_spill_store(env, i->rd);
+  emit_spill_store(env, inst->rd);
+  if (inst->ras != NULL) {
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      emit_spill_load(env, get_RegVec(inst->ras, i));
+    }
+  }
 
   rewrite_IR(env, tail_IRInstList(insts));
 }

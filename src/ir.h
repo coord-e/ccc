@@ -7,6 +7,7 @@
 #include "list.h"
 #include "parser.h"
 #include "binop.h"
+#include "vector.h"
 
 typedef enum {
   IR_BIN,
@@ -28,7 +29,11 @@ typedef struct {
   unsigned real;
 
   bool is_used; // TODO: Use better way to represent unsued register slot
+  bool is_spilled;
 } Reg;
+
+DECLARE_VECTOR(Reg, RegVec)
+DECLARE_VECTOR_PRINTER(RegVec)
 
 typedef struct IRInst {
   IRInstKind kind;
@@ -36,8 +41,8 @@ typedef struct IRInst {
   int imm;            // for ND_IMM
   unsigned stack_idx; // for ND_STORE, ND_LOAD
 
-  Reg rd; // destination register
-  Reg ra; // argument register
+  Reg rd;      // destination register
+  RegVec* ras; // argument registers
 } IRInst;
 
 IRInst* new_inst(IRInstKind);

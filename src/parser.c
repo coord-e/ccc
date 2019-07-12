@@ -61,18 +61,33 @@ static Node* term(TokenList** t) {
   }
 }
 
+static Node* unary(TokenList** t) {
+  switch (head_of(t)) {
+    case TK_PLUS:
+      consume(t);
+      // parse `+n` as `n`
+      return term(t);
+    case TK_MINUS:
+      consume(t);
+      // parse `-n` as `0 - n`
+      return new_node_binop(BINOP_SUB, new_node_num(0), term(t));
+    default:
+      return term(t);
+  }
+}
+
 static Node* mul(TokenList** t) {
-  Node* node = term(t);
+  Node* node = unary(t);
 
   for (;;) {
     switch (head_of(t)) {
       case TK_STAR:
         consume(t);
-        node = new_node_binop(BINOP_MUL, node, term(t));
+        node = new_node_binop(BINOP_MUL, node, unary(t));
         break;
       case TK_SLASH:
         consume(t);
-        node = new_node_binop(BINOP_DIV, node, term(t));
+        node = new_node_binop(BINOP_DIV, node, unary(t));
         break;
       default:
         return node;

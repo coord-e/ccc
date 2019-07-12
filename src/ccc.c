@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "lexer.h"
 #include "codegen.h"
+#include "error.h"
+#include "ir.h"
+#include "lexer.h"
 #include "parser.h"
 #include "reg_alloc.h"
-#include "ir.h"
-#include "error.h"
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   if (argc != 2) {
     fprintf(stderr, "Invalid number of arguments\n");
     return 1;
@@ -30,7 +30,6 @@ int main(int argc, char **argv) {
 
   codegen(stdout, ir2);
   release_IR(ir2);
-
 
   return 0;
 }

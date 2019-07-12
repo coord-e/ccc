@@ -1,0 +1,7 @@
+---
+BasedOnStyle: Chromium
+AlignConsecutiveAssignments: true
+AlignTrailingComments: true
+AlignEscapedNewlinesLeft: false
+BreakBeforeBraces: Attach
+UseTab: Never

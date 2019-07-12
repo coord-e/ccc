@@ -8,23 +8,25 @@ typedef struct {
   // collect_last_uses
   unsigned inst_count;  // counts instructions in loop
   IntVec* last_uses;    // index: virtual reg, value: ic
-  IntVec* first_uses;   // index: virtual reg, value: ic or -1 (not appeared yet)
-  IntVec* sorted_regs;  // virtual registers are stored in order of first occurrence
+  IntVec* first_uses;  // index: virtual reg, value: ic or -1 (not appeared yet)
+  IntVec*
+      sorted_regs;  // virtual registers are stored in order of first occurrence
   // alloc_regs
-  unsigned num_regs;    // permitted number of registers
-  IntVec* used_regs;    // index: real reg, value: virtual reg or -1 (not used)
-  IntVec* result;       // index: virtual reg, value: real reg or -1 (spill) or -2 (not filled yet)
+  unsigned num_regs;  // permitted number of registers
+  IntVec* used_regs;  // index: real reg, value: virtual reg or -1 (not used)
+  IntVec* result;     // index: virtual reg, value: real reg or -1 (spill) or -2
+                      // (not filled yet)
   // rewrite_IR
-  unsigned stack_count; // counts allocated stack areas
-  IntVec* stacks;       // index: virtual reg, value: stack index or -1 (not used)
-  IRInstList* insts;    // a list of newly created instructions
-  IRInstList* cursor;   // pointer to current head of the list
+  unsigned stack_count;  // counts allocated stack areas
+  IntVec* stacks;     // index: virtual reg, value: stack index or -1 (not used)
+  IRInstList* insts;  // a list of newly created instructions
+  IRInstList* cursor;  // pointer to current head of the list
 } Env;
 
 static Env* init_env(unsigned num_regs, unsigned reg_count) {
-  Env* e = calloc(1, sizeof(Env));
+  Env* e        = calloc(1, sizeof(Env));
   e->inst_count = 0;
-  e->last_uses = new_IntVec(reg_count);
+  e->last_uses  = new_IntVec(reg_count);
   resize_IntVec(e->last_uses, reg_count);
   e->first_uses = new_IntVec(reg_count);
   resize_IntVec(e->first_uses, reg_count);
@@ -32,7 +34,7 @@ static Env* init_env(unsigned num_regs, unsigned reg_count) {
   e->sorted_regs = new_IntVec(reg_count);
 
   // reserve one reg for spilling
-  e->num_regs = num_regs - 1;
+  e->num_regs  = num_regs - 1;
   e->used_regs = new_IntVec(reg_count);
   resize_IntVec(e->used_regs, reg_count);
   fill_IntVec(e->used_regs, -1);
@@ -41,16 +43,16 @@ static Env* init_env(unsigned num_regs, unsigned reg_count) {
   fill_IntVec(e->result, -2);
 
   e->stack_count = 0;
-  e->stacks = new_IntVec(reg_count);
+  e->stacks      = new_IntVec(reg_count);
   resize_IntVec(e->stacks, reg_count);
   fill_IntVec(e->stacks, -1);
-  e->insts = nil_IRInstList();
+  e->insts  = nil_IRInstList();
   e->cursor = e->insts;
   return e;
 }
 
 // save `insts` and release other part of env
-static IRInstList* take_insts_and_release(Env *env) {
+static IRInstList* take_insts_and_release(Env* env) {
   IRInstList* insts = env->insts;
 
   release_IntVec(env->last_uses);
@@ -110,7 +112,7 @@ static bool find_unused(Env* env, int target, int* r) {
     int vi = get_IntVec(env->used_regs, i);
     if (vi != -1) {
       // already allocated
-      int last = get_IntVec(env->last_uses, vi);
+      int last  = get_IntVec(env->last_uses, vi);
       int t_def = get_IntVec(env->first_uses, target);
       if (last > t_def) {
         // ... and overlapping liveness
@@ -126,7 +128,7 @@ static bool find_unused(Env* env, int target, int* r) {
 
 static int select_spill_target(Env* env, int vi) {
   int candidate = vi;
-  for(unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
+  for (unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
     // i: virtual register index
 
     int r = get_IntVec(env->result, i);
@@ -135,7 +137,7 @@ static int select_spill_target(Env* env, int vi) {
       continue;
     }
 
-    int last = get_IntVec(env->last_uses, i);
+    int last  = get_IntVec(env->last_uses, i);
     int first = get_IntVec(env->first_uses, i);
     int t_def = get_IntVec(env->first_uses, vi);
     if (last < t_def || first > t_def) {
@@ -153,12 +155,12 @@ static int select_spill_target(Env* env, int vi) {
 }
 
 static void alloc_regs(Env* env) {
-  for(unsigned i = 0; i < length_IntVec(env->sorted_regs); i++) {
+  for (unsigned i = 0; i < length_IntVec(env->sorted_regs); i++) {
     int vi = get_IntVec(env->sorted_regs, i);
     // vi: virtual register index
 
     int ri;
-    if(find_unused(env, vi, &ri)) {
+    if (find_unused(env, vi, &ri)) {
       // store the mapping from virtual reg to real reg
       set_IntVec(env->result, vi, ri);
       // mark as used
@@ -185,18 +187,18 @@ static void append_inst(Env* env, IRInst* i) {
 }
 
 static void update_reg(Env* env, Reg* r) {
-  if(!r->is_used) {
+  if (!r->is_used) {
     return;
   }
 
-  int ri = get_IntVec(env->result, r->virtual);
+  int ri  = get_IntVec(env->result, r->virtual);
   r->kind = REG_REAL;
   if (ri == -1) {
     // spilled
-    r->real = env->num_regs; // reserved reg
+    r->real       = env->num_regs;  // reserved reg
     r->is_spilled = true;
   } else {
-    r->real = ri;
+    r->real       = ri;
     r->is_spilled = false;
   }
 }
@@ -217,9 +219,9 @@ static void emit_spill_load(Env* env, Reg r) {
     return;
   }
 
-  IRInst* load = new_inst(IR_LOAD);
+  IRInst* load    = new_inst(IR_LOAD);
   load->stack_idx = stack_idx_of(env, r.virtual);
-  load->rd = r;
+  load->rd        = r;
   append_inst(env, load);
 }
 
@@ -228,21 +230,21 @@ static void emit_spill_store(Env* env, Reg r) {
     return;
   }
 
-  IRInst* store = new_inst(IR_STORE);
+  IRInst* store    = new_inst(IR_STORE);
   store->stack_idx = stack_idx_of(env, r.virtual);
-  store->ras = new_RegVec(1);
+  store->ras       = new_RegVec(1);
   push_RegVec(store->ras, r);
   append_inst(env, store);
 }
 
 static void emit_spill_subs(Env* env) {
-  IRInst* subs = new_inst(IR_SUBS);
+  IRInst* subs    = new_inst(IR_SUBS);
   subs->stack_idx = env->stack_count;
-  env->insts = cons_IRInstList(subs, env->insts);
+  env->insts      = cons_IRInstList(subs, env->insts);
 }
 
 static void rewrite_IR(Env* env, IRInstList* insts) {
-  if(is_nil_IRInstList(insts)) {
+  if (is_nil_IRInstList(insts)) {
     return;
   }
 
@@ -268,8 +270,8 @@ IR* reg_alloc(unsigned num_regs, IR* ir) {
 
   emit_spill_subs(env);
 
-  IR* new_ir = calloc(1, sizeof(IR));
+  IR* new_ir        = calloc(1, sizeof(IR));
   new_ir->reg_count = num_regs;
-  new_ir->insts = take_insts_and_release(env);
+  new_ir->insts     = take_insts_and_release(env);
   return new_ir;
 }

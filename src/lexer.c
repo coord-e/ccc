@@ -1,16 +1,16 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
 
+#include "error.h"
 #include "lexer.h"
 #include "list.h"
-#include "error.h"
 
 // nothing to do because `Token` is not allocated in heap
 static void release_token(Token t) {}
 DEFINE_LIST(release_token, Token, TokenList)
 
-static TokenList* add_token(TokenKind kind, TokenList *cur) {
+static TokenList* add_token(TokenKind kind, TokenList* cur) {
   Token t;
   t.kind = kind;
   return snoc_TokenList(t, cur);
@@ -18,7 +18,7 @@ static TokenList* add_token(TokenKind kind, TokenList *cur) {
 
 // will seek `strp` to the end of number
 static TokenList* add_number(char** strp, TokenList* cur) {
-  TokenList* t = add_token(TK_NUMBER, cur);
+  TokenList* t   = add_token(TK_NUMBER, cur);
   t->head.number = strtol(*strp, strp, 10);
   return t;
 }
@@ -29,7 +29,7 @@ static void end_tokens(TokenList* cur) {
 
 TokenList* tokenize(char* p) {
   TokenList* init = nil_TokenList();
-  TokenList* cur = init;
+  TokenList* cur  = init;
 
   while (*p) {
     if (isspace(*p)) {
@@ -79,7 +79,7 @@ TokenList* tokenize(char* p) {
 }
 
 static void print_token(FILE* p, Token t) {
-  switch(t.kind) {
+  switch (t.kind) {
     case TK_PLUS:
       fprintf(p, "(+)");
       break;

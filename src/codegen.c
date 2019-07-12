@@ -1,24 +1,25 @@
+#include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <assert.h>
 
 #include "codegen.h"
 #include "error.h"
 
-static const char* regs[] = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rbx"};
+static const char* regs[] = {"r8",  "r9",  "r10", "r11", "r12",
+                             "r13", "r14", "r15", "rbx"};
 
 // declared as an extern variable in codegen.h
 size_t num_regs = sizeof(regs) / sizeof(*regs);
 
-static void emit_label(FILE* p, char *fmt, ...) {
+static void emit_label(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   vfprintf(p, fmt, ap);
   fprintf(p, ":\n");
 }
 
-static void emit(FILE* p, char *fmt, ...) {
+static void emit(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   fprintf(p, "  ");
@@ -42,7 +43,7 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
   }
 
   IRInst* h = head_IRInstList(insts);
-  switch(h->kind) {
+  switch (h->kind) {
     case IR_IMM:
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
@@ -62,7 +63,8 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
       break;
     case IR_STORE:
-      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
+      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8,
+           nth_reg_of(0, h->ras));
       break;
     case IR_SUBS:
       emit(p, "sub rsp, %d", 8 * h->stack_idx);
@@ -76,13 +78,13 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
 
 static void codegen_binop(FILE* p, IRInst* inst) {
   // extract ids for comparison
-  unsigned rd_id = inst->rd.real;
+  unsigned rd_id  = inst->rd.real;
   unsigned lhs_id = get_RegVec(inst->ras, 0).real;
   unsigned rhs_id = get_RegVec(inst->ras, 1).real;
   // A = B op A instruction can't be emitted
   assert(rd_id != rhs_id);
 
-  const char* rd = reg_of(inst->rd);
+  const char* rd  = reg_of(inst->rd);
   const char* lhs = nth_reg_of(0, inst->ras);
   const char* rhs = nth_reg_of(1, inst->ras);
 
@@ -90,7 +92,7 @@ static void codegen_binop(FILE* p, IRInst* inst) {
     emit(p, "mov %s, %s", rd, lhs);
   }
 
-  switch(inst->binop) {
+  switch (inst->binop) {
     case BINOP_ADD:
       emit(p, "add %s, %s", rd, rhs);
       return;

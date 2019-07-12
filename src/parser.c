@@ -1,27 +1,27 @@
-#include <stdlib.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-#include "parser.h"
 #include "error.h"
+#include "parser.h"
 
 // utilities to build AST
-static Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
-  Node *node = calloc(1, sizeof(Node));
+static Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
+  Node* node = calloc(1, sizeof(Node));
   node->kind = kind;
-  node->lhs = lhs;
-  node->rhs = rhs;
+  node->lhs  = lhs;
+  node->rhs  = rhs;
   return node;
 }
 
-static Node *new_node_num(int num) {
-  Node *node = new_node(ND_NUM, NULL, NULL);
-  node->num = num;
+static Node* new_node_num(int num) {
+  Node* node = new_node(ND_NUM, NULL, NULL);
+  node->num  = num;
   return node;
 }
 
-static Node *new_node_binop(BinopKind kind, Node *lhs, Node *rhs) {
-  Node* node = new_node(ND_BINOP, lhs, rhs);
+static Node* new_node_binop(BinopKind kind, Node* lhs, Node* rhs) {
+  Node* node  = new_node(ND_BINOP, lhs, rhs);
   node->binop = kind;
   return node;
 }
@@ -66,16 +66,16 @@ static Node* mul(TokenList** t) {
 
   for (;;) {
     switch (head_of(t)) {
-    case TK_STAR:
-      consume(t);
-      node = new_node_binop(BINOP_MUL, node, term(t));
-      break;
-    case TK_SLASH:
-      consume(t);
-      node = new_node_binop(BINOP_DIV, node, term(t));
-      break;
-    default:
-      return node;
+      case TK_STAR:
+        consume(t);
+        node = new_node_binop(BINOP_MUL, node, term(t));
+        break;
+      case TK_SLASH:
+        consume(t);
+        node = new_node_binop(BINOP_DIV, node, term(t));
+        break;
+      default:
+        return node;
     }
   }
 }
@@ -111,7 +111,7 @@ Node* parse(TokenList* t) {
 }
 
 void print_binop(FILE* p, BinopKind kind) {
-  switch(kind) {
+  switch (kind) {
     case BINOP_ADD:
       fprintf(p, "+");
       return;
@@ -130,7 +130,7 @@ void print_binop(FILE* p, BinopKind kind) {
 }
 
 static void print_tree_(FILE* p, Node* node) {
-  switch(node->kind) {
+  switch (node->kind) {
     case ND_NUM:
       fprintf(p, "%d", node->num);
       return;

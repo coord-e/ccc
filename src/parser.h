@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 
-#include "lexer.h"
 #include "binop.h"
+#include "lexer.h"
 
 typedef enum {
   ND_BINOP,
@@ -16,8 +16,8 @@ typedef struct Node Node;
 // the AST
 struct Node {
   NodeKind kind;
-  Node *lhs;
-  Node *rhs;
+  Node* lhs;
+  Node* rhs;
   BinopKind binop;  // for ND_BINOP
   int num;          // for ND_NUM
 };

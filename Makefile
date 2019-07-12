@@ -20,6 +20,10 @@ $(BUILD_DIR)/%.c.o: %.c
 test: $(BUILD_DIR)/$(TARGET_EXEC)
 	./test/test.sh
 
+.PHONY: style
+style:
+	clang-format -i $(SRC_DIR)/*.c $(SRC_DIR)/*.h
+
 .PHONY: clean
 clean:
 	$(RM) -r $(BUILD_DIR)

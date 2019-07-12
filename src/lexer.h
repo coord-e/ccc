@@ -19,7 +19,7 @@ typedef struct Token Token;
 
 struct Token {
   TokenKind kind;
-  int number;        // for TK_NUMBER
+  int number;  // for TK_NUMBER
 };
 
 DECLARE_LIST(Token, TokenList)

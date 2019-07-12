@@ -136,6 +136,24 @@ static void print_token(FILE* p, Token t) {
     case TK_RPAREN:
       fprintf(p, "())");
       break;
+    case TK_EQ:
+      fprintf(p, "(==)");
+      break;
+    case TK_NE:
+      fprintf(p, "(!=)");
+      break;
+    case TK_GT:
+      fprintf(p, "(>)");
+      break;
+    case TK_GE:
+      fprintf(p, "(>=)");
+      break;
+    case TK_LT:
+      fprintf(p, "(<)");
+      break;
+    case TK_LE:
+      fprintf(p, "(<=)");
+      break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);
       break;

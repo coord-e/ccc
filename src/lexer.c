@@ -63,6 +63,44 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_RPAREN, cur);
         p++;
         continue;
+      case '=':
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_EQ, cur);
+            p++;
+            continue;
+        }
+      case '!':
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_NE, cur);
+            p++;
+            continue;
+        }
+      case '>':
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_GE, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_GT, cur);
+            continue;
+        }
+      case '<':
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_LE, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_LT, cur);
+            continue;
+        }
       default:
         if (isdigit(*p)) {
           // call of `new_number` updates p

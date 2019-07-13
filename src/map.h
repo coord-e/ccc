@@ -11,18 +11,22 @@
   DECLARE_VECTOR(Name##Entries*, Name##Table)                                                      \
   typedef struct Name Name;                                                                        \
   Name* new_##Name(unsigned size);                                                                 \
-  void insert_##Name(Name*, char* k, T v);                                                         \
-  T get_##Name(Name*, char* k);                                                                    \
-  bool lookup_##Name(Name*, char* k, T* out);                                                      \
-  void remove_##Name(Name*, char* k);                                                              \
+  void insert_##Name(Name*, const char* k, T v);                                                   \
+  T get_##Name(Name*, const char* k);                                                              \
+  bool lookup_##Name(Name*, const char* k, T* out);                                                \
+  void remove_##Name(Name*, const char* k);                                                        \
   void release_##Name(Name*);
 
 #define DEFINE_MAP(release_T, T, Name)                                                             \
   struct Name##Entry {                                                                             \
     unsigned hash;                                                                                 \
+    char* key;                                                                                     \
     T value;                                                                                       \
   };                                                                                               \
-  static void release_entry(Name##Entry e) { release_T(e.value); }                                 \
+  static void release_entry(Name##Entry e) {                                                       \
+    free(e.key);                                                                                   \
+    release_T(e.value);                                                                            \
+  }                                                                                                \
   DEFINE_LIST(release_entry, Name##Entry, Name##Entries)                                           \
   DEFINE_VECTOR(release_##Name##Entries, Name##Entries*, Name##Table)                              \
   struct Name {                                                                                    \
@@ -36,21 +40,22 @@
     }                                                                                              \
     return m;                                                                                      \
   }                                                                                                \
-  static Name##Entry make_entry_##Name(char* k, T v) {                                             \
+  static Name##Entry make_entry_##Name(const char* k, T v) {                                       \
     unsigned hash = hash_string(k);                                                                \
     Name##Entry e;                                                                                 \
     e.hash  = hash;                                                                                \
     e.value = v;                                                                                   \
+    e.key   = strdup(k);                                                                           \
     return e;                                                                                      \
   }                                                                                                \
-  void insert_##Name(Name* m, char* k, T v) {                                                      \
+  void insert_##Name(Name* m, const char* k, T v) {                                                \
     Name##Entry e          = make_entry_##Name(k, v);                                              \
     unsigned idx           = e.hash % length_##Name##Table(m->table);                              \
     Name##Entries* es      = get_##Name##Table(m->table, idx);                                     \
     Name##Entries* chained = cons_##Name##Entries(e, es);                                          \
     set_##Name##Table(m->table, idx, chained);                                                     \
   }                                                                                                \
-  T get_##Name(Name* m, char* k) {                                                                 \
+  T get_##Name(Name* m, const char* k) {                                                           \
     T out;                                                                                         \
     if (lookup_##Name(m, k, &out)) {                                                               \
       return out;                                                                                  \
@@ -71,7 +76,7 @@
     Name##Entries* t = tail_##Name##Entries(es);                                                   \
     return search_##Name(t, hash, out);                                                            \
   }                                                                                                \
-  bool lookup_##Name(Name* m, char* k, T* out) {                                                   \
+  bool lookup_##Name(Name* m, const char* k, T* out) {                                             \
     unsigned hash     = hash_string(k);                                                            \
     unsigned idx      = hash % length_##Name##Table(m->table);                                     \
     Name##Entries* es = get_##Name##Table(m->table, idx);                                          \
@@ -89,7 +94,7 @@
     }                                                                                              \
     search_remove_##Name(t, hash);                                                                 \
   }                                                                                                \
-  void remove_##Name(Name* m, char* k) {                                                           \
+  void remove_##Name(Name* m, const char* k) {                                                     \
     unsigned hash     = hash_string(k);                                                            \
     unsigned idx      = hash % length_##Name##Table(m->table);                                     \
     Name##Entries* es = get_##Name##Table(m->table, idx);                                          \

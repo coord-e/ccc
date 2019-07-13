@@ -12,8 +12,8 @@
   typedef struct Name Name;                                                                        \
   Name* new_##Name(unsigned size);                                                                 \
   void insert_##Name(Name*, char* k, T v);                                                         \
-  T lookup_##Name(Name*, char* k);                                                                 \
-  bool find_##Name(Name*, char* k, T* out);                                                        \
+  T get_##Name(Name*, char* k);                                                                    \
+  bool lookup_##Name(Name*, char* k, T* out);                                                      \
   void release_##Name(Name*);
 
 #define DEFINE_MAP(release_T, T, Name)                                                             \
@@ -49,9 +49,9 @@
     Name##Entries* chained = cons_##Name##Entries(e, es);                                          \
     set_##Name##Table(m->table, idx, chained);                                                     \
   }                                                                                                \
-  T lookup_##Name(Name* m, char* k) {                                                              \
+  T get_##Name(Name* m, char* k) {                                                                 \
     T out;                                                                                         \
-    if (find_##Name(m, k, &out)) {                                                                 \
+    if (lookup_##Name(m, k, &out)) {                                                               \
       return out;                                                                                  \
     }                                                                                              \
     error("key \"%s\" not found", k);                                                              \
@@ -70,7 +70,7 @@
     Name##Entries* t = tail_##Name##Entries(es);                                                   \
     return search_##Name(t, hash, out);                                                            \
   }                                                                                                \
-  bool find_##Name(Name* m, char* k, T* out) {                                                     \
+  bool lookup_##Name(Name* m, char* k, T* out) {                                                   \
     unsigned hash     = hash_string(k);                                                            \
     unsigned idx      = hash % length_##Name##Table(m->table);                                     \
     Name##Entries* es = get_##Name##Table(m->table, idx);                                          \

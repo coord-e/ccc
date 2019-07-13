@@ -75,7 +75,8 @@
     unsigned idx      = hash % length_##Name##Table(m->table);                                     \
     Name##Entries* es = get_##Name##Table(m->table, idx);                                          \
     return search_##Name(es, hash, out);                                                           \
-  }
+  }                                                                                                \
+  void release_##Name(Name* m) { release_##Name##Table(m->table); }
 
 unsigned hash_string(const char*);
 

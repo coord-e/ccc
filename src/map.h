@@ -54,7 +54,7 @@
     if (find_##Name(m, k, &out)) {                                                                 \
       return out;                                                                                  \
     }                                                                                              \
-    error("key %s not found", k);                                                                  \
+    error("key \"%s\" not found", k);                                                              \
   }                                                                                                \
   static bool search_##Name(Name##Entries* es, unsigned hash, T* out) {                            \
     if (is_nil_##Name##Entries(es)) {                                                              \

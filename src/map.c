@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "map.h"
 
 unsigned hash_string(const char* s) {
@@ -9,4 +11,11 @@ unsigned hash_string(const char* s) {
   }
 
   return hash;
+}
+
+char* strdup(const char* s) {
+  size_t size = strlen(s) + 1;
+  char* m     = malloc(size);
+  strcpy(m, s);
+  return m;
 }

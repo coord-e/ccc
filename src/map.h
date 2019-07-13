@@ -14,6 +14,7 @@
   void insert_##Name(Name*, char* k, T v);                                                         \
   T get_##Name(Name*, char* k);                                                                    \
   bool lookup_##Name(Name*, char* k, T* out);                                                      \
+  void remove_##Name(Name*, char* k);                                                              \
   void release_##Name(Name*);
 
 #define DEFINE_MAP(release_T, T, Name)                                                             \
@@ -75,6 +76,24 @@
     unsigned idx      = hash % length_##Name##Table(m->table);                                     \
     Name##Entries* es = get_##Name##Table(m->table, idx);                                          \
     return search_##Name(es, hash, out);                                                           \
+  }                                                                                                \
+  static void search_remove_##Name(Name##Entries* es, unsigned hash) {                             \
+    if (is_nil_##Name##Entries(es)) {                                                              \
+      return;                                                                                      \
+    }                                                                                              \
+    Name##Entry e    = head_##Name##Entries(es);                                                   \
+    Name##Entries* t = tail_##Name##Entries(es);                                                   \
+    if (e.hash == hash) {                                                                          \
+      *es = *t;                                                                                    \
+      return;                                                                                      \
+    }                                                                                              \
+    search_remove_##Name(t, hash);                                                                 \
+  }                                                                                                \
+  void remove_##Name(Name* m, char* k) {                                                           \
+    unsigned hash     = hash_string(k);                                                            \
+    unsigned idx      = hash % length_##Name##Table(m->table);                                     \
+    Name##Entries* es = get_##Name##Table(m->table, idx);                                          \
+    search_remove_##Name(es, hash);                                                                \
   }                                                                                                \
   void release_##Name(Name* m) { release_##Name##Table(m->table); }
 

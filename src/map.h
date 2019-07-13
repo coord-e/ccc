@@ -1,6 +1,9 @@
 #ifndef CCC_MAP_H
 #define CCC_MAP_H
 
+#include <stdio.h>
+#include <string.h>
+
 #include "list.h"
 #include "vector.h"
 
@@ -101,6 +104,31 @@
     search_remove_##Name(es, hash);                                                                \
   }                                                                                                \
   void release_##Name(Name* m) { release_##Name##Table(m->table); }
+
+#define DECLARE_MAP_PRINTER(Name) void print_##Name(FILE*, Name*);
+
+#define DEFINE_MAP_PRINTER(print_T, begin, sep, sep_kv, end, Name)                                 \
+  static void print_entries_##Name(FILE* p, Name##Entries* es) {                                   \
+    if (is_nil_##Name##Entries(es)) {                                                              \
+      return;                                                                                      \
+    }                                                                                              \
+    Name##Entry e = head_##Name##Entries(es);                                                      \
+    fputs(e.key, p);                                                                               \
+    fputs(sep_kv, p);                                                                              \
+    print_T(p, e.value);                                                                           \
+    Name##Entries* t = tail_##Name##Entries(es);                                                   \
+    if (!is_nil_##Name##Entries(t)) {                                                              \
+      fputs(sep, p);                                                                               \
+    }                                                                                              \
+    print_entries_##Name(p, t);                                                                    \
+  }                                                                                                \
+  void print_##Name(FILE* p, Name* m) {                                                            \
+    fputs(begin, p);                                                                               \
+    for (unsigned i = 0; i < length_##Name##Table(m->table); i++) {                                \
+      print_entries_##Name(p, get_##Name##Table(m->table, i));                                     \
+    }                                                                                              \
+    fputs(end, p);                                                                                 \
+  }
 
 unsigned hash_string(const char*);
 

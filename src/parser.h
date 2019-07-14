@@ -8,6 +8,7 @@
 
 typedef enum {
   ND_BINOP,
+  ND_ASSIGN,
   ND_VAR,
   ND_NUM,
 } NodeKind;

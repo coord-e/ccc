@@ -88,6 +88,9 @@ TokenList* tokenize(char* p) {
             cur = add_token(TK_EQ, cur);
             p++;
             continue;
+          default:
+            cur = add_token(TK_EQUAL, cur);
+            continue;
         }
       case '!':
         p++;
@@ -157,6 +160,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_RPAREN:
       fprintf(p, "())");
+      break;
+    case TK_EQUAL:
+      fprintf(p, "(=)");
       break;
     case TK_EQ:
       fprintf(p, "(==)");

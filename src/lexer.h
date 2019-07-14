@@ -11,7 +11,8 @@ typedef enum {
   TK_SLASH,
   TK_LPAREN,
   TK_RPAREN,
-  TK_EQ,
+  TK_EQUAL,  // =
+  TK_EQ,     // ==
   TK_NE,
   TK_GT,
   TK_LT,

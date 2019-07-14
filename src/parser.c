@@ -34,6 +34,10 @@ static Node* new_node_binop(BinopKind kind, Node* lhs, Node* rhs) {
   return node;
 }
 
+static Node* new_node_assign(Node* lhs, Node* rhs) {
+  return new_node(ND_ASSIGN, lhs, rhs);
+}
+
 static void consume(TokenList** t) {
   *t = tail_TokenList(*t);
 }
@@ -170,9 +174,22 @@ static Node* equality(TokenList** t) {
   }
 }
 
+static Node* assign(TokenList** t) {
+  Node* node = equality(t);
+
+  // `=` has right associativity
+  switch (head_of(t)) {
+    case TK_EQUAL:
+      consume(t);
+      return new_node_assign(node, assign(t));
+    default:
+      return node;
+  }
+}
+
 // the expression parser
 static Node* expr(TokenList** t) {
-  return equality(t);
+  return assign(t);
 }
 
 // parse tokens into AST
@@ -225,6 +242,13 @@ static void print_tree_(FILE* p, Node* node) {
       return;
     case ND_VAR:
       fprintf(p, "%s", node->var);
+      return;
+    case ND_ASSIGN:
+      fprintf(p, "(");
+      print_tree_(p, node->lhs);
+      fprintf(p, " = ");
+      print_tree_(p, node->rhs);
+      fprintf(p, ")");
       return;
     case ND_BINOP:
       fprintf(p, "(");

@@ -8,6 +8,7 @@
 
 typedef enum {
   ND_BINOP,
+  ND_VAR,
   ND_NUM,
 } NodeKind;
 
@@ -19,6 +20,7 @@ struct Node {
   Node* lhs;
   Node* rhs;
   BinopKind binop;  // for ND_BINOP
+  char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
 };
 

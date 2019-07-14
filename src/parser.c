@@ -4,6 +4,7 @@
 
 #include "error.h"
 #include "parser.h"
+#include "util.h"
 
 // utilities to build AST
 static Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
@@ -11,12 +12,19 @@ static Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
   node->kind = kind;
   node->lhs  = lhs;
   node->rhs  = rhs;
+  node->var  = NULL;
   return node;
 }
 
 static Node* new_node_num(int num) {
   Node* node = new_node(ND_NUM, NULL, NULL);
   node->num  = num;
+  return node;
+}
+
+static Node* new_node_var(char* ident) {
+  Node* node = new_node(ND_VAR, NULL, NULL);
+  node->var  = strdup(ident);
   return node;
 }
 
@@ -55,6 +63,8 @@ static Node* term(TokenList** t) {
   } else {
     if (head_of(t) == TK_NUMBER) {
       return new_node_num(consuming(t).number);
+    } else if (head_of(t) == TK_IDENT) {
+      return new_node_var(consuming(t).ident);
     } else {
       error("unexpected token.");
     }
@@ -213,6 +223,9 @@ static void print_tree_(FILE* p, Node* node) {
     case ND_NUM:
       fprintf(p, "%d", node->num);
       return;
+    case ND_VAR:
+      fprintf(p, "%s", node->var);
+      return;
     case ND_BINOP:
       fprintf(p, "(");
       print_binop(p, node->binop);
@@ -239,5 +252,6 @@ void release_tree(Node* node) {
 
   release_tree(node->lhs);
   release_tree(node->rhs);
+  free(node->var);
   free(node);
 }

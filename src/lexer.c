@@ -5,14 +5,17 @@
 #include "error.h"
 #include "lexer.h"
 #include "list.h"
+#include "util.h"
 
-// nothing to do because `Token` is not allocated in heap
-static void release_token(Token t) {}
+static void release_token(Token t) {
+  free(t.ident);
+}
 DEFINE_LIST(release_token, Token, TokenList)
 
 static TokenList* add_token(TokenKind kind, TokenList* cur) {
   Token t;
-  t.kind = kind;
+  t.ident = NULL;
+  t.kind  = kind;
   return snoc_TokenList(t, cur);
 }
 
@@ -20,6 +23,21 @@ static TokenList* add_token(TokenKind kind, TokenList* cur) {
 static TokenList* add_number(char** strp, TokenList* cur) {
   TokenList* t   = add_token(TK_NUMBER, cur);
   t->head.number = strtol(*strp, strp, 10);
+  return t;
+}
+
+static bool is_ident_char(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') || (c == '_');
+}
+
+// will seek `strp` to the end of ident
+static TokenList* add_ident(char** strp, TokenList* cur) {
+  TokenList* t = add_token(TK_IDENT, cur);
+  char* init   = *strp;
+  while (is_ident_char(**strp)) {
+    (*strp)++;
+  }
+  t->head.ident = strndup(init, *strp - init);
   return t;
 }
 
@@ -103,8 +121,12 @@ TokenList* tokenize(char* p) {
         }
       default:
         if (isdigit(*p)) {
-          // call of `new_number` updates p
+          // call of `add_number` updates p
           cur = add_number(&p, cur);
+          continue;
+        } else if (isalpha(*p)) {
+          // call of `add_ident` updates p
+          cur = add_ident(&p, cur);
           continue;
         }
     }
@@ -159,6 +181,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_END:
       fprintf(p, "end");
+      return;
+    case TK_IDENT:
+      fprintf(p, "ident(%s)", t.ident);
       return;
     default:
       CCC_UNREACHABLE;

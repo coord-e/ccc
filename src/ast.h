@@ -26,6 +26,11 @@ struct Expr {
 
 typedef struct Statement Statement;
 
+typedef struct {
+  // TODO: Add declaration specifiers
+  char* declarator; // TODO: Add initializer
+} Declaration;
+
 typedef enum {
   BI_STMT,
   BI_DECL,

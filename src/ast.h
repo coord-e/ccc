@@ -50,9 +50,7 @@ struct Statement {
   BlockItemList* items;  // for ST_COMPOUND, owned
 };
 
-DECLARE_LIST(Statement*, StmtList)
-
-typedef StmtList AST;
+typedef BlockItemList AST;
 
 void print_ast(FILE*, AST*);
 void print_binop(FILE*, BinopKind kind);

@@ -86,6 +86,7 @@ static void print_statement(FILE* p, Statement* d) {
     case ST_EXPRESSION:
       print_expr(p, d->expr);
       fputs(";", p);
+      break;
     default:
       CCC_UNREACHABLE;
   }

@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "error.h"
 #include "parser.h"
@@ -40,7 +41,7 @@ static Expr* new_node_assign(Expr* lhs, Expr* rhs) {
 
 static Declaration* new_declaration(char* s) {
   Declaration* d = calloc(1, sizeof(Declaration));
-  d.declarator   = strdup(s);
+  d->declarator  = strdup(s);
   return d;
 }
 
@@ -71,10 +72,6 @@ static Token consuming(TokenList** t) {
 
 static TokenKind head_of(TokenList** t) {
   return head_TokenList(*t).kind;
-}
-
-static TokenKind next_of(TokenList** t) {
-  return head_TokenList(tail_TokenList(*t)).kind;
 }
 
 static Expr* expr(TokenList** t);
@@ -263,7 +260,9 @@ static BlockItem* block_item(TokenList** t) {
 }
 
 static BlockItemList* block_item_list(TokenList** t) {
-  BlockItemList *cur, list = nil_BlockItemList();
+  BlockItemList *cur = nil_BlockItemList();
+  BlockItemList *list = cur;
+
   while (head_of(t) != TK_END) {
     cur = snoc_BlockItemList(block_item(t), cur);
   }

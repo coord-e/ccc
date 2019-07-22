@@ -186,6 +186,9 @@ static void print_token(FILE* p, Token t) {
     case TK_LE:
       fprintf(p, "(<=)");
       break;
+    case TK_SEMICOLON:
+      fprintf(p, "(;)");
+      break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);
       break;

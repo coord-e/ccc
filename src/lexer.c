@@ -41,6 +41,10 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
   unsigned len = *strp - init;
   if (strncmp(init, "return", len) == 0) {
     return add_token(TK_RETURN, cur);
+  } else if (strncmp(init, "if", len) == 0) {
+    return add_token(TK_IF, cur);
+  } else if (strncmp(init, "else", len) == 0) {
+    return add_token(TK_ELSE, cur);
   }
 
   TokenList* t  = add_token(TK_IDENT, cur);
@@ -198,6 +202,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_RETURN:
       fprintf(p, "(return)");
+      break;
+    case TK_IF:
+      fprintf(p, "(if)");
+      break;
+    case TK_ELSE:
+      fprintf(p, "(else)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

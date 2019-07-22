@@ -3,10 +3,10 @@
 
 #include <stdio.h>
 
+#include "ast.h"
 #include "binop.h"
 #include "lexer.h"
 #include "list.h"
-#include "parser.h"
 #include "vector.h"
 
 typedef enum {
@@ -55,10 +55,11 @@ DECLARE_LIST(IRInst*, IRInstList)
 typedef struct {
   IRInstList* insts;
   unsigned reg_count;
+  unsigned stack_count;
 } IR;
 
 // build IR from ast
-IR* generate_IR(Node* ast);
+IR* generate_IR(AST* ast);
 
 // free the memory space used in IR
 void release_IR(IR*);

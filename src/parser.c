@@ -260,8 +260,8 @@ static BlockItem* block_item(TokenList** t) {
 }
 
 static BlockItemList* block_item_list(TokenList** t) {
-  BlockItemList *cur = nil_BlockItemList();
-  BlockItemList *list = cur;
+  BlockItemList* cur  = nil_BlockItemList();
+  BlockItemList* list = cur;
 
   while (head_of(t) != TK_END) {
     cur = snoc_BlockItemList(block_item(t), cur);

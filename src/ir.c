@@ -56,6 +56,14 @@ static unsigned new_var(Env* env, char* name) {
   return i;
 }
 
+static unsigned get_var(Env* env, char* name) {
+  unsigned i;
+  if (!lookup_UIMap(env->vars, name, &i)) {
+    error("variable \"%s\" is not declared");
+  }
+  return i;
+}
+
 static void add_inst(Env* env, IRInst* inst) {
   env->cursor = snoc_IRInstList(inst, env->cursor);
 }
@@ -87,6 +95,32 @@ static Reg new_imm(Env* env, int num) {
   return r;
 }
 
+static Reg new_load(Env* env, unsigned s) {
+  Reg r        = new_reg(env);
+  IRInst* i    = new_inst(IR_LOAD);
+  i->stack_idx = s;
+  i->rd        = r;
+  add_inst(env, i);
+  return r;
+}
+
+static Reg new_store(Env* env, unsigned s, Reg r) {
+  IRInst* i    = new_inst(IR_STORE);
+  i->stack_idx = s;
+  push_RegVec(i->ras, r);
+  add_inst(env, i);
+  return r;
+}
+
+static unsigned gen_lhs(Env* env, Expr* node) {
+  switch (node->kind) {
+    case ND_VAR:
+      return get_var(env, node->var);
+    default:
+      error("invaild lhs");
+  }
+}
+
 static Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_NUM:
@@ -95,6 +129,16 @@ static Reg gen_expr(Env* env, Expr* node) {
       Reg lhs = gen_expr(env, node->lhs);
       Reg rhs = gen_expr(env, node->rhs);
       return new_binop(env, node->binop, lhs, rhs);
+    }
+    case ND_ASSIGN: {
+      unsigned addr = gen_lhs(env, node->lhs);
+      Reg rhs       = gen_expr(env, node->rhs);
+      new_store(env, addr, rhs);
+      return rhs;
+    }
+    case ND_VAR: {
+      unsigned i = get_var(env, node->var);
+      return new_load(env, i);
     }
     default:
       CCC_UNREACHABLE;

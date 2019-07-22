@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "error.h"
 #include "lexer.h"
@@ -32,11 +33,17 @@ static bool is_ident_char(char c) {
 
 // will seek `strp` to the end of ident
 static TokenList* add_ident(char** strp, TokenList* cur) {
-  TokenList* t = add_token(TK_IDENT, cur);
-  char* init   = *strp;
+  char* init = *strp;
   while (is_ident_char(**strp)) {
     (*strp)++;
   }
+
+  unsigned len = *strp - init;
+  if (strncmp(init, "return", len) == 0) {
+    return add_token(TK_RETURN, cur);
+  }
+
+  TokenList* t  = add_token(TK_IDENT, cur);
   t->head.ident = strndup(init, *strp - init);
   return t;
 }
@@ -188,6 +195,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_SEMICOLON:
       fprintf(p, "(;)");
+      break;
+    case TK_RETURN:
+      fprintf(p, "(return)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

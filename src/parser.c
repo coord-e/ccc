@@ -241,7 +241,14 @@ static Declaration* try_declaration(TokenList** t) {
 }
 
 static Statement* statement(TokenList** t) {
-  Statement* s = new_statement(ST_EXPRESSION, expr(t));
+  Statement* s;
+  if (head_of(t) == TK_RETURN) {
+    consume(t);
+    s = new_statement(ST_RETURN, expr(t));
+  } else {
+    s = new_statement(ST_EXPRESSION, expr(t));
+  }
+
   if (consuming(t).kind != TK_SEMICOLON) {
     error("; is expected");
   }

@@ -87,6 +87,11 @@ static void print_statement(FILE* p, Statement* d) {
       print_expr(p, d->expr);
       fputs(";", p);
       break;
+    case ST_RETURN:
+      fputs("return ", p);
+      print_expr(p, d->expr);
+      fputs(";", p);
+      break;
     default:
       CCC_UNREACHABLE;
   }

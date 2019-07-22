@@ -28,7 +28,6 @@ static void release_statement(Statement* stmt) {
   }
 
   release_expr(stmt->expr);
-  release_BlockItemList(stmt->items);
   free(stmt);
 }
 

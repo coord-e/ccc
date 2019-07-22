@@ -47,11 +47,15 @@ DECLARE_LIST(BlockItem*, BlockItemList)
 typedef enum {
   ST_EXPRESSION,
   ST_RETURN,
+  ST_IF,
 } StmtKind;
 
 struct Statement {
   StmtKind kind;
-  Expr* expr;  // for ST_EXPRESSION and ST_RETURN, owned
+  Expr* expr;  // for ST_EXPRESSION, ST_RETURN, and ST_IF, owned
+
+  Statement* then_;  // for ST_IF
+  Statement* else_;  // for ST_IF
 };
 
 typedef BlockItemList AST;

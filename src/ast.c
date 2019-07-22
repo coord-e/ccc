@@ -92,6 +92,14 @@ static void print_statement(FILE* p, Statement* d) {
       print_expr(p, d->expr);
       fputs(";", p);
       break;
+    case ST_IF:
+      fputs("if (", p);
+      print_expr(p, d->expr);
+      fputs(") ", p);
+      print_statement(p, d->then_);
+      fputs(" else ", p);
+      print_statement(p, d->else_);
+      break;
     default:
       CCC_UNREACHABLE;
   }

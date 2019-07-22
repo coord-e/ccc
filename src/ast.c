@@ -48,9 +48,7 @@ void release_AST(AST* t) {
 }
 
 // printer functions
-DECLARE_LIST_PRINTER(BlockItemList)
-
-static void print_expr_(FILE* p, Expr* expr) {
+static void print_expr(FILE* p, Expr* expr) {
   switch (expr->kind) {
   case ND_NUM:
     fprintf(p, "%d", expr->num);
@@ -60,18 +58,18 @@ static void print_expr_(FILE* p, Expr* expr) {
     return;
   case ND_ASSIGN:
     fprintf(p, "(");
-    print_expr_(p, expr->lhs);
+    print_expr(p, expr->lhs);
     fprintf(p, " = ");
-    print_expr_(p, expr->rhs);
+    print_expr(p, expr->rhs);
     fprintf(p, ")");
     return;
   case ND_BINOP:
     fprintf(p, "(");
     print_binop(p, expr->binop);
     fprintf(p, " ");
-    print_expr_(p, expr->lhs);
+    print_expr(p, expr->lhs);
     fprintf(p, " ");
-    print_expr_(p, expr->rhs);
+    print_expr(p, expr->rhs);
     fprintf(p, ")");
     return;
   default:
@@ -79,11 +77,36 @@ static void print_expr_(FILE* p, Expr* expr) {
   }
 }
 
-static void print_expr(FILE* p, Expr* expr) {
-  print_expr_(p, expr);
-  fprintf(p, "\n");
-}
-
 static void print_declaration(FILE* p, Declaration* d) {
   fprintf(p, "decl %s", d->declarator);
+}
+
+static void print_statement(FILE* p, Statement* d) {
+  switch(d->kind) {
+    case ST_EXPRESSION:
+      print_expr(p, d->expr);
+      fputs(";", p);
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_BlockItem(FILE* p, BlockItem* item) {
+  switch(item->kind) {
+    case BI_DECL:
+      print_declaration(p, item->decl);
+      break;
+    case BI_STMT:
+      print_statement(p, item->stmt);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+DECLARE_LIST_PRINTER(BlockItemList)
+DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
+
+void print_AST(FILE* p, AST* ast) {
+  print_BlockItemList(p, ast);
 }

@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 
-#include "list.h"
 #include "binop.h"
+#include "list.h"
 
 typedef enum {
   ND_BINOP,
@@ -28,7 +28,7 @@ typedef struct Statement Statement;
 
 typedef struct {
   // TODO: Add declaration specifiers
-  char* declarator; // owned TODO: Add initializer
+  char* declarator;  // owned TODO: Add initializer
 } Declaration;
 
 typedef enum {
@@ -50,7 +50,7 @@ typedef enum {
 
 struct Statement {
   StmtKind kind;
-  Expr* expr;            // for ST_EXPRESSION, owned
+  Expr* expr;  // for ST_EXPRESSION, owned
 };
 
 typedef BlockItemList AST;

@@ -70,6 +70,12 @@ static Token consuming(TokenList** t) {
   return head_TokenList(p);
 }
 
+static void expect(TokenList** t, TokenKind k) {
+  if (consuming(t).kind != k) {
+    error("unexpected token");
+  }
+}
+
 static TokenKind head_of(TokenList** t) {
   return head_TokenList(*t).kind;
 }
@@ -241,18 +247,30 @@ static Declaration* try_declaration(TokenList** t) {
 }
 
 static Statement* statement(TokenList** t) {
-  Statement* s;
-  if (head_of(t) == TK_RETURN) {
-    consume(t);
-    s = new_statement(ST_RETURN, expr(t));
-  } else {
-    s = new_statement(ST_EXPRESSION, expr(t));
+  switch (head_of(t)) {
+    case TK_RETURN:
+      consume(t);
+      Expr* e = expr(t);
+      expect(t, TK_SEMICOLON);
+      return new_statement(ST_RETURN, e);
+    case TK_IF:
+      consume(t);
+      expect(t, TK_LPAREN);
+      Expr* c = expr(t);
+      expect(t, TK_RPAREN);
+      Statement* then_ = statement(t);
+      expect(t, TK_ELSE);
+      Statement* else_ = statement(t);
+      Statement* s     = new_statement(ST_IF, c);
+      s->then_         = then_;
+      s->else_         = else_;
+      return s;
+    default: {
+      Expr* e = expr(t);
+      expect(t, TK_SEMICOLON);
+      return new_statement(ST_EXPRESSION, e);
+    }
   }
-
-  if (consuming(t).kind != TK_SEMICOLON) {
-    error("; is expected");
-  }
-  return s;
 }
 
 static BlockItem* block_item(TokenList** t) {

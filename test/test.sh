@@ -25,34 +25,53 @@ function try() {
     fi
 }
 
+function items() {
+    try "$@"
+}
+
+function expr() {
+    local expected="$1"
+    local input="$2"
+    try "$expected" "return ($input);"
+}
+
 # just a number
-try 0 0
-try 42 42
+expr 0 0
+expr 42 42
 
 # arithmetic
-try 42 "24 + 18"
-try 30 "58 - 28"
-try 10 "5 * 2"
-try 4 "16 / 4"
+expr 42 "24 + 18"
+expr 30 "58 - 28"
+expr 10 "5 * 2"
+expr 4 "16 / 4"
 
-try 20 "8 + 3 * 4"
-try 54 "(11 - 2) * 6"
-try 10 "9 / 3 + 7"
-try 8 "8 / (4 - 3)"
-try 35 "8 + 3 * 5 + 2 * 6"
+expr 20 "8 + 3 * 4"
+expr 54 "(11 - 2) * 6"
+expr 10 "9 / 3 + 7"
+expr 8 "8 / (4 - 3)"
+expr 35 "8 + 3 * 5 + 2 * 6"
 
-try 55 "1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10"
-try 55 "((((((((1 + 2) + 3) + 4) + 5) + 6) + 7) + 8) + 9) + 10"
-try 55 "1 + (2 + (3 + (4 + (5 + (6 + (7 + (8 + (9 + 10))))))))"
+expr 55 "1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10"
+expr 55 "((((((((1 + 2) + 3) + 4) + 5) + 6) + 7) + 8) + 9) + 10"
+expr 55 "1 + (2 + (3 + (4 + (5 + (6 + (7 + (8 + (9 + 10))))))))"
 
-try 21 "+1+20"
-try 10 "-15+(+35-10)"
+expr 21 "+1+20"
+expr 10 "-15+(+35-10)"
 
-try 1 "10 > 5"
-try 1 "3+3 > 5"
-try 0 "30 == 20"
-try 0 "5 >= 10"
-try 1 "5 >= 5"
-try 1 "30 != 20"
+expr 1 "10 > 5"
+expr 1 "3+3 > 5"
+expr 0 "30 == 20"
+expr 0 "5 >= 10"
+expr 1 "5 >= 5"
+expr 1 "30 != 20"
+
+# return statements
+items 1 "return 1;";
+items 42 "return 2*21;";
+
+# variables
+items 10 "decl var; var = 10; return var;"
+items 42 "decl va; decl vb; va = 11; vb = 31; decl vc; vc = va + vb; return vc;"
+items 50 "decl v; v = 30; v = 50; return v;"
 
 echo OK

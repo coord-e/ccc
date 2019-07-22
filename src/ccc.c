@@ -19,12 +19,12 @@ int main(int argc, char** argv) {
   TokenList* tokens = tokenize(input);
   print_TokenList(stderr, tokens);
 
-  Node* tree = parse(tokens);
+  AST* tree = parse(tokens);
   release_TokenList(tokens);
-  print_tree(stderr, tree);
+  print_AST(stderr, tree);
 
   IR* ir1 = generate_IR(tree);
-  release_tree(tree);
+  release_AST(tree);
   IR* ir2 = reg_alloc(num_regs, ir1);
   print_IR(stderr, ir2);
 

@@ -11,12 +11,16 @@ typedef enum {
   TK_SLASH,
   TK_LPAREN,
   TK_RPAREN,
-  TK_EQ,
+  TK_EQUAL,  // =
+  TK_EQ,     // ==
   TK_NE,
   TK_GT,
   TK_LT,
   TK_GE,
   TK_LE,
+  TK_SEMICOLON,
+  TK_RETURN,
+  TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens
 } TokenKind;
@@ -25,7 +29,8 @@ typedef struct Token Token;
 
 struct Token {
   TokenKind kind;
-  int number;  // for TK_NUMBER
+  char* ident;  // for TK_IDENT, owned
+  int number;   // for TK_NUMBER
 };
 
 DECLARE_LIST(Token, TokenList)

@@ -1,29 +1,63 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "error.h"
 #include "parser.h"
+#include "util.h"
 
 // utilities to build AST
-static Node* new_node(NodeKind kind, Node* lhs, Node* rhs) {
-  Node* node = calloc(1, sizeof(Node));
+static Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
+  Expr* node = calloc(1, sizeof(Expr));
   node->kind = kind;
   node->lhs  = lhs;
   node->rhs  = rhs;
+  node->var  = NULL;
   return node;
 }
 
-static Node* new_node_num(int num) {
-  Node* node = new_node(ND_NUM, NULL, NULL);
+static Expr* new_node_num(int num) {
+  Expr* node = new_node(ND_NUM, NULL, NULL);
   node->num  = num;
   return node;
 }
 
-static Node* new_node_binop(BinopKind kind, Node* lhs, Node* rhs) {
-  Node* node  = new_node(ND_BINOP, lhs, rhs);
+static Expr* new_node_var(char* ident) {
+  Expr* node = new_node(ND_VAR, NULL, NULL);
+  node->var  = strdup(ident);
+  return node;
+}
+
+static Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs) {
+  Expr* node  = new_node(ND_BINOP, lhs, rhs);
   node->binop = kind;
   return node;
+}
+
+static Expr* new_node_assign(Expr* lhs, Expr* rhs) {
+  return new_node(ND_ASSIGN, lhs, rhs);
+}
+
+static Declaration* new_declaration(char* s) {
+  Declaration* d = calloc(1, sizeof(Declaration));
+  d->declarator  = strdup(s);
+  return d;
+}
+
+static Statement* new_statement(StmtKind kind, Expr* expr) {
+  Statement* s = calloc(1, sizeof(Statement));
+  s->kind      = kind;
+  s->expr      = expr;
+  return s;
+}
+
+static BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl) {
+  BlockItem* item = calloc(1, sizeof(BlockItem));
+  item->kind      = kind;
+  item->stmt      = stmt;
+  item->decl      = decl;
+  return item;
 }
 
 static void consume(TokenList** t) {
@@ -40,12 +74,12 @@ static TokenKind head_of(TokenList** t) {
   return head_TokenList(*t).kind;
 }
 
-static Node* expr(TokenList** t);
+static Expr* expr(TokenList** t);
 
-static Node* term(TokenList** t) {
+static Expr* term(TokenList** t) {
   if (head_of(t) == TK_LPAREN) {
     consume(t);
-    Node* node = expr(t);
+    Expr* node = expr(t);
     if (head_of(t) == TK_RPAREN) {
       consume(t);
       return node;
@@ -55,13 +89,15 @@ static Node* term(TokenList** t) {
   } else {
     if (head_of(t) == TK_NUMBER) {
       return new_node_num(consuming(t).number);
+    } else if (head_of(t) == TK_IDENT) {
+      return new_node_var(consuming(t).ident);
     } else {
       error("unexpected token.");
     }
   }
 }
 
-static Node* unary(TokenList** t) {
+static Expr* unary(TokenList** t) {
   switch (head_of(t)) {
     case TK_PLUS:
       consume(t);
@@ -76,8 +112,8 @@ static Node* unary(TokenList** t) {
   }
 }
 
-static Node* mul(TokenList** t) {
-  Node* node = unary(t);
+static Expr* mul(TokenList** t) {
+  Expr* node = unary(t);
 
   for (;;) {
     switch (head_of(t)) {
@@ -95,8 +131,8 @@ static Node* mul(TokenList** t) {
   }
 }
 
-static Node* add(TokenList** t) {
-  Node* node = mul(t);
+static Expr* add(TokenList** t) {
+  Expr* node = mul(t);
 
   for (;;) {
     switch (head_of(t)) {
@@ -114,8 +150,8 @@ static Node* add(TokenList** t) {
   }
 }
 
-static Node* relational(TokenList** t) {
-  Node* node = add(t);
+static Expr* relational(TokenList** t) {
+  Expr* node = add(t);
 
   for (;;) {
     switch (head_of(t)) {
@@ -141,8 +177,8 @@ static Node* relational(TokenList** t) {
   }
 }
 
-static Node* equality(TokenList** t) {
-  Node* node = relational(t);
+static Expr* equality(TokenList** t) {
+  Expr* node = relational(t);
 
   for (;;) {
     switch (head_of(t)) {
@@ -160,84 +196,87 @@ static Node* equality(TokenList** t) {
   }
 }
 
-// the expression parser
-static Node* expr(TokenList** t) {
-  return equality(t);
+static Expr* assign(TokenList** t) {
+  Expr* node = equality(t);
+
+  // `=` has right associativity
+  switch (head_of(t)) {
+    case TK_EQUAL:
+      consume(t);
+      return new_node_assign(node, assign(t));
+    default:
+      return node;
+  }
+}
+
+static Expr* expr(TokenList** t) {
+  return assign(t);
+}
+
+static Declaration* try_declaration(TokenList** t) {
+  Token t1 = head_TokenList(*t);
+
+  if (t1.kind != TK_IDENT) {
+    return NULL;
+  }
+
+  // TODO: Parse type specifier
+  if (strcmp(t1.ident, "decl") != 0) {
+    return NULL;
+  }
+
+  consume(t);
+
+  if (head_of(t) != TK_IDENT) {
+    return NULL;
+  }
+
+  Declaration* d = new_declaration(consuming(t).ident);
+
+  if (consuming(t).kind != TK_SEMICOLON) {
+    return NULL;
+  }
+
+  return d;
+}
+
+static Statement* statement(TokenList** t) {
+  Statement* s;
+  if (head_of(t) == TK_RETURN) {
+    consume(t);
+    s = new_statement(ST_RETURN, expr(t));
+  } else {
+    s = new_statement(ST_EXPRESSION, expr(t));
+  }
+
+  if (consuming(t).kind != TK_SEMICOLON) {
+    error("; is expected");
+  }
+  return s;
+}
+
+static BlockItem* block_item(TokenList** t) {
+  TokenList* save = *t;
+  Declaration* d  = try_declaration(t);
+  if (d) {
+    return new_block_item(BI_DECL, NULL, d);
+  }
+
+  *t = save;
+  return new_block_item(BI_STMT, statement(t), NULL);
+}
+
+static BlockItemList* block_item_list(TokenList** t) {
+  BlockItemList* cur  = nil_BlockItemList();
+  BlockItemList* list = cur;
+
+  while (head_of(t) != TK_END) {
+    cur = snoc_BlockItemList(block_item(t), cur);
+  }
+  return list;
 }
 
 // parse tokens into AST
-// currently this parses expressions
-Node* parse(TokenList* t) {
-  return expr(&t);
-}
-
-void print_binop(FILE* p, BinopKind kind) {
-  switch (kind) {
-    case BINOP_ADD:
-      fprintf(p, "+");
-      return;
-    case BINOP_SUB:
-      fprintf(p, "-");
-      return;
-    case BINOP_MUL:
-      fprintf(p, "*");
-      return;
-    case BINOP_DIV:
-      fprintf(p, "/");
-      return;
-    case BINOP_EQ:
-      fprintf(p, "==");
-      return;
-    case BINOP_NE:
-      fprintf(p, "!=");
-      return;
-    case BINOP_GT:
-      fprintf(p, ">");
-      return;
-    case BINOP_GE:
-      fprintf(p, ">=");
-      return;
-    case BINOP_LT:
-      fprintf(p, "<");
-      return;
-    case BINOP_LE:
-      fprintf(p, "<=");
-      return;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static void print_tree_(FILE* p, Node* node) {
-  switch (node->kind) {
-    case ND_NUM:
-      fprintf(p, "%d", node->num);
-      return;
-    case ND_BINOP:
-      fprintf(p, "(");
-      print_binop(p, node->binop);
-      fprintf(p, " ");
-      print_tree_(p, node->lhs);
-      fprintf(p, " ");
-      print_tree_(p, node->rhs);
-      fprintf(p, ")");
-      return;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-void print_tree(FILE* p, Node* node) {
-  print_tree_(p, node);
-  fprintf(p, "\n");
-}
-
-void release_tree(Node* node) {
-  if (node == NULL) {
-    return;
-  }
-
-  release_tree(node->lhs);
-  release_tree(node->rhs);
-  free(node);
+AST* parse(TokenList* t) {
+  return block_item_list(&t);
 }

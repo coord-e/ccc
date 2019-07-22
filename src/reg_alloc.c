@@ -22,7 +22,7 @@ typedef struct {
   IRInstList* cursor;    // pointer to current head of the list
 } Env;
 
-static Env* init_env(unsigned num_regs, unsigned reg_count) {
+static Env* init_env(unsigned num_regs, unsigned reg_count, unsigned stack_count) {
   Env* e        = calloc(1, sizeof(Env));
   e->inst_count = 0;
   e->last_uses  = new_IntVec(reg_count);
@@ -41,7 +41,7 @@ static Env* init_env(unsigned num_regs, unsigned reg_count) {
   resize_IntVec(e->result, reg_count);
   fill_IntVec(e->result, -2);
 
-  e->stack_count = 0;
+  e->stack_count = stack_count;
   e->stacks      = new_IntVec(reg_count);
   resize_IntVec(e->stacks, reg_count);
   fill_IntVec(e->stacks, -1);
@@ -262,7 +262,7 @@ static void rewrite_IR(Env* env, IRInstList* insts) {
 }
 
 IR* reg_alloc(unsigned num_regs, IR* ir) {
-  Env* env = init_env(num_regs, ir->reg_count);
+  Env* env = init_env(num_regs, ir->reg_count, ir->stack_count);
   collect_last_uses(env, ir->insts);
   alloc_regs(env);
   rewrite_IR(env, ir->insts);

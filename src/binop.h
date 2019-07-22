@@ -1,6 +1,8 @@
 #ifndef CCC_BINOP_H
 #define CCC_BINOP_H
 
+#include <stdio.h>
+
 typedef enum {
   BINOP_ADD,
   BINOP_SUB,
@@ -13,5 +15,7 @@ typedef enum {
   BINOP_LT,
   BINOP_LE,
 } BinopKind;
+
+void print_binop(FILE*, BinopKind);
 
 #endif

@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "list.h"
+#include "util.h"
 #include "vector.h"
 
 // hash table from string to `T`
@@ -130,6 +131,5 @@
   }
 
 unsigned hash_string(const char*);
-char* strdup(const char*);
 
 #endif

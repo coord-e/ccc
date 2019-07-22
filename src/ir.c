@@ -51,6 +51,10 @@ static Reg new_reg(Env* env) {
 }
 
 static unsigned new_var(Env* env, char* name) {
+  if (lookup_UIMap(env->vars, name, NULL)) {
+    error("redeclaration of \"%s\"", name);
+  }
+
   unsigned i = env->stack_count++;
   insert_UIMap(env->vars, name, i);
   return i;
@@ -59,7 +63,7 @@ static unsigned new_var(Env* env, char* name) {
 static unsigned get_var(Env* env, char* name) {
   unsigned i;
   if (!lookup_UIMap(env->vars, name, &i)) {
-    error("variable \"%s\" is not declared");
+    error("variable \"%s\" is not declared", name);
   }
   return i;
 }

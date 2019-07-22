@@ -112,6 +112,13 @@ static Reg new_store(Env* env, unsigned s, Reg r) {
   return r;
 }
 
+static Reg new_ret(Env* env, Reg r) {
+  IRInst* i = new_inst(IR_RET);
+  push_RegVec(i->ras, r);
+  add_inst(env, i);
+  return r;
+}
+
 static unsigned gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_VAR:
@@ -150,6 +157,11 @@ static void gen_stmt(Env* env, Statement* stmt) {
     case ST_EXPRESSION:
       gen_expr(env, stmt->expr);
       break;
+    case ST_RETURN: {
+      Reg r = gen_expr(env, stmt->expr);
+      new_ret(env, r);
+      break;
+    }
     default:
       CCC_UNREACHABLE;
   }

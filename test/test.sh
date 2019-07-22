@@ -25,6 +25,10 @@ function try() {
     fi
 }
 
+function items() {
+    try "$@"
+}
+
 function expr() {
     local expected="$1"
     local input="$2"
@@ -60,5 +64,14 @@ expr 0 "30 == 20"
 expr 0 "5 >= 10"
 expr 1 "5 >= 5"
 expr 1 "30 != 20"
+
+# return statements
+items 1 "return 1;";
+items 42 "return 2*21;";
+
+# variables
+items 10 "decl var; var = 10; return var;"
+items 42 "decl va; decl vb; va = 11; vb = 31; decl vc; vc = va + vb; return vc;"
+items 50 "decl v; v = 30; v = 50; return v;"
 
 echo OK

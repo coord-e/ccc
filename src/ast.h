@@ -28,7 +28,7 @@ typedef struct Statement Statement;
 
 typedef struct {
   // TODO: Add declaration specifiers
-  char* declarator; // TODO: Add initializer
+  char* declarator; // owned TODO: Add initializer
 } Declaration;
 
 typedef enum {
@@ -57,9 +57,8 @@ struct Statement {
 
 typedef BlockItemList AST;
 
-void print_ast(FILE*, AST*);
-void print_binop(FILE*, BinopKind kind);
+void print_AST(FILE*, AST*);
 
-void release_ast(AST*);
+void release_AST(AST*);
 
 #endif

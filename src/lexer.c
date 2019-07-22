@@ -81,6 +81,10 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_RPAREN, cur);
         p++;
         continue;
+      case ';':
+        cur = add_token(TK_SEMICOLON, cur);
+        p++;
+        continue;
       case '=':
         p++;
         switch (*p) {

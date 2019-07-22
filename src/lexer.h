@@ -18,6 +18,7 @@ typedef enum {
   TK_LT,
   TK_GE,
   TK_LE,
+  TK_SEMICOLON,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens

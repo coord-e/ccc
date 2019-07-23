@@ -17,6 +17,7 @@ typedef enum {
   IR_LOAD,
   IR_SUBS,
   IR_MOV,
+  IR_BR,
 } IRInstKind;
 
 typedef enum {
@@ -51,9 +52,19 @@ void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
 
-// IR is a list of `IRInst` ... with some metadata
 typedef struct {
+  unsigned id;
   IRInstList* insts;
+} BasicBlock;
+
+BasicBlock* new_block(unsigned id);
+void release_block(BasicBlock*);
+
+DECLARE_LIST(BasicBlock*, BBList)
+
+// IR is a list of `BasicBlock` ... with some metadata
+typedef struct {
+  BBList* blocks;
   unsigned reg_count;
   unsigned stack_count;
 } IR;

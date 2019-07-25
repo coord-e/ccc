@@ -52,19 +52,24 @@ void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
 
-typedef struct {
-  unsigned id;
-  IRInstList* insts;
-} BasicBlock;
-
-BasicBlock* new_block(unsigned id);
-void release_block(BasicBlock*);
+typedef struct BasicBlock BasicBlock;
 
 DECLARE_LIST(BasicBlock*, BBList)
 
-// IR is a list of `BasicBlock` ... with some metadata
+struct BasicBlock {
+  unsigned id;
+  IRInstList* insts;
+
+  BBList* succs;
+  BBList* preds;
+};
+
+BasicBlock* new_block(unsigned id);
+void release_blockinst(BasicBlock*);
+
 typedef struct {
-  BBList* blocks;
+  BasicBlock* entry;
+
   unsigned reg_count;
   unsigned stack_count;
 } IR;

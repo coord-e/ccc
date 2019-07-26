@@ -28,16 +28,11 @@ static void release_reg(Reg r) {}
 DEFINE_VECTOR(release_reg, Reg, RegVec)
 
 static void release_BasicBlock(BasicBlock* bb) {
-  if (bb == NULL || bb->released) {
+  if (bb == NULL) {
     return;
   }
 
-  bb->released = true;  // prevent from double-free (graph can be cyclic)
-
   release_IRInstList(bb->insts);
-  release_BBList(bb->succs);
-  release_BBList(bb->preds);
-
   free(bb);
 }
 
@@ -50,6 +45,7 @@ typedef struct {
   unsigned inst_count;
 
   UIMap* vars;
+  BBList* blocks;
 
   BasicBlock* entry;
   BasicBlock* exit;
@@ -74,6 +70,8 @@ static BasicBlock* new_bb(Env* env) {
   bb->succs      = nil_BBList();
   bb->preds      = nil_BBList();
 
+  env->blocks = cons_BBList(bb, env->blocks);
+
   return bb;
 }
 
@@ -84,6 +82,7 @@ static Env* new_env() {
   env->bb_count    = 0;
   env->inst_count  = 0;
   env->vars        = new_UIMap(32);
+  env->blocks      = nil_BBList();
 
   env->exit = new_bb(env);
 
@@ -317,13 +316,14 @@ IR* generate_IR(AST* ast) {
   ir->bb_count    = env->bb_count;
   ir->reg_count   = env->reg_count;
   ir->stack_count = env->stack_count;
+  ir->blocks      = env->blocks;
 
   free(env);
   return ir;
 }
 
 void release_IR(IR* ir) {
-  release_BasicBlock(ir->entry);
+  release_BBList(ir->blocks);
   free(ir);
 }
 
@@ -406,10 +406,10 @@ static unsigned print_graph_insts(FILE* p, IRInstList* l) {
   return print_graph_insts(p, t);
 }
 
-static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb);
+static void print_graph_bb(FILE* p, BasicBlock* bb);
 
-static void print_graph_succs(FILE* p, IntVec* v, unsigned id, BBList* l) {
-  if (l->is_nil) {
+static void print_graph_succs(FILE* p, unsigned id, BBList* l) {
+  if (is_nil_BBList(l)) {
     return;
   }
   BasicBlock* head = head_BBList(l);
@@ -418,18 +418,10 @@ static void print_graph_succs(FILE* p, IntVec* v, unsigned id, BBList* l) {
   }
 
   fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->id);
-
-  print_graph_bb(p, v, head);
-  print_graph_succs(p, v, id, l->tail);
+  print_graph_succs(p, id, l->tail);
 }
 
-static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb) {
-  // return if already printed
-  if (get_IntVec(v, bb->id)) {
-    return;
-  }
-  set_IntVec(v, bb->id, 1);
-
+static void print_graph_bb(FILE* p, BasicBlock* bb) {
   fprintf(p, "subgraph cluster_%d {\n", bb->id);
   fprintf(p, "label = \"BasicBlock %d\";\n", bb->id);
 
@@ -439,15 +431,19 @@ static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb) {
   unsigned last_id = print_graph_insts(p, bb->insts);
 
   fputs("}\n", p);
-  print_graph_succs(p, v, last_id, bb->succs);
+  print_graph_succs(p, last_id, bb->succs);
+}
+
+static void print_graph_blocks(FILE* p, BBList* l) {
+  if (is_nil_BBList(l)) {
+    return;
+  }
+  print_graph_bb(p, head_BBList(l));
+  print_graph_blocks(p, tail_BBList(l));
 }
 
 void print_IR(FILE* p, IR* ir) {
-  IntVec* printed = new_IntVec(ir->bb_count);
-  resize_IntVec(printed, ir->bb_count);
-  fill_IntVec(printed, 0);
   fprintf(p, "digraph CFG {\n");
-  print_graph_bb(p, printed, ir->entry);
+  print_graph_blocks(p, ir->blocks);
   fprintf(p, "}\n");
-  release_IntVec(printed);
 }

@@ -68,17 +68,17 @@ DECLARE_LIST(BasicBlock*, BBList)
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {
   unsigned id;
-  IRInstList* insts;
+  IRInstList* insts;  // owned
 
-  BBList* succs;
-  BBList* preds;
-
-  bool released;  // used in destruction
+  BBList* succs;  // not owned (owned by `IR`)
+  BBList* preds;  // not owned (owned by `IR`)
 };
 
 typedef struct {
-  BasicBlock* entry;
-  BasicBlock* exit;
+  BasicBlock* entry;  // not owned
+  BasicBlock* exit;   // not owend
+
+  BBList* blocks;  // owned
 
   unsigned bb_count;
   unsigned reg_count;

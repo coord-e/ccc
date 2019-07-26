@@ -177,12 +177,17 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_) {
   i->then_ = then_;
   i->else_ = else_;
   add_inst(env, i);
+
+  connect_bb(env->cur, then_);
+  connect_bb(env->cur, else_);
 }
 
 static void new_jump(Env* env, BasicBlock* jump) {
   IRInst* i = new_inst_(env, IR_JUMP);
   i->jump   = jump;
   add_inst(env, i);
+
+  connect_bb(env->cur, jump);
 }
 
 static unsigned gen_lhs(Env* env, Expr* node) {
@@ -229,8 +234,6 @@ static void gen_stmt(Env* env, Statement* stmt) {
       break;
     }
     case ST_IF: {
-      BasicBlock* cur = env->cur;
-
       BasicBlock* then_bb = new_bb(env);
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
@@ -247,11 +250,6 @@ static void gen_stmt(Env* env, Statement* stmt) {
       start_bb(env, else_bb);
       gen_stmt(env, stmt->else_);
       new_jump(env, next_bb);
-
-      connect_bb(cur, then_bb);
-      connect_bb(cur, else_bb);
-      connect_bb(then_bb, next_bb);
-      connect_bb(else_bb, next_bb);
 
       start_bb(env, next_bb);
       break;

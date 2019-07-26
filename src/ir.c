@@ -353,7 +353,7 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "SUBS %d", i->stack_idx);
       break;
     case IR_BR:
-      fprintf(p, "BR (%d | %d) ", i->then_->id, i->else_->id);
+      fprintf(p, "BR %d %d ", i->then_->id, i->else_->id);
       break;
     case IR_JUMP:
       fprintf(p, "JUMP %d", i->jump->id);
@@ -371,7 +371,7 @@ static unsigned print_graph_insts(FILE* p, IRInstList* l) {
   IRInst* i1    = head_IRInstList(l);
   IRInstList* t = tail_IRInstList(l);
 
-  fprintf(p, "inst_%d [label=\"", i1->id);
+  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->id, i1->id);
   print_inst(p, i1);
   fputs("\"];\n", p);
 
@@ -407,10 +407,11 @@ static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb) {
   }
   set_IntVec(v, bb->id, 1);
 
-  fprintf(p, "subgraph bb_%d {\n", bb->id);
+  fprintf(p, "subgraph cluster_%d {\n", bb->id);
+  fprintf(p, "label = \"BasicBlock %d\";\n", bb->id);
   unsigned last_id;
   if (is_nil_IRInstList(bb->insts)) {
-    fprintf(p, "\"empty bb %d\";\n", bb->id);
+    fprintf(p, "\"empty bb %d\" [shape=point];\n", bb->id);
   } else {
     last_id = print_graph_insts(p, bb->insts);
   }
@@ -422,6 +423,8 @@ void print_IR(FILE* p, IR* ir) {
   IntVec* printed = new_IntVec(ir->bb_count);
   resize_IntVec(printed, ir->bb_count);
   fill_IntVec(printed, 0);
+  fprintf(p, "digraph CFG {\n");
   print_graph_bb(p, printed, ir->entry);
+  fprintf(p, "}\n");
   release_IntVec(printed);
 }

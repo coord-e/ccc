@@ -288,9 +288,10 @@ static void gen_ir(Env* env, AST* ast) {
 IR* generate_IR(AST* ast) {
   Env* env = new_env();
 
+  BasicBlock* entry    = new_bb(env);
+  start_bb(env, entry);
   gen_ir(env, ast);
 
-  BasicBlock* entry    = env->entry;
   BasicBlock* exit     = env->cur;
   unsigned reg_count   = env->reg_count;
   unsigned stack_count = env->stack_count;

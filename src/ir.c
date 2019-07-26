@@ -361,8 +361,40 @@ static void print_inst(FILE* p, IRInst* i) {
   }
 }
 
-DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IRInstList)
+// NOTE: printers below are to print CFG in dot language
+static unsigned print_graph_insts(FILE* p, IRInstList* l) {
+  IRInst* i1    = head_IRInstList(l);
+  IRInstList* t = tail_IRInstList(l);
+
+  fprintf(p, "inst_%d [label=\"", i1->id);
+  print_inst(p, i1);
+  fputs("\"];\n", p);
+
+  if (is_nil_IRInstList(t)) {
+    return i1->id;
+  }
+
+  IRInst* i2 = head_IRInstList(t);
+  fprintf(p, "inst_%d -> inst_%d;\n", i1->id, i2->id);
+  return print_graph_insts(p, t);
+}
+
+static void print_graph_succs(FILE* p, unsigned id, BBList* l) {
+  if (l->is_nil) {
+    return;
+  }
+  IRInstList* insts = head_BBList(l)->insts;
+  fprintf(p, "inst_%d->inst_%d", id, head_IRInstList(insts)->id);
+  print_graph_succs(p, id, l->tail);
+}
+
+static void print_graph_bb(FILE* p, BasicBlock* bb) {
+  fprintf(p, "subgraph bb_%d {\n", bb->id);
+  unsigned last_id = print_graph_insts(p, bb->insts);
+  fputs("}\n", p);
+  print_graph_succs(p, last_id, bb->succs);
+}
 
 void print_IR(FILE* p, IR* ir) {
-  print_IRInstList(p, ir->entry->insts);
+  print_graph_bb(p, ir->entry);
 }

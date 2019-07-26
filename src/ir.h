@@ -57,7 +57,7 @@ typedef struct IRInst {
   RegVec* ras;  // argument registers (won't be null)
 } IRInst;
 
-IRInst* new_inst(IRInstKind);
+IRInst* new_inst(unsigned id, IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)

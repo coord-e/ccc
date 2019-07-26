@@ -354,6 +354,12 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_SUBS:
       fprintf(p, "SUBS %d", i->stack_idx);
       break;
+    case IR_BR:
+      fprintf(p, "BR (%d | %d) ", i->then_->id, i->else_->id);
+      break;
+    case IR_JUMP:
+      fprintf(p, "JUMP %d", i->jump->id);
+      break;
     default:
       CCC_UNREACHABLE;
   }

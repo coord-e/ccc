@@ -33,6 +33,12 @@ static void release_BasicBlock(BasicBlock* bb) {
   }
 
   release_IRInstList(bb->insts);
+
+  release_BitSet(bb->live_gen);
+  release_BitSet(bb->live_kill);
+  release_BitSet(bb->live_in);
+  release_BitSet(bb->live_out);
+
   free(bb);
 }
 
@@ -69,6 +75,11 @@ static BasicBlock* new_bb(Env* env) {
   bb->insts      = single_IRInstList(inst);
   bb->succs      = nil_BBList();
   bb->preds      = nil_BBList();
+
+  bb->live_gen   = NULL;
+  bb->live_kill  = NULL;
+  bb->live_in    = NULL;
+  bb->live_out   = NULL;
 
   env->blocks = cons_BBList(bb, env->blocks);
 

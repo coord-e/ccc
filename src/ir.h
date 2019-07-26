@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "list.h"
 #include "vector.h"
+#include "bit_set.h"
 
 typedef enum {
   IR_BIN,
@@ -72,6 +73,12 @@ struct BasicBlock {
 
   BBList* succs;  // not owned (owned by `IR`)
   BBList* preds;  // not owned (owned by `IR`)
+
+  // used in liveness analysis
+  BitSet* live_gen;  // owned, NULL before analysis
+  BitSet* live_kill; // owned, ditto
+  BitSet* live_in;   // owned, ditto
+  BitSet* live_out;  // owned, ditto
 };
 
 typedef struct {

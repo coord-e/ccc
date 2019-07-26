@@ -17,7 +17,8 @@ typedef enum {
   IR_LOAD,
   IR_SUBS,
   IR_MOV,
-  IR_BR,
+  IR_BR,    // conditional branch
+  IR_JUMP,  // unconditional branch
 } IRInstKind;
 
 typedef enum {
@@ -37,11 +38,18 @@ typedef struct {
 DECLARE_VECTOR(Reg, RegVec)
 DECLARE_VECTOR_PRINTER(RegVec)
 
+typedef struct BasicBlock BasicBlock;
+
 typedef struct IRInst {
   IRInstKind kind;
   BinopKind binop;     // for ND_BIN
   int imm;             // for ND_IMM
   unsigned stack_idx;  // for ND_STORE, ND_LOAD
+
+  BasicBlock* jump;  // for IR_JUMP, not owned
+
+  BasicBlock* then_;  // for IR_BR, not owned
+  BasicBlock* else_;  // for IR_BR, not owned
 
   Reg rd;       // destination register
   RegVec* ras;  // argument registers (won't be null)
@@ -51,24 +59,22 @@ IRInst* new_inst(IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
-
-typedef struct BasicBlock BasicBlock;
-
 DECLARE_LIST(BasicBlock*, BBList)
 
+// `BasicBlock` forms a control flow graph
 struct BasicBlock {
   unsigned id;
   IRInstList* insts;
 
   BBList* succs;
   BBList* preds;
-};
 
-BasicBlock* new_block(unsigned id);
-void release_blockinst(BasicBlock*);
+  bool released;  // used in destruction
+};
 
 typedef struct {
   BasicBlock* entry;
+  BasicBlock* exit;
 
   unsigned reg_count;
   unsigned stack_count;

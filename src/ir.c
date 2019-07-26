@@ -26,22 +26,62 @@ DEFINE_LIST(release_inst, IRInst*, IRInstList)
 static void release_reg(Reg r) {}
 DEFINE_VECTOR(release_reg, Reg, RegVec)
 
+static void release_BasicBlock(BasicBlock* bb) {
+  if (bb == NULL || bb->released) {
+    return;
+  }
+
+  bb->released = true;  // prevent from double-free (graph can be cyclic)
+
+  release_IRInstList(bb->insts);
+  release_BBList(bb->succs);
+  release_BBList(bb->preds);
+
+  free(bb);
+}
+
+DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
+
 typedef struct {
   unsigned reg_count;
   unsigned stack_count;
+  unsigned bb_count;
   UIMap* vars;
-  IRInstList* insts;
-  IRInstList* cursor;
+
+  BasicBlock* entry;
+
+  BasicBlock* cur;
+  IRInstList* inst_cur;
 } Env;
 
 static Env* new_env() {
   Env* env         = calloc(1, sizeof(Env));
   env->reg_count   = 0;
   env->stack_count = 0;
+  env->bb_count    = 0;
   env->vars        = new_UIMap(32);
-  env->insts       = nil_IRInstList();
-  env->cursor      = env->insts;
+
   return env;
+}
+
+static BasicBlock* new_bb(Env* env) {
+  unsigned i     = env->bb_count++;
+  BasicBlock* bb = calloc(1, sizeof(BasicBlock));
+  bb->id         = i;
+  bb->insts      = nil_IRInstList();
+  bb->succs      = nil_BBList();
+  bb->preds      = nil_BBList();
+  return bb;
+}
+
+static void connect_bb(BasicBlock* from, BasicBlock* to) {
+  from->succs = cons_BBList(to, from->succs);
+  to->preds   = cons_BBList(from, to->preds);
+}
+
+static void start_bb(Env* env, BasicBlock* bb) {
+  env->cur      = bb;
+  env->inst_cur = env->cur->insts;
 }
 
 static Reg new_reg(Env* env) {
@@ -69,7 +109,7 @@ static unsigned get_var(Env* env, char* name) {
 }
 
 static void add_inst(Env* env, IRInst* inst) {
-  env->cursor = snoc_IRInstList(inst, env->cursor);
+  env->inst_cur = snoc_IRInstList(inst, env->inst_cur);
 }
 
 static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
@@ -123,6 +163,20 @@ static Reg new_ret(Env* env, Reg r) {
   return r;
 }
 
+static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_) {
+  IRInst* i = new_inst(IR_BR);
+  push_RegVec(i->ras, r);
+  i->then_ = then_;
+  i->else_ = else_;
+  add_inst(env, i);
+}
+
+static void new_jump(Env* env, BasicBlock* jump) {
+  IRInst* i = new_inst(IR_JUMP);
+  i->jump   = jump;
+  add_inst(env, i);
+}
+
 static unsigned gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_VAR:
@@ -166,6 +220,34 @@ static void gen_stmt(Env* env, Statement* stmt) {
       new_ret(env, r);
       break;
     }
+    case ST_IF: {
+      BasicBlock* cur = env->cur;
+
+      BasicBlock* then_bb = new_bb(env);
+      BasicBlock* else_bb = new_bb(env);
+      BasicBlock* next_bb = new_bb(env);
+
+      Reg cond = gen_expr(env, stmt->expr);
+      new_br(env, cond, then_bb, else_bb);
+
+      // then
+      start_bb(env, then_bb);
+      gen_stmt(env, stmt->then_);
+      new_jump(env, next_bb);
+
+      // else
+      start_bb(env, else_bb);
+      gen_stmt(env, stmt->else_);
+      new_jump(env, next_bb);
+
+      connect_bb(cur, then_bb);
+      connect_bb(cur, else_bb);
+      connect_bb(then_bb, next_bb);
+      connect_bb(else_bb, next_bb);
+
+      start_bb(env, next_bb);
+      break;
+    }
     default:
       CCC_UNREACHABLE;
   }
@@ -200,20 +282,22 @@ IR* generate_IR(AST* ast) {
 
   gen_ir(env, ast);
 
-  IRInstList* insts    = env->insts;
+  BasicBlock* entry    = env->entry;
+  BasicBlock* exit     = env->cur;
   unsigned reg_count   = env->reg_count;
   unsigned stack_count = env->stack_count;
   free(env);
 
   IR* ir          = calloc(1, sizeof(IR));
-  ir->insts       = insts;
+  ir->entry       = entry;
+  ir->exit        = exit;
   ir->reg_count   = reg_count;
   ir->stack_count = stack_count;
   return ir;
 }
 
 void release_IR(IR* ir) {
-  release_IRInstList(ir->insts);
+  release_BasicBlock(ir->entry);
   free(ir);
 }
 
@@ -272,5 +356,5 @@ static void print_inst(FILE* p, IRInst* i) {
 DEFINE_LIST_PRINTER(print_inst, "\n", "\n", IRInstList)
 
 void print_IR(FILE* p, IR* ir) {
-  print_IRInstList(p, ir->insts);
+  print_IRInstList(p, ir->entry->insts);
 }

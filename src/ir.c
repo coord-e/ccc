@@ -52,10 +52,30 @@ typedef struct {
   UIMap* vars;
 
   BasicBlock* entry;
+  BasicBlock* exit;
 
   BasicBlock* cur;
   IRInstList* inst_cur;
 } Env;
+
+static IRInst* new_inst_(Env* env, IRInstKind kind) {
+  return new_inst(env->inst_count++, kind);
+}
+
+static BasicBlock* new_bb(Env* env) {
+  unsigned i = env->bb_count++;
+
+  IRInst* inst = new_inst_(env, IR_LABEL);
+  inst->label  = i;
+
+  BasicBlock* bb = calloc(1, sizeof(BasicBlock));
+  bb->id         = i;
+  bb->insts      = single_IRInstList(inst);
+  bb->succs      = nil_BBList();
+  bb->preds      = nil_BBList();
+
+  return bb;
+}
 
 static Env* new_env() {
   Env* env         = calloc(1, sizeof(Env));
@@ -65,21 +85,9 @@ static Env* new_env() {
   env->inst_count  = 0;
   env->vars        = new_UIMap(32);
 
+  env->exit = new_bb(env);
+
   return env;
-}
-
-static IRInst* new_inst_(Env* env, IRInstKind kind) {
-  return new_inst(env->inst_count++, kind);
-}
-
-static BasicBlock* new_bb(Env* env) {
-  unsigned i     = env->bb_count++;
-  BasicBlock* bb = calloc(1, sizeof(BasicBlock));
-  bb->id         = i;
-  bb->insts      = nil_IRInstList();
-  bb->succs      = nil_BBList();
-  bb->preds      = nil_BBList();
-  return bb;
 }
 
 static void connect_bb(BasicBlock* from, BasicBlock* to) {
@@ -164,14 +172,35 @@ static Reg new_store(Env* env, unsigned s, Reg r) {
   return r;
 }
 
-static Reg new_ret(Env* env, Reg r) {
+static void create_or_start_bb(Env* env, BasicBlock* bb) {
+  if (!bb) {
+    bb = new_bb(env);
+  }
+  start_bb(env, bb);
+}
+
+static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
+  IRInst* i = new_inst_(env, IR_JUMP);
+  i->jump   = jump;
+  add_inst(env, i);
+
+  connect_bb(env->cur, jump);
+
+  create_or_start_bb(env, next);
+}
+
+static Reg new_ret(Env* env, Reg r, BasicBlock* next) {
   IRInst* i = new_inst_(env, IR_RET);
   push_RegVec(i->ras, r);
   add_inst(env, i);
+
+  connect_bb(env->cur, env->exit);
+  create_or_start_bb(env, next);
+
   return r;
 }
 
-static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_) {
+static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicBlock* next) {
   IRInst* i = new_inst_(env, IR_BR);
   push_RegVec(i->ras, r);
   i->then_ = then_;
@@ -180,14 +209,8 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_) {
 
   connect_bb(env->cur, then_);
   connect_bb(env->cur, else_);
-}
 
-static void new_jump(Env* env, BasicBlock* jump) {
-  IRInst* i = new_inst_(env, IR_JUMP);
-  i->jump   = jump;
-  add_inst(env, i);
-
-  connect_bb(env->cur, jump);
+  create_or_start_bb(env, next);
 }
 
 static unsigned gen_lhs(Env* env, Expr* node) {
@@ -230,7 +253,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       break;
     case ST_RETURN: {
       Reg r = gen_expr(env, stmt->expr);
-      new_ret(env, r);
+      new_ret(env, r, NULL);
       break;
     }
     case ST_IF: {
@@ -239,19 +262,16 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* next_bb = new_bb(env);
 
       Reg cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, then_bb, else_bb);
+      new_br(env, cond, then_bb, else_bb, then_bb);
 
       // then
-      start_bb(env, then_bb);
       gen_stmt(env, stmt->then_);
-      new_jump(env, next_bb);
+      new_jump(env, next_bb, else_bb);
 
       // else
-      start_bb(env, else_bb);
       gen_stmt(env, stmt->else_);
-      new_jump(env, next_bb);
+      new_jump(env, next_bb, next_bb);
 
-      start_bb(env, next_bb);
       break;
     }
     default:
@@ -289,6 +309,7 @@ IR* generate_IR(AST* ast) {
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
   gen_ir(env, ast);
+  connect_bb(env->cur, env->exit);
 
   IR* ir          = calloc(1, sizeof(IR));
   ir->entry       = entry;
@@ -356,6 +377,9 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_JUMP:
       fprintf(p, "JUMP %d", i->jump->id);
       break;
+    case IR_LABEL:
+      fprintf(p, "LABEL %d", i->label);
+      break;
     default:
       CCC_UNREACHABLE;
   }
@@ -390,10 +414,11 @@ static void print_graph_succs(FILE* p, IntVec* v, unsigned id, BBList* l) {
   }
   BasicBlock* head = head_BBList(l);
   if (is_nil_IRInstList(head->insts)) {
-    fprintf(p, "inst_%d->\"empty bb %d\";\n", id, head->id);
-  } else {
-    fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->id);
+    error("unexpected empty basic block %d", head->id);
   }
+
+  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->id);
+
   print_graph_bb(p, v, head);
   print_graph_succs(p, v, id, l->tail);
 }
@@ -407,12 +432,12 @@ static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb) {
 
   fprintf(p, "subgraph cluster_%d {\n", bb->id);
   fprintf(p, "label = \"BasicBlock %d\";\n", bb->id);
-  unsigned last_id;
+
   if (is_nil_IRInstList(bb->insts)) {
-    fprintf(p, "\"empty bb %d\" [shape=point];\n", bb->id);
-  } else {
-    last_id = print_graph_insts(p, bb->insts);
+    error("unexpected empty basic block %d", bb->id);
   }
+  unsigned last_id = print_graph_insts(p, bb->insts);
+
   fputs("}\n", p);
   print_graph_succs(p, v, last_id, bb->succs);
 }

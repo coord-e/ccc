@@ -78,6 +78,7 @@ typedef struct {
   BasicBlock* entry;
   BasicBlock* exit;
 
+  unsigned bb_count;
   unsigned reg_count;
   unsigned stack_count;
 } IR;

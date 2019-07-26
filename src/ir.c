@@ -288,20 +288,18 @@ static void gen_ir(Env* env, AST* ast) {
 IR* generate_IR(AST* ast) {
   Env* env = new_env();
 
-  BasicBlock* entry    = new_bb(env);
+  BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
   gen_ir(env, ast);
 
-  BasicBlock* exit     = env->cur;
-  unsigned reg_count   = env->reg_count;
-  unsigned stack_count = env->stack_count;
-  free(env);
-
   IR* ir          = calloc(1, sizeof(IR));
   ir->entry       = entry;
-  ir->exit        = exit;
-  ir->reg_count   = reg_count;
-  ir->stack_count = stack_count;
+  ir->exit        = env->cur;
+  ir->bb_count    = env->bb_count;
+  ir->reg_count   = env->reg_count;
+  ir->stack_count = env->stack_count;
+
+  free(env);
   return ir;
 }
 
@@ -386,22 +384,44 @@ static unsigned print_graph_insts(FILE* p, IRInstList* l) {
   return print_graph_insts(p, t);
 }
 
-static void print_graph_succs(FILE* p, unsigned id, BBList* l) {
+static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb);
+
+static void print_graph_succs(FILE* p, IntVec* v, unsigned id, BBList* l) {
   if (l->is_nil) {
     return;
   }
-  IRInstList* insts = head_BBList(l)->insts;
-  fprintf(p, "inst_%d->inst_%d", id, head_IRInstList(insts)->id);
-  print_graph_succs(p, id, l->tail);
+  BasicBlock* head = head_BBList(l);
+  if (is_nil_IRInstList(head->insts)) {
+    fprintf(p, "inst_%d->\"empty bb %d\";\n", id, head->id);
+  } else {
+    fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->id);
+  }
+  print_graph_bb(p, v, head);
+  print_graph_succs(p, v, id, l->tail);
 }
 
-static void print_graph_bb(FILE* p, BasicBlock* bb) {
+static void print_graph_bb(FILE* p, IntVec* v, BasicBlock* bb) {
+  // return if already printed
+  if (get_IntVec(v, bb->id)) {
+    return;
+  }
+  set_IntVec(v, bb->id, 1);
+
   fprintf(p, "subgraph bb_%d {\n", bb->id);
-  unsigned last_id = print_graph_insts(p, bb->insts);
+  unsigned last_id;
+  if (is_nil_IRInstList(bb->insts)) {
+    fprintf(p, "\"empty bb %d\";\n", bb->id);
+  } else {
+    last_id = print_graph_insts(p, bb->insts);
+  }
   fputs("}\n", p);
-  print_graph_succs(p, last_id, bb->succs);
+  print_graph_succs(p, v, last_id, bb->succs);
 }
 
 void print_IR(FILE* p, IR* ir) {
-  print_graph_bb(p, ir->entry);
+  IntVec* printed = new_IntVec(ir->bb_count);
+  resize_IntVec(printed, ir->bb_count);
+  fill_IntVec(printed, 0);
+  print_graph_bb(p, printed, ir->entry);
+  release_IntVec(printed);
 }

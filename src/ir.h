@@ -42,6 +42,8 @@ typedef struct BasicBlock BasicBlock;
 
 typedef struct IRInst {
   IRInstKind kind;
+  unsigned id;
+
   BinopKind binop;     // for ND_BIN
   int imm;             // for ND_IMM
   unsigned stack_idx;  // for ND_STORE, ND_LOAD

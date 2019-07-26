@@ -8,9 +8,10 @@ DECLARE_MAP(unsigned, UIMap)
 static void release_unsigned(unsigned i) {}
 DEFINE_MAP(release_unsigned, unsigned, UIMap)
 
-IRInst* new_inst(IRInstKind kind) {
+IRInst* new_inst(unsigned id, IRInstKind kind) {
   IRInst* i = calloc(1, sizeof(IRInst));
   i->kind   = kind;
+  i->id     = id;
   i->ras    = new_RegVec(1);
   return i;
 }
@@ -46,6 +47,8 @@ typedef struct {
   unsigned reg_count;
   unsigned stack_count;
   unsigned bb_count;
+  unsigned inst_count;
+
   UIMap* vars;
 
   BasicBlock* entry;
@@ -59,9 +62,14 @@ static Env* new_env() {
   env->reg_count   = 0;
   env->stack_count = 0;
   env->bb_count    = 0;
+  env->inst_count  = 0;
   env->vars        = new_UIMap(32);
 
   return env;
+}
+
+static IRInst* new_inst_(Env* env, IRInstKind kind) {
+  return new_inst(env->inst_count++, kind);
 }
 
 static BasicBlock* new_bb(Env* env) {
@@ -115,12 +123,12 @@ static void add_inst(Env* env, IRInst* inst) {
 static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
   Reg dest = new_reg(env);
 
-  IRInst* i1 = new_inst(IR_MOV);
+  IRInst* i1 = new_inst_(env, IR_MOV);
   i1->rd     = dest;
   push_RegVec(i1->ras, lhs);
   add_inst(env, i1);
 
-  IRInst* i2 = new_inst(IR_BIN);
+  IRInst* i2 = new_inst_(env, IR_BIN);
   i2->binop  = op;
   i2->rd     = dest;
   push_RegVec(i2->ras, dest);
@@ -132,7 +140,7 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
 
 static Reg new_imm(Env* env, int num) {
   Reg r     = new_reg(env);
-  IRInst* i = new_inst(IR_IMM);
+  IRInst* i = new_inst_(env, IR_IMM);
   i->imm    = num;
   i->rd     = r;
   add_inst(env, i);
@@ -141,7 +149,7 @@ static Reg new_imm(Env* env, int num) {
 
 static Reg new_load(Env* env, unsigned s) {
   Reg r        = new_reg(env);
-  IRInst* i    = new_inst(IR_LOAD);
+  IRInst* i    = new_inst_(env, IR_LOAD);
   i->stack_idx = s;
   i->rd        = r;
   add_inst(env, i);
@@ -149,7 +157,7 @@ static Reg new_load(Env* env, unsigned s) {
 }
 
 static Reg new_store(Env* env, unsigned s, Reg r) {
-  IRInst* i    = new_inst(IR_STORE);
+  IRInst* i    = new_inst_(env, IR_STORE);
   i->stack_idx = s;
   push_RegVec(i->ras, r);
   add_inst(env, i);
@@ -157,14 +165,14 @@ static Reg new_store(Env* env, unsigned s, Reg r) {
 }
 
 static Reg new_ret(Env* env, Reg r) {
-  IRInst* i = new_inst(IR_RET);
+  IRInst* i = new_inst_(env, IR_RET);
   push_RegVec(i->ras, r);
   add_inst(env, i);
   return r;
 }
 
 static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_) {
-  IRInst* i = new_inst(IR_BR);
+  IRInst* i = new_inst_(env, IR_BR);
   push_RegVec(i->ras, r);
   i->then_ = then_;
   i->else_ = else_;
@@ -172,7 +180,7 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_) {
 }
 
 static void new_jump(Env* env, BasicBlock* jump) {
-  IRInst* i = new_inst(IR_JUMP);
+  IRInst* i = new_inst_(env, IR_JUMP);
   i->jump   = jump;
   add_inst(env, i);
 }

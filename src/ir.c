@@ -441,7 +441,26 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
   }
 
   fprintf(p, "subgraph cluster_%d {\n", bb->id);
-  fprintf(p, "label = \"BasicBlock %d\";\n", bb->id);
+  fprintf(p, "label = \"BasicBlock %d", bb->id);
+
+  if (bb->live_gen != NULL) {
+    fprintf(p, "\\ngen: ");
+    print_BitSet(p, bb->live_gen);
+  }
+  if (bb->live_kill != NULL) {
+    fprintf(p, "\\nkill: ");
+    print_BitSet(p, bb->live_kill);
+  }
+  if (bb->live_in != NULL) {
+    fprintf(p, "\\nin: ");
+    print_BitSet(p, bb->live_in);
+  }
+  if (bb->live_out != NULL) {
+    fprintf(p, "\\nout: ");
+    print_BitSet(p, bb->live_out);
+  }
+
+  fprintf(p, "\";\n");
 
   if (is_nil_IRInstList(bb->insts)) {
     error("unexpected empty basic block %d", bb->id);

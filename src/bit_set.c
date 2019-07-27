@@ -55,6 +55,15 @@ void and_BitSet(BitSet* s1, const BitSet* s2) {
   }
 }
 
+void diff_BitSet(BitSet* s1, const BitSet* s2) {
+  assert(s1->length == s2->length);
+  for (unsigned i = 0; i < length_U64Vec(s1->data); i++) {
+    uint64_t d1 = get_U64Vec(s1->data, i);
+    uint64_t d2 = get_U64Vec(s2->data, i);
+    set_U64Vec(s1->data, i, d1 & (~d2));
+  }
+}
+
 bool get_BitSet(const BitSet* s, unsigned idx) {
   uint64_t data = get_U64Vec(s->data, idx / block_size);
   unsigned pos  = idx % block_size;
@@ -83,6 +92,30 @@ BitSet* copy_BitSet(const BitSet* s) {
   new->length = s->length;
   new->data   = copy_U64Vec(s->data);
   return new;
+}
+
+void copy_to_BitSet(BitSet* s1, const BitSet* s2) {
+  assert(s1->length == s2->length);
+  for (unsigned i = 0; i < length_U64Vec(s1->data); i++) {
+    uint64_t d = get_U64Vec(s2->data, i);
+    set_U64Vec(s1->data, i, d);
+  }
+}
+
+bool equal_to_BitSet(const BitSet* s1, const BitSet* s2) {
+  if (s1->length != s2->length) {
+    return false;
+  }
+
+  for (unsigned i = 0; i < length_U64Vec(s1->data); i++) {
+    uint64_t d1 = get_U64Vec(s1->data, i);
+    uint64_t d2 = get_U64Vec(s2->data, i);
+    if (d1 != d2) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void print_BitSet(FILE* p, const BitSet* s) {

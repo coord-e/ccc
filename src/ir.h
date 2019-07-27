@@ -49,7 +49,6 @@ typedef struct IRInst {
   BinopKind binop;     // for IR_BIN
   int imm;             // for IR_IMM
   unsigned stack_idx;  // for IR_STORE, IR_LOAD
-  unsigned label;      // for IR_LABEL
 
   BasicBlock* jump;  // for IR_JUMP, not owned
 

@@ -69,7 +69,6 @@ static BasicBlock* new_bb(Env* env) {
   unsigned i = env->bb_count++;
 
   IRInst* inst = new_inst_(env, IR_LABEL);
-  inst->label  = i;
 
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
   bb->id         = i;
@@ -392,7 +391,7 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "JUMP %d", i->jump->id);
       break;
     case IR_LABEL:
-      fprintf(p, "LABEL %d", i->label);
+      fprintf(p, "LABEL");
       break;
     default:
       CCC_UNREACHABLE;

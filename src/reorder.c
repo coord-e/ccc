@@ -30,8 +30,8 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   }
   set_BitSet(env->visited, b->id, true);
 
-  push_BBVec(env->bbs, b);
   traverse_bblist(env, b->succs);
+  push_BBVec(env->bbs, b);
 }
 
 void traverse_insts(unsigned* count, IRInstList* l) {
@@ -47,9 +47,10 @@ void traverse_insts(unsigned* count, IRInstList* l) {
 
 void number_insts(BBVec* v) {
   unsigned inst_count = 0;
-  for (unsigned i = 0; i < length_BBVec(v); i++) {
-    BasicBlock* b = get_BBVec(v, i);
-    b->id         = i;
+  unsigned len_bbs    = length_BBVec(v);
+  for (unsigned i = len_bbs; i > 0; i--) {
+    BasicBlock* b = get_BBVec(v, i - 1);
+    b->id         = len_bbs - i;
     traverse_insts(&inst_count, b->insts);
   }
 }
@@ -69,7 +70,7 @@ void mark_dead(BBList* l) {
 }
 
 // change `id`s of `BasicBlock` and `IRInst`
-// and collect `BasicBlock`s to `sorted_blocks` in order
+// and collect `BasicBlock`s to `sorted_blocks` in reversed order
 void reorder_blocks(IR* ir) {
   Env* env = init_Env(ir->bb_count);
 

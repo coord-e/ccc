@@ -99,6 +99,7 @@ typedef struct {
   unsigned stack_count;
 
   // will filled in `reorder`
+  // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
 } IR;
 

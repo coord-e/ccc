@@ -19,8 +19,10 @@ static BitSet* init_BitSet() {
 }
 
 BitSet* new_BitSet(unsigned length) {
-  BitSet* s = init_BitSet();
-  s->data   = new_U64Vec((length + block_size - 1) / block_size);
+  BitSet* s     = init_BitSet();
+  unsigned size = (length + block_size - 1) / block_size;
+  s->data       = new_U64Vec(size);
+  resize_U64Vec(s->data, size);
   s->length = length;
   return s;
 }

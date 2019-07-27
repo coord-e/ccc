@@ -448,7 +448,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
     print_BitSet(p, bb->live_gen);
   }
   if (bb->live_kill != NULL) {
-    fprintf(p, "\\nkill: ");
+    fprintf(p, " kill: ");
     print_BitSet(p, bb->live_kill);
   }
   if (bb->live_in != NULL) {
@@ -456,7 +456,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
     print_BitSet(p, bb->live_in);
   }
   if (bb->live_out != NULL) {
-    fprintf(p, "\\nout: ");
+    fprintf(p, " out: ");
     print_BitSet(p, bb->live_out);
   }
 

@@ -12,7 +12,7 @@ struct BitSet {
   unsigned length;
 };
 
-const size_t block_size = sizeof(uint64_t);
+const size_t block_size = sizeof(uint64_t) * 8;
 
 static BitSet* init_BitSet() {
   return calloc(1, sizeof(BitSet));

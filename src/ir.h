@@ -5,10 +5,10 @@
 
 #include "ast.h"
 #include "binop.h"
+#include "bit_set.h"
 #include "lexer.h"
 #include "list.h"
 #include "vector.h"
-#include "bit_set.h"
 
 typedef enum {
   IR_BIN,
@@ -44,7 +44,7 @@ typedef struct BasicBlock BasicBlock;
 
 typedef struct IRInst {
   IRInstKind kind;
-  unsigned id;
+  unsigned id;  // just for idenfitication
 
   BinopKind binop;     // for IR_BIN
   int imm;             // for IR_IMM
@@ -68,18 +68,20 @@ DECLARE_LIST(BasicBlock*, BBList)
 
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {
-  unsigned id;
+  unsigned id;        // just for identification
   IRInstList* insts;  // owned
 
   BBList* succs;  // not owned (owned by `IR`)
   BBList* preds;  // not owned (owned by `IR`)
 
-  // used in liveness analysis
-  BitSet* live_gen;  // owned, NULL before analysis
-  BitSet* live_kill; // owned, ditto
-  BitSet* live_in;   // owned, ditto
-  BitSet* live_out;  // owned, ditto
+  // will filled in `liveness`
+  BitSet* live_gen;   // owned, NULL before analysis
+  BitSet* live_kill;  // owned, ditto
+  BitSet* live_in;    // owned, ditto
+  BitSet* live_out;   // owned, ditto
 };
+
+DECLARE_VECTOR(BasicBlock*, BBVec)
 
 typedef struct {
   BasicBlock* entry;  // not owned
@@ -90,6 +92,9 @@ typedef struct {
   unsigned bb_count;
   unsigned reg_count;
   unsigned stack_count;
+
+  // will filled in `reorder`
+  BBVec* sorted_blocks;  // not owned
 } IR;
 
 // build IR from ast

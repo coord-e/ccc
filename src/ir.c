@@ -43,6 +43,7 @@ static void release_BasicBlock(BasicBlock* bb) {
 }
 
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
+DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 
 typedef struct {
   unsigned reg_count;
@@ -76,10 +77,10 @@ static BasicBlock* new_bb(Env* env) {
   bb->succs      = nil_BBList();
   bb->preds      = nil_BBList();
 
-  bb->live_gen   = NULL;
-  bb->live_kill  = NULL;
-  bb->live_in    = NULL;
-  bb->live_out   = NULL;
+  bb->live_gen  = NULL;
+  bb->live_kill = NULL;
+  bb->live_in   = NULL;
+  bb->live_out  = NULL;
 
   env->blocks = cons_BBList(bb, env->blocks);
 
@@ -321,13 +322,14 @@ IR* generate_IR(AST* ast) {
   gen_ir(env, ast);
   connect_bb(env->cur, env->exit);
 
-  IR* ir          = calloc(1, sizeof(IR));
-  ir->entry       = entry;
-  ir->exit        = env->cur;
-  ir->bb_count    = env->bb_count;
-  ir->reg_count   = env->reg_count;
-  ir->stack_count = env->stack_count;
-  ir->blocks      = env->blocks;
+  IR* ir            = calloc(1, sizeof(IR));
+  ir->entry         = entry;
+  ir->exit          = env->cur;
+  ir->bb_count      = env->bb_count;
+  ir->reg_count     = env->reg_count;
+  ir->stack_count   = env->stack_count;
+  ir->blocks        = env->blocks;
+  ir->sorted_blocks = NULL;
 
   free(env);
   return ir;

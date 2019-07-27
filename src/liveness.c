@@ -31,10 +31,6 @@ void iter_insts(BasicBlock* b, IRInstList* l) {
   }
   IRInst* inst = head_IRInstList(l);
 
-  if (inst->rd.is_used) {
-    set_BitSet(b->live_kill, inst->rd.virtual, true);
-  }
-
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg ra = get_RegVec(inst->ras, i);
     assert(ra.is_used);
@@ -43,6 +39,10 @@ void iter_insts(BasicBlock* b, IRInstList* l) {
     if (!get_BitSet(b->live_kill, vi)) {
       set_BitSet(b->live_gen, vi, true);
     }
+  }
+
+  if (inst->rd.is_used) {
+    set_BitSet(b->live_kill, inst->rd.virtual, true);
   }
 
   iter_insts(b, tail_IRInstList(l));

@@ -27,6 +27,12 @@ BitSet* new_BitSet(unsigned length) {
   return s;
 }
 
+BitSet* zero_BitSet(unsigned length) {
+  BitSet* s = new_BitSet(length);
+  clear_BitSet(s);
+  return s;
+}
+
 unsigned length_BitSet(const BitSet* s) {
   return s->length;
 }
@@ -64,6 +70,12 @@ void set_BitSet(BitSet* s, unsigned idx, bool b) {
     data &= ~(UINT64_C(1) << pos);
   }
   set_U64Vec(s->data, idx / block_size, data);
+}
+
+void clear_BitSet(BitSet* s) {
+  for (unsigned i = 0; i < length_U64Vec(s->data); i++) {
+    set_U64Vec(s->data, i, 0);
+  }
 }
 
 BitSet* copy_BitSet(const BitSet* s) {

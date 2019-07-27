@@ -76,6 +76,7 @@ static BasicBlock* new_bb(Env* env) {
   bb->insts      = single_IRInstList(inst);
   bb->succs      = nil_BBList();
   bb->preds      = nil_BBList();
+  bb->dead       = false;
 
   bb->live_gen  = NULL;
   bb->live_kill = NULL;
@@ -435,6 +436,10 @@ static void print_graph_succs(FILE* p, unsigned id, BBList* l) {
 }
 
 static void print_graph_bb(FILE* p, BasicBlock* bb) {
+  if (bb->dead) {
+    return;
+  }
+
   fprintf(p, "subgraph cluster_%d {\n", bb->id);
   fprintf(p, "label = \"BasicBlock %d\";\n", bb->id);
 

@@ -74,6 +74,11 @@ struct BasicBlock {
   BBList* succs;  // not owned (owned by `IR`)
   BBList* preds;  // not owned (owned by `IR`)
 
+  // it costs too much to remove all references from `preds` and `succs`
+  // and remove from `blocks`,
+  // so mark as dead with this field instead of removing it
+  bool dead;
+
   // will filled in `liveness`
   BitSet* live_gen;   // owned, NULL before analysis
   BitSet* live_kill;  // owned, ditto

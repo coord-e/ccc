@@ -51,6 +51,10 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_FOR, cur);
   } else if (IS_SAME(init, "do")) {
     return add_token(TK_DO, cur);
+  } else if (IS_SAME(init, "break")) {
+    return add_token(TK_BREAK, cur);
+  } else if (IS_SAME(init, "continue")) {
+    return add_token(TK_CONTINUE, cur);
   }
 #undef IS_SAME
 
@@ -238,6 +242,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_FOR:
       fprintf(p, "(for)");
+      break;
+    case TK_BREAK:
+      fprintf(p, "(break)");
+      break;
+    case TK_CONTINUE:
+      fprintf(p, "(CONTINUE)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

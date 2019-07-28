@@ -69,7 +69,6 @@ static void release_reg(Env* env, unsigned virtual) {
   }
 
   set_BitSet(env->used, real, false);
-  set_UIVec(env->result, virtual, -1);
 }
 
 static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {

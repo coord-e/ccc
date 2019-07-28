@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
   release_RegIntervals(v);
   print_IR(stdout, ir);
 
-  /* codegen(stdout, ir2); */
+  codegen(stdout, ir);
   release_IR(ir);
 
   return 0;

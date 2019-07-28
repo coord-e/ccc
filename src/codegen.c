@@ -136,11 +136,21 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   }
 }
 
+static void codegen_blocks(FILE* p, BBList* l) {
+  if (is_nil_BBList(l)) {
+    return;
+  }
+
+  codegen_insts(p, head_BBList(l)->insts);
+
+  codegen_blocks(p, tail_BBList(l));
+}
+
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
   emit(p, ".global main");
   emit_label(p, "main");
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
-  codegen_insts(p, ir->entry->insts);
+  codegen_blocks(p, ir->blocks);
 }

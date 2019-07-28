@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
   RegIntervals* v = liveness(ir);
   reg_alloc(num_regs, v, ir);
   release_RegIntervals(v);
-  print_IR(stdout, ir);
+  print_IR(stderr, ir);
 
   codegen(stdout, ir);
   release_IR(ir);

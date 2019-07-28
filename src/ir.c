@@ -60,6 +60,9 @@ typedef struct {
 
   BasicBlock* cur;
   IRInstList* inst_cur;
+
+  BasicBlock* loop_break;
+  BasicBlock* loop_continue;
 } Env;
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {
@@ -101,6 +104,9 @@ static Env* new_env() {
   env->blocks      = nil_BBList();
 
   env->exit = new_bb(env);
+
+  env->loop_break    = NULL;
+  env->loop_continue = NULL;
 
   return env;
 }
@@ -285,6 +291,16 @@ static Reg gen_expr(Env* env, Expr* node) {
   }
 }
 
+void set_loop(Env* env, BasicBlock* next, BasicBlock* cont) {
+  env->loop_break    = next;
+  env->loop_continue = cont;
+}
+
+void reset_loop(Env* env) {
+  env->loop_break    = NULL;
+  env->loop_continue = NULL;
+}
+
 void gen_block_item_list(Env* env, BlockItemList* ast);
 
 static void gen_stmt(Env* env, Statement* stmt) {
@@ -320,6 +336,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* body_bb  = new_bb(env);
       BasicBlock* next_bb  = new_bb(env);
 
+      set_loop(env, next_bb, while_bb);
+
       create_or_start_bb(env, while_bb);
       Reg cond = gen_expr(env, stmt->expr);
       new_br(env, cond, body_bb, next_bb, body_bb);
@@ -328,24 +346,35 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
       new_jump(env, while_bb, next_bb);
 
+      reset_loop(env);
+
       break;
     }
     case ST_DO: {
       BasicBlock* body_bb = new_bb(env);
+      BasicBlock* cont_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
+
+      set_loop(env, next_bb, cont_bb);
 
       create_or_start_bb(env, body_bb);
       gen_stmt(env, stmt->body);
 
+      create_or_start_bb(env, cont_bb);
       Reg cond = gen_expr(env, stmt->expr);
       new_br(env, cond, body_bb, next_bb, next_bb);
+
+      reset_loop(env);
 
       break;
     }
     case ST_FOR: {
       BasicBlock* for_bb  = new_bb(env);
       BasicBlock* body_bb = new_bb(env);
+      BasicBlock* cont_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
+
+      set_loop(env, next_bb, cont_bb);
 
       gen_expr(env, stmt->init);
       create_or_start_bb(env, for_bb);
@@ -354,8 +383,11 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       // body
       gen_stmt(env, stmt->body);
+      create_or_start_bb(env, cont_bb);
       gen_expr(env, stmt->after);
       new_jump(env, for_bb, next_bb);
+
+      reset_loop(env);
 
       break;
     }

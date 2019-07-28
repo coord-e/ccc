@@ -69,6 +69,8 @@ static bool mark_dead_iter(BasicBlock* entry, IntVec* visited, BBList* l, bool a
     return v;
   }
 
+  set_IntVec(visited, b->id, false);
+
   if (b->id != entry->id && mark_dead_iter(entry, visited, b->preds, true)) {
     b->dead = true;
   }

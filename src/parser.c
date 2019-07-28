@@ -269,6 +269,46 @@ static Statement* statement(TokenList** t) {
       s->else_         = else_;
       return s;
     }
+    case TK_WHILE: {
+      consume(t);
+      expect(t, TK_LPAREN);
+      Expr* c = expr(t);
+      expect(t, TK_RPAREN);
+      Statement* body = statement(t);
+      Statement* s    = new_statement(ST_WHILE, c);
+      s->body         = body;
+      return s;
+    }
+    case TK_DO: {
+      consume(t);
+      Statement* body = statement(t);
+      expect(t, TK_WHILE);
+      expect(t, TK_LPAREN);
+      Expr* c = expr(t);
+      expect(t, TK_RPAREN);
+      expect(t, TK_SEMICOLON);
+      Statement* s = new_statement(ST_DO, c);
+      s->body      = body;
+      return s;
+    }
+    case TK_FOR: {
+      consume(t);
+      expect(t, TK_LPAREN);
+      Expr* init = expr(t);
+      expect(t, TK_SEMICOLON);
+      Expr* before = expr(t);
+      expect(t, TK_SEMICOLON);
+      Expr* after = expr(t);
+      expect(t, TK_RPAREN);
+      Statement* body = statement(t);
+
+      Statement* s = new_statement(ST_FOR, NULL);
+      s->init      = init;
+      s->before    = before;
+      s->after     = after;
+      s->body      = body;
+      return s;
+    }
     case TK_LBRACE: {
       consume(t);
       Statement* s = new_statement(ST_COMPOUND, NULL);

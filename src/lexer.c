@@ -38,20 +38,21 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     (*strp)++;
   }
 
-  unsigned len = *strp - init;
-  if (strncmp(init, "return", len) == 0) {
+#define IS_SAME(sv, sc) (memcmp(sv, sc, sizeof(sc) - 1) == 0)
+  if (IS_SAME(init, "return")) {
     return add_token(TK_RETURN, cur);
-  } else if (strncmp(init, "if", len) == 0) {
+  } else if (IS_SAME(init, "if")) {
     return add_token(TK_IF, cur);
-  } else if (strncmp(init, "else", len) == 0) {
+  } else if (IS_SAME(init, "else")) {
     return add_token(TK_ELSE, cur);
-  } else if (strncmp(init, "while", len) == 0) {
+  } else if (IS_SAME(init, "while")) {
     return add_token(TK_WHILE, cur);
-  } else if (strncmp(init, "for", len) == 0) {
+  } else if (IS_SAME(init, "for")) {
     return add_token(TK_FOR, cur);
-  } else if (strncmp(init, "do", len) == 0) {
+  } else if (IS_SAME(init, "do")) {
     return add_token(TK_DO, cur);
   }
+#undef IS_SAME
 
   TokenList* t  = add_token(TK_IDENT, cur);
   t->head.ident = strndup(init, *strp - init);

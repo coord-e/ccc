@@ -60,13 +60,13 @@ static void release_reg(Env* env, unsigned virtual) {
 
 static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {
   if (is_nil_UIList(l)) {
-    insert_UIList(l, target_virt);
+    insert_UIList(target_virt, l);
     return;
   }
 
   Interval* intv = interval_of(env, head_UIList(l));
   if (intv->to > current->to) {
-    insert_UIList(l, target_virt);
+    insert_UIList(target_virt, l);
     return;
   }
 

@@ -50,6 +50,8 @@ typedef struct IRInst {
   int imm;             // for IR_IMM
   unsigned stack_idx;  // for IR_STORE, IR_LOAD
 
+  BasicBlock* label;  // for IR_LABEL, not owned
+
   BasicBlock* jump;  // for IR_JUMP, not owned
 
   BasicBlock* then_;  // for IR_BR, not owned

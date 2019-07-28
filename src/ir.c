@@ -72,11 +72,13 @@ static BasicBlock* new_bb(Env* env) {
   IRInst* inst = new_inst_(env, IR_LABEL);
 
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
-  bb->id         = i;
-  bb->insts      = single_IRInstList(inst);
-  bb->succs      = nil_BBList();
-  bb->preds      = nil_BBList();
-  bb->dead       = false;
+  inst->label    = bb;
+
+  bb->id    = i;
+  bb->insts = single_IRInstList(inst);
+  bb->succs = nil_BBList();
+  bb->preds = nil_BBList();
+  bb->dead  = false;
 
   bb->live_gen     = NULL;
   bb->live_kill    = NULL;
@@ -394,7 +396,7 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "JUMP %d", i->jump->id);
       break;
     case IR_LABEL:
-      fprintf(p, "LABEL");
+      fprintf(p, "LABEL %d", i->label->id);
       break;
     default:
       CCC_UNREACHABLE;

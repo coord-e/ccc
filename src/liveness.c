@@ -28,7 +28,7 @@ RegIntervals* liveness(IR* ir) {
   return build_intervals(ir);
 }
 
-void iter_insts(BasicBlock* b, IRInstList* l) {
+static void iter_insts(BasicBlock* b, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
   }
@@ -62,7 +62,7 @@ void compute_local_live_sets(IR* ir) {
   }
 }
 
-void iter_succs(BasicBlock* b, BBList* l) {
+static void iter_succs(BasicBlock* b, BBList* l) {
   if (is_nil_BBList(l)) {
     return;
   }

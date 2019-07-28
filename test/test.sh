@@ -94,5 +94,7 @@ items 45 "decl i; decl j; i=0; j=0; while (i<10) { j=j+i; i=i+1; } return j;"
 items 1 "decl x; x=0; do {x = x + 1; break;} while (1); return x;"
 items 1 "decl x; x=0; do {x = x + 1; continue;} while (0); return x;"
 items 7 "decl i; i=0; decl j; for (j = 0; j < 10; j = j + 1) { if (j < 3) continue; else 0; i = i + 1; } return i;"
+items 10 "while(0); return 10;"
+items 0 "decl x; for(x = 10; x > 0; x = x - 1); return x;"
 
 echo OK

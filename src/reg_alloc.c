@@ -148,7 +148,7 @@ static void sort_intervals_insert_reg(RegIntervals* ivs, Interval* t, unsigned v
   }
 
   Interval* intv = get_RegIntervals(ivs, head_UIList(l));
-  if (intv->to > t->to) {
+  if (intv->from > t->from) {
     insert_UIList(v, l);
     return;
   }

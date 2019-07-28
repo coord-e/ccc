@@ -95,14 +95,11 @@
     *list = *(list->tail);                                                                         \
   }                                                                                                \
   void insert_##Name(T value, Name* list) {                                                        \
-    if (list->is_nil) {                                                                            \
-      snoc_##Name(value, list);                                                                   \
-    }                                                                                              \
-    Name* t    = list->tail;                                                                       \
-    Name* new  = init_##Name();                                                                    \
-    new->head  = value;                                                                            \
-    new->tail  = t;                                                                                \
-    list->tail = new;                                                                              \
+    Name* imp    = init_##Name();                                                                  \
+    *imp         = *list;                                                                          \
+    list->head   = value;                                                                          \
+    list->tail   = imp;                                                                            \
+    list->is_nil = false;                                                                          \
   }                                                                                                \
   void release_##Name(Name* list) {                                                                \
     if (!list->is_nil) {                                                                           \

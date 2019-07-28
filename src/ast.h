@@ -49,11 +49,15 @@ typedef enum {
   ST_RETURN,
   ST_IF,
   ST_COMPOUND,
+  ST_WHILE,
+  ST_DO,
 } StmtKind;
 
 struct Statement {
   StmtKind kind;
-  Expr* expr;  // for ST_EXPRESSION, ST_RETURN, and ST_IF, owned
+  Expr* expr;  // for ST_EXPRESSION, ST_RETURN, ST_WHILE, ST_DO, and ST_IF, owned
+
+  Statement* body;  // for ST_WHILE, ST_DO
 
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF

@@ -95,6 +95,9 @@
     *list = *(list->tail);                                                                         \
   }                                                                                                \
   void insert_##Name(T value, Name* list) {                                                        \
+    if (list->is_nil) {                                                                            \
+      snoc_##Name(value, list);                                                                   \
+    }                                                                                              \
     Name* t    = list->tail;                                                                       \
     Name* new  = init_##Name();                                                                    \
     new->head  = value;                                                                            \

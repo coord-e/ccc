@@ -54,6 +54,7 @@ typedef enum {
   ST_FOR,
   ST_BREAK,
   ST_CONTINUE,
+  ST_NULL,
 } StmtKind;
 
 struct Statement {

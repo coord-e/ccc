@@ -417,6 +417,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       env->vars = save;
       break;
     }
+    case ST_NULL:
+      break;
     default:
       CCC_UNREACHABLE;
   }

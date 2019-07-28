@@ -21,17 +21,21 @@ typedef struct {
   UIVec* result;  // -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
   UIVec* locations;  // -1 -> not spilled
+  unsigned usable_regs_count;
+  unsigned reserved_for_spill;
 } Env;
 
 static Env* init_Env(unsigned virt_count,
                      unsigned real_count,
                      unsigned stack_count,
                      RegIntervals* ivs) {
-  Env* env          = calloc(1, sizeof(Env));
-  env->intervals    = ivs;
-  env->active       = nil_UIList();
-  env->active_count = 0;
-  env->used         = zero_BitSet(real_count);
+  Env* env                = calloc(1, sizeof(Env));
+  env->usable_regs_count  = real_count - 1;
+  env->reserved_for_spill = real_count - 1;
+  env->intervals          = ivs;
+  env->active             = nil_UIList();
+  env->active_count       = 0;
+  env->used               = zero_BitSet(env->usable_regs_count);
 
   env->result = new_UIVec(virt_count);
   resize_UIVec(env->result, virt_count);
@@ -170,7 +174,7 @@ static UIList* sort_intervals(RegIntervals* ivs) {
   return result;
 }
 
-static void walk_regs(Env* env, unsigned real_count, UIList* l) {
+static void walk_regs(Env* env, UIList* l) {
   if (is_nil_UIList(l)) {
     return;
   }
@@ -179,14 +183,14 @@ static void walk_regs(Env* env, unsigned real_count, UIList* l) {
 
   expire_old_intervals(env, virtual);
 
-  if (env->active_count == real_count) {
+  if (env->active_count == env->usable_regs_count) {
     spill_at_interval(env, virtual);
   } else {
     alloc_reg(env, virtual);
     add_to_active(env, virtual);
   }
 
-  walk_regs(env, real_count, tail_UIList(l));
+  walk_regs(env, tail_UIList(l));
 }
 
 static void assign_reg(Env* env, Reg* r) {
@@ -237,7 +241,7 @@ void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
   Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
-  walk_regs(env, num_regs, ordered_regs);
+  walk_regs(env, ordered_regs);
 
   release_UIList(ordered_regs);
 

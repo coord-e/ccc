@@ -142,5 +142,5 @@ void codegen(FILE* p, IR* ir) {
   emit_label(p, "main");
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
-  codegen_insts(p, ir->insts);
+  codegen_insts(p, ir->entry->insts);
 }

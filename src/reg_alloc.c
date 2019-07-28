@@ -218,7 +218,7 @@ static void emit_spill_load(Env* env, Reg r) {
     return;
   }
 
-  IRInst* load    = new_inst(IR_LOAD);
+  IRInst* load    = new_inst(-1, IR_LOAD);
   load->stack_idx = stack_idx_of(env, r.virtual);
   load->rd        = r;
   append_inst(env, load);
@@ -229,7 +229,7 @@ static void emit_spill_store(Env* env, Reg r) {
     return;
   }
 
-  IRInst* store    = new_inst(IR_STORE);
+  IRInst* store    = new_inst(-1, IR_STORE);
   store->stack_idx = stack_idx_of(env, r.virtual);
   store->ras       = new_RegVec(1);
   push_RegVec(store->ras, r);
@@ -237,7 +237,7 @@ static void emit_spill_store(Env* env, Reg r) {
 }
 
 static void emit_spill_subs(Env* env) {
-  IRInst* subs    = new_inst(IR_SUBS);
+  IRInst* subs    = new_inst(-1, IR_SUBS);
   subs->stack_idx = env->stack_count;
   env->insts      = cons_IRInstList(subs, env->insts);
 }
@@ -263,14 +263,14 @@ static void rewrite_IR(Env* env, IRInstList* insts) {
 
 IR* reg_alloc(unsigned num_regs, IR* ir) {
   Env* env = init_env(num_regs, ir->reg_count, ir->stack_count);
-  collect_last_uses(env, ir->insts);
+  collect_last_uses(env, ir->entry->insts);
   alloc_regs(env);
-  rewrite_IR(env, ir->insts);
+  rewrite_IR(env, ir->entry->insts);
 
   emit_spill_subs(env);
 
-  IR* new_ir        = calloc(1, sizeof(IR));
-  new_ir->reg_count = num_regs;
-  new_ir->insts     = take_insts_and_release(env);
+  IR* new_ir           = calloc(1, sizeof(IR));
+  new_ir->reg_count    = num_regs;
+  new_ir->entry->insts = take_insts_and_release(env);
   return new_ir;
 }

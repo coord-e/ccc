@@ -18,7 +18,9 @@ typedef struct {
   UIList* active;
   unsigned active_count;
   BitSet* used;
-  UIVec* result;  // -1 -> not allocated
+  UIVec* result;  // -1 -> not allocated, -2 -> spilled
+  unsigned stack_count;
+  UIVec* locations;  // -1 -> not spilled
 } Env;
 
 static Env* init_Env(unsigned virt_count, unsigned real_count, RegIntervals* ivs) {
@@ -27,9 +29,17 @@ static Env* init_Env(unsigned virt_count, unsigned real_count, RegIntervals* ivs
   env->active       = nil_UIList();
   env->active_count = 0;
   env->used         = zero_BitSet(real_count);
-  env->result       = new_UIVec(virt_count);
+
+  env->result = new_UIVec(virt_count);
   resize_UIVec(env->result, virt_count);
   fill_UIVec(env->result, -1);
+
+  env->stack_count = 0;
+
+  env->locations = new_UIVec(virt_count);
+  resize_UIVec(env->locations, virt_count);
+  fill_UIVec(env->locations, -1);
+
   return env;
 }
 
@@ -103,6 +113,28 @@ static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
 
 static void expire_old_intervals(Env* env, unsigned target_virt) {
   expire_old_intervals_iter(env, interval_of(env, target_virt), env->active);
+}
+
+static void alloc_stack(Env* env, unsigned virt) {
+  set_UIVec(env->locations, virt, env->stack_count++);
+  set_UIVec(env->result, virt, -2);  // mark as spilled
+}
+
+static void spill_at_interval(Env* env, unsigned target) {
+  // TODO: can we eliminate this traversal of last element?
+  UIList* spill_ptr = last_UIList(env->active);
+  unsigned spill    = head_UIList(spill_ptr);
+
+  Interval* spill_intv  = interval_of(env, spill);
+  Interval* target_intv = interval_of(env, target);
+  if (spill_intv->to > target_intv->to) {
+    set_UIVec(env->result, target, get_UIVec(env->result, spill));
+    alloc_stack(env, spill);
+    remove_from_active(env, spill_ptr);
+    add_to_active(env, target);
+  } else {
+    alloc_stack(env, target);
+  }
 }
 
 IR* reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {

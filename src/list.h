@@ -17,7 +17,7 @@
   Name* snoc_##Name(T value, Name* list);                                                          \
   T head_##Name(const Name* list);                                                                 \
   Name* tail_##Name(const Name* list);                                                             \
-  T last_##Name(const Name* list);                                                                 \
+  Name* last_##Name(Name* list);                                                                   \
   bool is_nil_##Name(const Name* list);                                                            \
   unsigned length_##Name(const Name* list);                                                        \
   void remove_##Name(Name* list);                                                                  \
@@ -71,12 +71,12 @@
     }                                                                                              \
     return list->tail;                                                                             \
   }                                                                                                \
-  T last_##Name(const Name* list) {                                                                \
+  Name* last_##Name(Name* list) {                                                                  \
     if (list->is_nil) {                                                                            \
       error("last");                                                                               \
     }                                                                                              \
     if (list->tail->is_nil) {                                                                      \
-      return list->head;                                                                           \
+      return list;                                                                                 \
     }                                                                                              \
     return last_##Name(list->tail);                                                                \
   }                                                                                                \

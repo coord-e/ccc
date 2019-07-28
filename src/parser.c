@@ -275,7 +275,7 @@ static Statement* statement(TokenList** t) {
       Expr* c = expr(t);
       expect(t, TK_RPAREN);
       Statement* body = statement(t);
-      Statement* s    = new_statement(ST_IF, c);
+      Statement* s    = new_statement(ST_WHILE, c);
       s->body         = body;
       return s;
     }

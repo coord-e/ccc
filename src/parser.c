@@ -327,6 +327,7 @@ static Statement* statement(TokenList** t) {
       return s;
     }
     case TK_SEMICOLON: {
+      consume(t);
       return new_statement(ST_NULL, NULL);
     }
     default: {

@@ -90,5 +90,9 @@ items 30 "decl a; a = 10; if (a) { if (a - 10) { a = a + 1; } else { a = a + 20;
 items 55 "decl acc; decl p; acc = 0; p = 10; while (p) { acc = acc + p; p = p - 1; } return acc;"
 items 60 "decl acc; acc = 15; do { acc = acc * -2; } while (acc < 0); return acc;"
 items 45 "decl i; decl acc; acc = 0; for (i = 0; i < 10; i = i + 1) { acc = acc + i; } return acc;"
+items 45 "decl i; decl j; i=0; j=0; while (i<10) { j=j+i; i=i+1; } return j;"
+items 1 "decl x; x=0; do {x = x + 1; break;} while (1); return x;"
+items 1 "decl x; x=0; do {x = x + 1; continue;} while (0); return x;"
+items 7 "decl i; i=0; decl j; for (j = 0; j < 10; j = j + 1) { if (j < 3) continue; else 0; i = i + 1; } return i;"
 
 echo OK

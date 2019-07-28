@@ -27,6 +27,8 @@ typedef enum {
   TK_WHILE,
   TK_FOR,
   TK_DO,
+  TK_BREAK,
+  TK_CONTINUE,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens

@@ -78,10 +78,11 @@ static BasicBlock* new_bb(Env* env) {
   bb->preds      = nil_BBList();
   bb->dead       = false;
 
-  bb->live_gen  = NULL;
-  bb->live_kill = NULL;
-  bb->live_in   = NULL;
-  bb->live_out  = NULL;
+  bb->live_gen     = NULL;
+  bb->live_kill    = NULL;
+  bb->live_in      = NULL;
+  bb->live_out     = NULL;
+  bb->sorted_insts = NULL;
 
   env->blocks = cons_BBList(bb, env->blocks);
 
@@ -331,7 +332,6 @@ IR* generate_IR(AST* ast) {
   ir->stack_count   = env->stack_count;
   ir->blocks        = env->blocks;
   ir->sorted_blocks = NULL;
-  ir->sorted_insts = NULL;
 
   free(env);
   return ir;

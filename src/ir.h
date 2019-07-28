@@ -64,6 +64,7 @@ void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
 DECLARE_LIST(BasicBlock*, BBList)
+DECLARE_VECTOR(IRInst*, IRInstVec)
 
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {
@@ -83,10 +84,13 @@ struct BasicBlock {
   BitSet* live_kill;  // owned, ditto
   BitSet* live_in;    // owned, ditto
   BitSet* live_out;   // owned, ditto
+
+  // will filled in `reorder`
+  // sorted in normal order
+  IRInstVec* sorted_insts;  // not owned
 };
 
 DECLARE_VECTOR(BasicBlock*, BBVec)
-DECLARE_VECTOR(IRInst*, IRInstVec)
 
 typedef struct {
   BasicBlock* entry;  // not owned
@@ -101,8 +105,6 @@ typedef struct {
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
-  // sorted in normal order
-  IRInstVec* sorted_insts; // not owned
 } IR;
 
 // build IR from ast

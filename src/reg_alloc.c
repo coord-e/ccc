@@ -137,18 +137,56 @@ static void spill_at_interval(Env* env, unsigned target) {
   }
 }
 
-IR* reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
-  Env* env            = init_Env(ir->reg_count, num_regs, ivs);
-  UIVec* ordered_regs = sort_intervals(ivs);
-
-  for (unsigned virtual = 0; virtual < length_UIVec(ordered_regs); virtual ++) {
-    expire_old_intervals(env, virtual);
-
-    if (env->active_count == num_regs) {
-      spill_at_interval(env, virtual);
-    } else {
-      alloc_reg(env, virtual);
-      add_to_active(env, virtual);
-    }
+static void sort_intervals_insert_reg(RegIntervals* ivs, Interval* t, unsigned v, UIList* l) {
+  if (is_nil_UIList(l)) {
+    insert_UIList(v, l);
+    return;
   }
+
+  Interval* intv = get_RegIntervals(ivs, head_UIList(l));
+  if (intv->to > t->to) {
+    insert_UIList(v, l);
+    return;
+  }
+
+  sort_intervals_insert_reg(ivs, t, v, tail_UIList(l));
+}
+
+// TODO: Faster sort
+static UIList* sort_intervals(RegIntervals* ivs) {
+  unsigned len   = length_RegIntervals(ivs);
+  UIList* result = nil_UIList();
+  for (unsigned i = 0; i < len; i++) {
+    Interval* interval = get_RegIntervals(ivs, i);
+    sort_intervals_insert_reg(ivs, interval, i, result);
+  }
+  return result;
+}
+
+static void walk_regs(Env* env, unsigned real_count, UIList* l) {
+  if (is_nil_UIList(l)) {
+    return;
+  }
+
+  unsigned virtual = head_UIList(l);
+
+  expire_old_intervals(env, virtual);
+
+  if (env->active_count == real_count) {
+    spill_at_interval(env, virtual);
+  } else {
+    alloc_reg(env, virtual);
+    add_to_active(env, virtual);
+  }
+
+  walk_regs(env, real_count, tail_UIList(l));
+}
+
+IR* reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
+  Env* env             = init_Env(ir->reg_count, num_regs, ivs);
+  UIList* ordered_regs = sort_intervals(ivs);
+
+  walk_regs(env, num_regs, ordered_regs);
+
+  release_UIList(ordered_regs);
 }

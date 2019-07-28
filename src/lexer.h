@@ -9,8 +9,10 @@ typedef enum {
   TK_MINUS,
   TK_STAR,
   TK_SLASH,
-  TK_LPAREN,
+  TK_LPAREN,  // ()
   TK_RPAREN,
+  TK_LBRACE,  // {}
+  TK_RBRACE,
   TK_EQUAL,  // =
   TK_EQ,     // ==
   TK_NE,

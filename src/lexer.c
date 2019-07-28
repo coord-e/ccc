@@ -92,6 +92,14 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_RPAREN, cur);
         p++;
         continue;
+      case '{':
+        cur = add_token(TK_LBRACE, cur);
+        p++;
+        continue;
+      case '}':
+        cur = add_token(TK_RBRACE, cur);
+        p++;
+        continue;
       case ';':
         cur = add_token(TK_SEMICOLON, cur);
         p++;
@@ -175,6 +183,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_RPAREN:
       fprintf(p, "())");
+      break;
+    case TK_LBRACE:
+      fprintf(p, "({)");
+      break;
+    case TK_RBRACE:
+      fprintf(p, "(})");
       break;
     case TK_EQUAL:
       fprintf(p, "(=)");

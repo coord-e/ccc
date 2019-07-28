@@ -14,6 +14,7 @@
   DECLARE_VECTOR(Name##Entries*, Name##Table)                                                      \
   typedef struct Name Name;                                                                        \
   Name* new_##Name(unsigned size);                                                                 \
+  Name* copy_##Name(const Name*);                                                                  \
   void insert_##Name(Name*, const char* k, T v);                                                   \
   T get_##Name(Name*, const char* k);                                                              \
   bool lookup_##Name(Name*, const char* k, T* out);                                                \
@@ -42,6 +43,16 @@
       push_##Name##Table(m->table, nil_##Name##Entries());                                         \
     }                                                                                              \
     return m;                                                                                      \
+  }                                                                                                \
+  Name* copy_##Name(const Name* m) {                                                               \
+    Name* copy    = calloc(1, sizeof(Name));                                                       \
+    unsigned size = length_##Name##Table(m->table);                                                \
+    copy->table   = new_##Name##Table(size);                                                       \
+    for (unsigned i = 0; i < size; i++) {                                                          \
+      Name##Entries* l = get_##Name##Table(m->table, i);                                           \
+      push_##Name##Table(copy->table, copy_##Name##Entries(l));                                    \
+    }                                                                                              \
+    return copy;                                                                                   \
   }                                                                                                \
   static Name##Entry make_entry_##Name(const char* k, T v) {                                       \
     unsigned hash = hash_string(k);                                                                \

@@ -48,6 +48,7 @@ typedef enum {
   ST_EXPRESSION,
   ST_RETURN,
   ST_IF,
+  ST_COMPOUND,
 } StmtKind;
 
 struct Statement {
@@ -56,6 +57,8 @@ struct Statement {
 
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF
+
+  BlockItemList* items;  // for ST_COMPOUND
 };
 
 typedef BlockItemList AST;

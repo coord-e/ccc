@@ -285,6 +285,8 @@ static Reg gen_expr(Env* env, Expr* node) {
   }
 }
 
+void gen_block_item_list(Env* env, BlockItemList* ast);
+
 static void gen_stmt(Env* env, Statement* stmt) {
   switch (stmt->kind) {
     case ST_EXPRESSION:
@@ -313,6 +315,14 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       break;
     }
+    case ST_COMPOUND: {
+      // compound statement is a block
+      UIMap* save = copy_UIMap(env->vars);
+      gen_block_item_list(env, stmt->items);
+      release_UIMap(env->vars);
+      env->vars = save;
+      break;
+    }
     default:
       CCC_UNREACHABLE;
   }
@@ -322,7 +332,7 @@ static void gen_decl(Env* env, Declaration* decl) {
   new_var(env, decl->declarator);
 }
 
-static void gen_ir(Env* env, AST* ast) {
+void gen_block_item_list(Env* env, BlockItemList* ast) {
   if (is_nil_BlockItemList(ast)) {
     return;
   }
@@ -339,7 +349,11 @@ static void gen_ir(Env* env, AST* ast) {
       CCC_UNREACHABLE;
   }
 
-  gen_ir(env, tail_BlockItemList(ast));
+  gen_block_item_list(env, tail_BlockItemList(ast));
+}
+
+static void gen_ir(Env* env, AST* ast) {
+  gen_block_item_list(env, ast);
 }
 
 IR* generate_IR(AST* ast) {

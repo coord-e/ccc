@@ -81,7 +81,25 @@ static void print_declaration(FILE* p, Declaration* d) {
   fprintf(p, "decl %s;", d->declarator);
 }
 
-static void print_statement(FILE* p, Statement* d) {
+static void print_statement(FILE* p, Statement* stmt);
+
+static void print_BlockItem(FILE* p, BlockItem* item) {
+  switch (item->kind) {
+    case BI_DECL:
+      print_declaration(p, item->decl);
+      break;
+    case BI_STMT:
+      print_statement(p, item->stmt);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+DECLARE_LIST_PRINTER(BlockItemList)
+DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
+
+void print_statement(FILE* p, Statement* d) {
   switch (d->kind) {
     case ST_EXPRESSION:
       print_expr(p, d->expr);
@@ -100,26 +118,15 @@ static void print_statement(FILE* p, Statement* d) {
       fputs(" else ", p);
       print_statement(p, d->else_);
       break;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static void print_BlockItem(FILE* p, BlockItem* item) {
-  switch (item->kind) {
-    case BI_DECL:
-      print_declaration(p, item->decl);
-      break;
-    case BI_STMT:
-      print_statement(p, item->stmt);
+    case ST_COMPOUND:
+      fputs("{ ", p);
+      print_BlockItemList(p, d->items);
+      fputs(" }", p);
       break;
     default:
       CCC_UNREACHABLE;
   }
 }
-
-DECLARE_LIST_PRINTER(BlockItemList)
-DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
 
 void print_AST(FILE* p, AST* ast) {
   print_BlockItemList(p, ast);

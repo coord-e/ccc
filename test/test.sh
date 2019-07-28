@@ -80,4 +80,10 @@ items 10 "if (0) return 5; else if (0) return 20; else return 10;"
 items 10 "decl a; a = 0; decl b; b = 0; if(a) b = 10; else if (0) return a; else if (a) return b; else return 10;"
 items 27 "decl a; a = 15; decl b; b = 2; if(a-15) b = 10; else if (b) return (a + b + 10); else if (a) return b; else return 10;"
 
+# compound
+items 5 "{ return 5; }"
+items 10 "{ decl a; a = 5; { a = 5 + a; } return a; }"
+items 20 "decl a; a = 10; if (1) { a = 20; } else { a = 10; } return a;"
+items 30 "decl a; a = 10; if (a) { if (a - 10) { a = a + 1; } else { a = a + 20; } a = a - 10; } else { a = a + 5; } return a + 10;"
+
 echo OK

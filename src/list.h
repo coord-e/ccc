@@ -22,6 +22,7 @@
   unsigned length_##Name(const Name* list);                                                        \
   void remove_##Name(Name* list);                                                                  \
   void insert_##Name(T value, Name* list);                                                         \
+  Name* copy_##Name(const Name* list);                                                             \
   void release_##Name(Name* list);
 
 #define DEFINE_LIST(release_data, T, Name)                                                         \
@@ -100,6 +101,12 @@
     list->head   = value;                                                                          \
     list->tail   = imp;                                                                            \
     list->is_nil = false;                                                                          \
+  }                                                                                                \
+  Name* copy_##Name(const Name* list) {                                                            \
+    if (list->is_nil) {                                                                            \
+      return nil_##Name();                                                                         \
+    }                                                                                              \
+    return cons_##Name(list->head, copy_##Name(list->tail));                                       \
   }                                                                                                \
   void release_##Name(Name* list) {                                                                \
     if (!list->is_nil) {                                                                           \

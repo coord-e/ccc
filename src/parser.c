@@ -246,14 +246,17 @@ static Declaration* try_declaration(TokenList** t) {
   return d;
 }
 
+static BlockItemList* block_item_list(TokenList** t);
+
 static Statement* statement(TokenList** t) {
   switch (head_of(t)) {
-    case TK_RETURN:
+    case TK_RETURN: {
       consume(t);
       Expr* e = expr(t);
       expect(t, TK_SEMICOLON);
       return new_statement(ST_RETURN, e);
-    case TK_IF:
+    }
+    case TK_IF: {
       consume(t);
       expect(t, TK_LPAREN);
       Expr* c = expr(t);
@@ -265,6 +268,14 @@ static Statement* statement(TokenList** t) {
       s->then_         = then_;
       s->else_         = else_;
       return s;
+    }
+    case TK_LBRACE: {
+      consume(t);
+      Statement* s = new_statement(ST_COMPOUND, NULL);
+      s->items     = block_item_list(t);
+      expect(t, TK_RBRACE);
+      return s;
+    }
     default: {
       Expr* e = expr(t);
       expect(t, TK_SEMICOLON);
@@ -284,11 +295,11 @@ static BlockItem* block_item(TokenList** t) {
   return new_block_item(BI_STMT, statement(t), NULL);
 }
 
-static BlockItemList* block_item_list(TokenList** t) {
+BlockItemList* block_item_list(TokenList** t) {
   BlockItemList* cur  = nil_BlockItemList();
   BlockItemList* list = cur;
 
-  while (head_of(t) != TK_END) {
+  while (head_of(t) != TK_END && head_of(t) != TK_RBRACE) {
     cur = snoc_BlockItemList(block_item(t), cur);
   }
   return list;

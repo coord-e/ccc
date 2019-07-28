@@ -86,6 +86,7 @@ struct BasicBlock {
 };
 
 DECLARE_VECTOR(BasicBlock*, BBVec)
+DECLARE_VECTOR(IRInst*, IRInstVec)
 
 typedef struct {
   BasicBlock* entry;  // not owned
@@ -100,6 +101,8 @@ typedef struct {
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
+  // sorted in normal order
+  IRInstVec* sorted_insts; // not owned
 } IR;
 
 // build IR from ast

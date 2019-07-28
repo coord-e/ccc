@@ -23,6 +23,7 @@ void release_inst(IRInst* i) {
 }
 
 DEFINE_LIST(release_inst, IRInst*, IRInstList)
+DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
 
 static void release_reg(Reg r) {}
 DEFINE_VECTOR(release_reg, Reg, RegVec)
@@ -330,6 +331,7 @@ IR* generate_IR(AST* ast) {
   ir->stack_count   = env->stack_count;
   ir->blocks        = env->blocks;
   ir->sorted_blocks = NULL;
+  ir->sorted_insts = NULL;
 
   free(env);
   return ir;

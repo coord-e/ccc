@@ -141,6 +141,12 @@ void print_statement(FILE* p, Statement* d) {
       fputs(") ", p);
       print_statement(p, d->body);
       break;
+    case ST_BREAK:
+      fputs("break;", p);
+      break;
+    case ST_CONTINUE:
+      fputs("continue;", p);
+      break;
     case ST_COMPOUND:
       fputs("{ ", p);
       print_BlockItemList(p, d->items);

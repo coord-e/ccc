@@ -309,6 +309,16 @@ static Statement* statement(TokenList** t) {
       s->body      = body;
       return s;
     }
+    case TK_BREAK: {
+      consume(t);
+      expect(t, TK_SEMICOLON);
+      return new_statement(ST_BREAK, NULL);
+    }
+    case TK_CONTINUE: {
+      consume(t);
+      expect(t, TK_SEMICOLON);
+      return new_statement(ST_CONTINUE, NULL);
+    }
     case TK_LBRACE: {
       consume(t);
       Statement* s = new_statement(ST_COMPOUND, NULL);

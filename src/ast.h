@@ -52,6 +52,8 @@ typedef enum {
   ST_WHILE,
   ST_DO,
   ST_FOR,
+  ST_BREAK,
+  ST_CONTINUE,
 } StmtKind;
 
 struct Statement {

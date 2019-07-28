@@ -187,14 +187,31 @@ static Reg new_store(Env* env, unsigned s, Reg r) {
   return r;
 }
 
+static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next);
+
+static bool is_exit(IRInstKind k) {
+  switch (k) {
+    case IR_JUMP:
+    case IR_BR:
+    case IR_RET:
+      return true;
+    default:
+      return false;
+  }
+}
+
 static void create_or_start_bb(Env* env, BasicBlock* bb) {
   if (!bb) {
     bb = new_bb(env);
   }
-  start_bb(env, bb);
+  if (!is_exit(head_IRInstList(env->inst_cur)->kind)) {
+    new_jump(env, bb, bb);
+  } else {
+    start_bb(env, bb);
+  }
 }
 
-static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
+void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
   IRInst* i = new_inst_(env, IR_JUMP);
   i->jump   = jump;
   add_inst(env, i);
@@ -202,6 +219,13 @@ static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
   connect_bb(env->cur, jump);
 
   create_or_start_bb(env, next);
+}
+
+static void new_exit_ret(Env* env) {
+  Reg r     = new_imm(env, 0);
+  IRInst* i = new_inst_(env, IR_RET);
+  push_RegVec(i->ras, r);
+  add_inst(env, i);
 }
 
 static Reg new_ret(Env* env, Reg r, BasicBlock* next) {
@@ -324,7 +348,8 @@ IR* generate_IR(AST* ast) {
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
   gen_ir(env, ast);
-  connect_bb(env->cur, env->exit);
+  create_or_start_bb(env, env->exit);
+  new_exit_ret(env);
 
   IR* ir            = calloc(1, sizeof(IR));
   ir->entry         = entry;

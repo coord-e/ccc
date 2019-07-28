@@ -299,7 +299,7 @@ BlockItemList* block_item_list(TokenList** t) {
   BlockItemList* cur  = nil_BlockItemList();
   BlockItemList* list = cur;
 
-  while (head_of(t) != TK_END) {
+  while (head_of(t) != TK_END && head_of(t) != TK_RBRACE) {
     cur = snoc_BlockItemList(block_item(t), cur);
   }
   return list;

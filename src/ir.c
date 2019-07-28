@@ -315,6 +315,33 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       break;
     }
+    case ST_WHILE: {
+      BasicBlock* while_bb = new_bb(env);
+      BasicBlock* body_bb  = new_bb(env);
+      BasicBlock* next_bb  = new_bb(env);
+
+      create_or_start_bb(env, while_bb);
+      Reg cond = gen_expr(env, stmt->expr);
+      new_br(env, cond, body_bb, next_bb, body_bb);
+
+      // body
+      gen_stmt(env, stmt->body);
+      new_jump(env, while_bb, next_bb);
+
+      break;
+    }
+    case ST_DO: {
+      BasicBlock* body_bb = new_bb(env);
+      BasicBlock* next_bb = new_bb(env);
+
+      create_or_start_bb(env, body_bb);
+      gen_stmt(env, stmt->body);
+
+      Reg cond = gen_expr(env, stmt->expr);
+      new_br(env, cond, body_bb, next_bb, next_bb);
+
+      break;
+    }
     case ST_COMPOUND: {
       // compound statement is a block
       UIMap* save = copy_UIMap(env->vars);

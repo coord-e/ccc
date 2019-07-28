@@ -57,18 +57,33 @@ void number_insts(BBVec* v) {
   }
 }
 
-void mark_dead(BBList* l) {
+static bool mark_dead_iter(BasicBlock* entry, IntVec* visited, BBList* l, bool acc) {
   if (is_nil_BBList(l)) {
-    return;
+    return acc;
   }
 
   BasicBlock* b = head_BBList(l);
 
-  if (is_nil_BBList(b->preds)) {
+  int v = get_IntVec(visited, b->id);
+  if (v != -1) {
+    return v;
+  }
+
+  if (b->id != entry->id && mark_dead_iter(entry, visited, b->preds, true)) {
     b->dead = true;
   }
 
-  mark_dead(tail_BBList(l));
+  set_IntVec(visited, b->id, b->dead);
+
+  return mark_dead_iter(entry, visited, tail_BBList(l), acc && b->dead);
+}
+
+static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
+  IntVec* visited = new_IntVec(bb_count);
+  resize_IntVec(visited, bb_count);
+  fill_IntVec(visited, -1);
+  mark_dead_iter(entry, visited, exit->preds, true);
+  release_IntVec(visited);
 }
 
 // change `id`s of `BasicBlock` and `IRInst`
@@ -76,8 +91,7 @@ void mark_dead(BBList* l) {
 void reorder_blocks(IR* ir) {
   Env* env = init_Env(ir->bb_count);
 
-  mark_dead(ir->blocks);
-  ir->entry->dead = false;  // entry has no `preds`
+  mark_dead(ir->bb_count, ir->entry, ir->exit);
 
   traverse_blocks(env, ir->entry);
   ir->sorted_blocks = env->bbs;

@@ -89,6 +89,6 @@ items 30 "decl a; a = 10; if (a) { if (a - 10) { a = a + 1; } else { a = a + 20;
 # loop
 items 55 "decl acc; decl p; acc = 0; p = 10; while (p) { acc = acc + p; p = p - 1; } return acc;"
 items 60 "decl acc; acc = 15; do { acc = acc * -2; } while (acc < 0); return acc;"
-items 45 "decl j; decl acc; acc = 0; for (j = 0; j < 10; j = j + 1) { acc = acc + j; } return acc;"
+items 45 "decl i; decl acc; acc = 0; for (i = 0; i < 10; i = i + 1) { acc = acc + i; } return acc;"
 
 echo OK

@@ -18,6 +18,7 @@
   void resize_##Name(Name*, unsigned size);                                                        \
   void reserve_##Name(Name*, unsigned size);                                                       \
   T* data_##Name(Name*);                                                                           \
+  Name* copy_##Name(Name*);                                                                        \
   void release_##Name(Name*);
 
 #define DEFINE_VECTOR(release_data, T, Name)                                                       \
@@ -69,6 +70,14 @@
   unsigned length_##Name(const Name* a) { return a->length; }                                      \
   unsigned capacity_##Name(const Name* a) { return a->capacity; }                                  \
   T* data_##Name(Name* a) { return a->data; }                                                      \
+  Name* copy_##Name(Name* a) {                                                                     \
+    Name* new   = new_##Name(a->capacity);                                                         \
+    new->length = a->length;                                                                       \
+    for (unsigned i = 0; i < a->length; i++) {                                                     \
+      new->data[i] = a->data[i];                                                                   \
+    }                                                                                              \
+    return new;                                                                                    \
+  }                                                                                                \
   void release_##Name(Name* a) {                                                                   \
     for (unsigned i = 0; i < a->length; i++) {                                                     \
       release_data(a->data[i]);                                                                    \

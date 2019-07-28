@@ -1,276 +1,298 @@
 #include "reg_alloc.h"
+#include "bit_set.h"
 #include "vector.h"
 
 // TODO: Type and distinguish real and virtual register index
 // TODO: Stop using -1 or 0 to mark something
 
+static void release_unsigned(unsigned i) {}
+
+DECLARE_LIST(unsigned, UIList)
+DEFINE_LIST(release_unsigned, unsigned, UIList)
+
+DECLARE_VECTOR(unsigned, UIVec)
+DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
+
 typedef struct {
-  // collect_last_uses
-  unsigned inst_count;  // counts instructions in loop
-  IntVec* last_uses;    // index: virtual reg, value: ic
-  IntVec* first_uses;   // index: virtual reg, value: ic or -1 (not appeared yet)
-  IntVec* sorted_regs;  // virtual registers are stored in order of first occurrence
-  // alloc_regs
-  unsigned num_regs;  // permitted number of registers
-  IntVec* used_regs;  // index: real reg, value: virtual reg or -1 (not used)
-  IntVec* result;     // index: virtual reg, value: real reg or -1 (spill) or -2
-                      // (not filled yet)
-  // rewrite_IR
-  unsigned stack_count;  // counts allocated stack areas
-  IntVec* stacks;        // index: virtual reg, value: stack index or -1 (not used)
-  IRInstList* insts;     // a list of newly created instructions
-  IRInstList* cursor;    // pointer to current head of the list
+  RegIntervals* intervals;  // not owned
+  UIList* active;           // owned
+  unsigned active_count;
+  BitSet* used;   // owned
+  UIVec* result;  // owned, -1 -> not allocated, -2 -> spilled
+  unsigned stack_count;
+  UIVec* locations;  // owned, -1 -> not spilled
+  unsigned inst_count;
+  unsigned usable_regs_count;
+  unsigned reserved_for_spill;
 } Env;
 
-static Env* init_env(unsigned num_regs, unsigned reg_count, unsigned stack_count) {
-  Env* e        = calloc(1, sizeof(Env));
-  e->inst_count = 0;
-  e->last_uses  = new_IntVec(reg_count);
-  resize_IntVec(e->last_uses, reg_count);
-  e->first_uses = new_IntVec(reg_count);
-  resize_IntVec(e->first_uses, reg_count);
-  fill_IntVec(e->first_uses, -1);
-  e->sorted_regs = new_IntVec(reg_count);
+static Env* init_Env(unsigned virt_count,
+                     unsigned real_count,
+                     unsigned stack_count,
+                     unsigned inst_count,
+                     RegIntervals* ivs) {
+  Env* env                = calloc(1, sizeof(Env));
+  env->usable_regs_count  = real_count - 1;
+  env->reserved_for_spill = real_count - 1;
+  env->intervals          = ivs;
+  env->active             = nil_UIList();
+  env->active_count       = 0;
+  env->used               = zero_BitSet(env->usable_regs_count);
 
-  // reserve one reg for spilling
-  e->num_regs  = num_regs - 1;
-  e->used_regs = new_IntVec(reg_count);
-  resize_IntVec(e->used_regs, reg_count);
-  fill_IntVec(e->used_regs, -1);
-  e->result = new_IntVec(reg_count);
-  resize_IntVec(e->result, reg_count);
-  fill_IntVec(e->result, -2);
+  env->result = new_UIVec(virt_count);
+  resize_UIVec(env->result, virt_count);
+  fill_UIVec(env->result, -1);
 
-  e->stack_count = stack_count;
-  e->stacks      = new_IntVec(reg_count);
-  resize_IntVec(e->stacks, reg_count);
-  fill_IntVec(e->stacks, -1);
-  e->insts  = nil_IRInstList();
-  e->cursor = e->insts;
-  return e;
+  env->stack_count = stack_count;
+  env->inst_count  = inst_count;
+
+  env->locations = new_UIVec(virt_count);
+  resize_UIVec(env->locations, virt_count);
+  fill_UIVec(env->locations, -1);
+
+  return env;
 }
 
-// save `insts` and release other part of env
-static IRInstList* take_insts_and_release(Env* env) {
-  IRInstList* insts = env->insts;
-
-  release_IntVec(env->last_uses);
-  release_IntVec(env->first_uses);
-  release_IntVec(env->sorted_regs);
-  release_IntVec(env->used_regs);
-  release_IntVec(env->result);
-  release_IntVec(env->stacks);
-
+static void release_Env(Env* env) {
+  release_UIList(env->active);
+  release_BitSet(env->used);
+  release_UIVec(env->result);
+  release_UIVec(env->locations);
   free(env);
-
-  return insts;
 }
 
-static void set_as_used(Env* env, Reg r) {
-  if (!r.is_used) {
-    return;
-  }
-  int idx = r.virtual;
-
-  // last_uses
-  set_IntVec(env->last_uses, idx, env->inst_count);
-
-  // first_uses
-  // take first occurrence as a point of definition
-  if (get_IntVec(env->first_uses, idx) == -1) {
-    // first occurrence
-    set_IntVec(env->first_uses, idx, env->inst_count);
-    push_IntVec(env->sorted_regs, idx);
-  }
+static Interval* interval_of(Env* env, unsigned virtual) {
+  return get_RegIntervals(env->intervals, virtual);
 }
 
-static void collect_last_uses(Env* env, IRInstList* insts) {
-  if (is_nil_IRInstList(insts)) {
-    return;
-  }
-
-  IRInst* inst = head_IRInstList(insts);
-  set_as_used(env, inst->rd);
-  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    set_as_used(env, get_RegVec(inst->ras, i));
-  }
-
-  env->inst_count++;
-
-  collect_last_uses(env, tail_IRInstList(insts));
-}
-
-// if found, return `true` and set real reg index to `r`
-// `target`: virtual register index targetted in `alloc_regs`
-static bool find_unused(Env* env, int target, int* r) {
-  for (unsigned i = 0; i < env->num_regs; i++) {
-    // iterating over usable registers
-    // i: real reg index
-
-    // -1 -> unused
-    int vi = get_IntVec(env->used_regs, i);
-    if (vi != -1) {
-      // already allocated
-      int last  = get_IntVec(env->last_uses, vi);
-      int t_def = get_IntVec(env->first_uses, target);
-      if (last > t_def) {
-        // ... and overlapping liveness
-        continue;
-      }
+static unsigned find_free_reg(Env* env) {
+  for (unsigned i = 0; i < length_BitSet(env->used); i++) {
+    if (!get_BitSet(env->used, i)) {
+      return i;
     }
+  }
+  error("no free reg found");
+}
 
-    *r = i;
+static void alloc_reg(Env* env, unsigned virtual) {
+  unsigned real = find_free_reg(env);
+  set_BitSet(env->used, real, true);
+  set_UIVec(env->result, virtual, real);
+}
+
+static void release_reg(Env* env, unsigned virtual) {
+  unsigned real = get_UIVec(env->result, virtual);
+  if (real == -1) {
+    return;
+  }
+
+  set_BitSet(env->used, real, false);
+}
+
+static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {
+  if (is_nil_UIList(l)) {
+    insert_UIList(target_virt, l);
+    return;
+  }
+
+  Interval* intv = interval_of(env, head_UIList(l));
+  if (intv->to > current->to) {
+    insert_UIList(target_virt, l);
+    return;
+  }
+
+  add_to_active_iter(env, target_virt, current, tail_UIList(l));
+}
+
+static void add_to_active(Env* env, unsigned target_virt) {
+  add_to_active_iter(env, target_virt, interval_of(env, target_virt), env->active);
+  env->active_count++;
+}
+
+static void remove_from_active(Env* env, UIList* cur) {
+  remove_UIList(cur);
+  env->active_count--;
+}
+
+static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
+  if (is_nil_UIList(l)) {
+    return;
+  }
+
+  unsigned virtual = head_UIList(l);
+  Interval* intv   = interval_of(env, virtual);
+  if (intv->to >= current->from) {
+    return;
+  }
+
+  // expired
+  remove_from_active(env, l);
+  release_reg(env, virtual);
+
+  // not `tail` but `l` because `l` has removed in `remove_from_active`
+  expire_old_intervals_iter(env, current, l);
+}
+
+static void expire_old_intervals(Env* env, unsigned target_virt) {
+  expire_old_intervals_iter(env, interval_of(env, target_virt), env->active);
+}
+
+static void alloc_stack(Env* env, unsigned virt) {
+  set_UIVec(env->locations, virt, env->stack_count++);
+  set_UIVec(env->result, virt, -2);  // mark as spilled
+}
+
+static void spill_at_interval(Env* env, unsigned target) {
+  // TODO: can we eliminate this traversal of last element?
+  UIList* spill_ptr = last_UIList(env->active);
+  unsigned spill    = head_UIList(spill_ptr);
+
+  Interval* spill_intv  = interval_of(env, spill);
+  Interval* target_intv = interval_of(env, target);
+  if (spill_intv->to > target_intv->to) {
+    set_UIVec(env->result, target, get_UIVec(env->result, spill));
+    alloc_stack(env, spill);
+    remove_from_active(env, spill_ptr);
+    add_to_active(env, target);
+  } else {
+    alloc_stack(env, target);
+  }
+}
+
+static void sort_intervals_insert_reg(RegIntervals* ivs, Interval* t, unsigned v, UIList* l) {
+  if (is_nil_UIList(l)) {
+    insert_UIList(v, l);
+    return;
+  }
+
+  Interval* intv = get_RegIntervals(ivs, head_UIList(l));
+  if (intv->from > t->from) {
+    insert_UIList(v, l);
+    return;
+  }
+
+  sort_intervals_insert_reg(ivs, t, v, tail_UIList(l));
+}
+
+// TODO: Faster sort
+static UIList* sort_intervals(RegIntervals* ivs) {
+  unsigned len   = length_RegIntervals(ivs);
+  UIList* result = nil_UIList();
+  for (unsigned i = 0; i < len; i++) {
+    Interval* interval = get_RegIntervals(ivs, i);
+    sort_intervals_insert_reg(ivs, interval, i, result);
+  }
+  return result;
+}
+
+static void walk_regs(Env* env, UIList* l) {
+  if (is_nil_UIList(l)) {
+    return;
+  }
+
+  unsigned virtual = head_UIList(l);
+
+  expire_old_intervals(env, virtual);
+
+  if (env->active_count == env->usable_regs_count) {
+    spill_at_interval(env, virtual);
+  } else {
+    alloc_reg(env, virtual);
+    add_to_active(env, virtual);
+  }
+
+  walk_regs(env, tail_UIList(l));
+}
+
+static bool assign_reg(Env* env, Reg* r) {
+  unsigned real = get_UIVec(env->result, r->virtual);
+  if (real == -1) {
+    error("failed to allocate register: %d", r->virtual);
+  }
+
+  r->kind = REG_REAL;
+
+  if (real == -2) {
+    r->real = env->reserved_for_spill;
     return true;
   }
+
+  r->real = real;
   return false;
 }
 
-static int select_spill_target(Env* env, int vi) {
-  int candidate = vi;
-  for (unsigned i = 0; i < length_IntVec(env->last_uses); i++) {
-    // i: virtual register index
+static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
+  IRInstList* l = *lref;
 
-    int r = get_IntVec(env->result, i);
-    if (r == -1 || r == -2) {
-      // already spilled or not allocated yet
-      continue;
-    }
+  IRInst* inst    = new_inst(env->inst_count++, IR_LOAD);
+  inst->rd        = r;
+  inst->stack_idx = get_UIVec(env->locations, r.virtual);
+  insert_IRInstList(inst, l);
 
-    int last  = get_IntVec(env->last_uses, i);
-    int first = get_IntVec(env->first_uses, i);
-    int t_def = get_IntVec(env->first_uses, vi);
-    if (last < t_def || first > t_def) {
-      // not active here
-      continue;
-    }
-
-    int c_last = get_IntVec(env->last_uses, candidate);
-    if (c_last < last) {
-      // update if `i`'s last occurrence is after `candidate`'s
-      candidate = i;
-    }
-  }
-  return candidate;
+  IRInstList* t = tail_IRInstList(l);
+  *lref         = t;
+  return tail_IRInstList(t);
 }
 
-static void alloc_regs(Env* env) {
-  for (unsigned i = 0; i < length_IntVec(env->sorted_regs); i++) {
-    int vi = get_IntVec(env->sorted_regs, i);
-    // vi: virtual register index
+static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
+  IRInst* inst = new_inst(env->inst_count++, IR_STORE);
+  push_RegVec(inst->ras, r);
+  inst->stack_idx = get_UIVec(env->locations, r.virtual);
 
-    int ri;
-    if (find_unused(env, vi, &ri)) {
-      // store the mapping from virtual reg to real reg
-      set_IntVec(env->result, vi, ri);
-      // mark as used
-      set_IntVec(env->used_regs, ri, vi);
-
-      continue;
-    }
-
-    // spilling
-
-    int t_vi = select_spill_target(env, vi);
-    int prev = get_IntVec(env->result, t_vi);
-
-    // mark as spilled
-    set_IntVec(env->result, t_vi, -1);
-
-    set_IntVec(env->result, vi, prev);
-    set_IntVec(env->used_regs, prev, vi);
-  }
+  IRInstList* t = tail_IRInstList(l);
+  insert_IRInstList(inst, t);
+  return tail_IRInstList(t);
 }
 
-static void append_inst(Env* env, IRInst* i) {
-  env->cursor = snoc_IRInstList(i, env->cursor);
-}
-
-static void update_reg(Env* env, Reg* r) {
-  if (!r->is_used) {
+static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
+  if (is_nil_IRInstList(l)) {
     return;
   }
 
-  int ri  = get_IntVec(env->result, r->virtual);
-  r->kind = REG_REAL;
-  if (ri == -1) {
-    // spilled
-    r->real       = env->num_regs;  // reserved reg
-    r->is_spilled = true;
-  } else {
-    r->real       = ri;
-    r->is_spilled = false;
-  }
-}
+  IRInst* inst     = head_IRInstList(l);
+  IRInstList* tail = tail_IRInstList(l);
 
-static int stack_idx_of(Env* env, int vi) {
-  int idx = get_IntVec(env->stacks, vi);
-  if (idx != -1) {
-    return idx;
-  } else {
-    int new_i = env->stack_count++;
-    set_IntVec(env->stacks, vi, new_i);
-    return new_i;
-  }
-}
-
-static void emit_spill_load(Env* env, Reg r) {
-  if (!r.is_spilled) {
-    return;
-  }
-
-  IRInst* load    = new_inst(IR_LOAD);
-  load->stack_idx = stack_idx_of(env, r.virtual);
-  load->rd        = r;
-  append_inst(env, load);
-}
-
-static void emit_spill_store(Env* env, Reg r) {
-  if (!r.is_spilled) {
-    return;
-  }
-
-  IRInst* store    = new_inst(IR_STORE);
-  store->stack_idx = stack_idx_of(env, r.virtual);
-  store->ras       = new_RegVec(1);
-  push_RegVec(store->ras, r);
-  append_inst(env, store);
-}
-
-static void emit_spill_subs(Env* env) {
-  IRInst* subs    = new_inst(IR_SUBS);
-  subs->stack_idx = env->stack_count;
-  env->insts      = cons_IRInstList(subs, env->insts);
-}
-
-static void rewrite_IR(Env* env, IRInstList* insts) {
-  if (is_nil_IRInstList(insts)) {
-    return;
-  }
-
-  IRInst* inst = head_IRInstList(insts);
-  update_reg(env, &inst->rd);
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    update_reg(env, ptr_RegVec(inst->ras, i));
-    emit_spill_load(env, get_RegVec(inst->ras, i));
+    Reg ra = get_RegVec(inst->ras, i);
+    assert(ra.is_used);
+
+    if (assign_reg(env, &ra)) {
+      tail = emit_spill_load(env, ra, &l);
+    }
+
+    set_RegVec(inst->ras, i, ra);
   }
 
-  append_inst(env, inst);
+  if (inst->rd.is_used) {
+    if (assign_reg(env, &inst->rd)) {
+      tail = emit_spill_store(env, inst->rd, l);
+    }
+  }
 
-  emit_spill_store(env, inst->rd);
-
-  rewrite_IR(env, tail_IRInstList(insts));
+  assign_reg_num_iter_insts(env, tail);
 }
 
-IR* reg_alloc(unsigned num_regs, IR* ir) {
-  Env* env = init_env(num_regs, ir->reg_count, ir->stack_count);
-  collect_last_uses(env, ir->insts);
-  alloc_regs(env);
-  rewrite_IR(env, ir->insts);
+static void assign_reg_num(Env* env, BBList* l) {
+  if (is_nil_BBList(l)) {
+    return;
+  }
 
-  emit_spill_subs(env);
+  BasicBlock* b = head_BBList(l);
+  assign_reg_num_iter_insts(env, b->insts);
+  b->sorted_insts = NULL;
 
-  IR* new_ir        = calloc(1, sizeof(IR));
-  new_ir->reg_count = num_regs;
-  new_ir->insts     = take_insts_and_release(env);
-  return new_ir;
+  assign_reg_num(env, tail_BBList(l));
+}
+
+void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
+  Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, ivs);
+  UIList* ordered_regs = sort_intervals(ivs);
+
+  walk_regs(env, ordered_regs);
+
+  release_UIList(ordered_regs);
+
+  assign_reg_num(env, ir->blocks);
+
+  release_Env(env);
 }

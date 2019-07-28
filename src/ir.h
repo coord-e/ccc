@@ -5,6 +5,7 @@
 
 #include "ast.h"
 #include "binop.h"
+#include "bit_set.h"
 #include "lexer.h"
 #include "list.h"
 #include "vector.h"
@@ -17,6 +18,9 @@ typedef enum {
   IR_LOAD,
   IR_SUBS,
   IR_MOV,
+  IR_BR,    // conditional branch
+  IR_JUMP,  // unconditional branch
+  IR_LABEL,
 } IRInstKind;
 
 typedef enum {
@@ -36,26 +40,75 @@ typedef struct {
 DECLARE_VECTOR(Reg, RegVec)
 DECLARE_VECTOR_PRINTER(RegVec)
 
+typedef struct BasicBlock BasicBlock;
+
 typedef struct IRInst {
   IRInstKind kind;
-  BinopKind binop;     // for ND_BIN
-  int imm;             // for ND_IMM
-  unsigned stack_idx;  // for ND_STORE, ND_LOAD
+  unsigned id;  // just for idenfitication
+
+  BinopKind binop;     // for IR_BIN
+  int imm;             // for IR_IMM
+  unsigned stack_idx;  // for IR_STORE, IR_LOAD
+
+  BasicBlock* label;  // for IR_LABEL, not owned
+
+  BasicBlock* jump;  // for IR_JUMP, not owned
+
+  BasicBlock* then_;  // for IR_BR, not owned
+  BasicBlock* else_;  // for IR_BR, not owned
 
   Reg rd;       // destination register
   RegVec* ras;  // argument registers (won't be null)
 } IRInst;
 
-IRInst* new_inst(IRInstKind);
+IRInst* new_inst(unsigned id, IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
+DECLARE_LIST(BasicBlock*, BBList)
+DECLARE_VECTOR(IRInst*, IRInstVec)
 
-// IR is a list of `IRInst` ... with some metadata
+// `BasicBlock` forms a control flow graph
+struct BasicBlock {
+  unsigned id;        // just for identification
+  IRInstList* insts;  // owned
+
+  BBList* succs;  // not owned (owned by `IR`)
+  BBList* preds;  // not owned (owned by `IR`)
+
+  // it costs too much to remove all references from `preds` and `succs`
+  // and remove from `blocks`,
+  // so mark as dead with this field instead of removing it
+  bool dead;
+
+  // will filled in `liveness`
+  BitSet* live_gen;   // owned, NULL before analysis
+  BitSet* live_kill;  // owned, ditto
+  BitSet* live_in;    // owned, ditto
+  BitSet* live_out;   // owned, ditto
+
+  // will filled in `reorder`
+  // sorted in normal order
+  // NULL if there is no usable instance (e.g. before `reorder` or after `reg_alloc`)
+  IRInstVec* sorted_insts;  // not owned
+};
+
+DECLARE_VECTOR(BasicBlock*, BBVec)
+
 typedef struct {
-  IRInstList* insts;
+  BasicBlock* entry;  // not owned
+  BasicBlock* exit;   // not owend
+
+  BBList* blocks;  // owned
+
+  unsigned bb_count;
   unsigned reg_count;
   unsigned stack_count;
+  unsigned inst_count;
+
+  // will filled in `reorder`
+  // sorted in reverse order
+  BBVec* sorted_blocks;  // not owned
 } IR;
 
 // build IR from ast

@@ -17,8 +17,11 @@
   Name* snoc_##Name(T value, Name* list);                                                          \
   T head_##Name(const Name* list);                                                                 \
   Name* tail_##Name(const Name* list);                                                             \
+  Name* last_##Name(Name* list);                                                                   \
   bool is_nil_##Name(const Name* list);                                                            \
   unsigned length_##Name(const Name* list);                                                        \
+  void remove_##Name(Name* list);                                                                  \
+  void insert_##Name(T value, Name* list);                                                         \
   void release_##Name(Name* list);
 
 #define DEFINE_LIST(release_data, T, Name)                                                         \
@@ -68,6 +71,15 @@
     }                                                                                              \
     return list->tail;                                                                             \
   }                                                                                                \
+  Name* last_##Name(Name* list) {                                                                  \
+    if (list->is_nil) {                                                                            \
+      error("last");                                                                               \
+    }                                                                                              \
+    if (list->tail->is_nil) {                                                                      \
+      return list;                                                                                 \
+    }                                                                                              \
+    return last_##Name(list->tail);                                                                \
+  }                                                                                                \
   bool is_nil_##Name(const Name* list) { return list->is_nil; }                                    \
   unsigned length_##Name(const Name* list) {                                                       \
     if (list->is_nil) {                                                                            \
@@ -75,6 +87,19 @@
     } else {                                                                                       \
       return 1 + length_##Name(list->tail);                                                        \
     }                                                                                              \
+  }                                                                                                \
+  void remove_##Name(Name* list) {                                                                 \
+    if (list->is_nil) {                                                                            \
+      error("can't remove nil");                                                                   \
+    }                                                                                              \
+    *list = *(list->tail);                                                                         \
+  }                                                                                                \
+  void insert_##Name(T value, Name* list) {                                                        \
+    Name* imp    = init_##Name();                                                                  \
+    *imp         = *list;                                                                          \
+    list->head   = value;                                                                          \
+    list->tail   = imp;                                                                            \
+    list->is_nil = false;                                                                          \
   }                                                                                                \
   void release_##Name(Name* list) {                                                                \
     if (!list->is_nil) {                                                                           \

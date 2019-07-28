@@ -19,6 +19,13 @@ static void emit_label(FILE* p, char* fmt, ...) {
   fprintf(p, ":\n");
 }
 
+static void emit_(FILE* p, char* fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  fprintf(p, "  ");
+  vfprintf(p, fmt, ap);
+}
+
 static void emit(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -33,6 +40,15 @@ static const char* reg_of(Reg r) {
 
 static const char* nth_reg_of(unsigned i, RegVec* rs) {
   return reg_of(get_RegVec(rs, i));
+}
+
+static void id_label_name(FILE* p, unsigned id) {
+  fprintf(p, "_ccc_%d", id);
+}
+
+static void emit_id_label(FILE* p, unsigned id) {
+  id_label_name(p, id);
+  fprintf(p, ":\n");
 }
 
 static void codegen_binop(FILE* p, IRInst* inst);
@@ -67,6 +83,23 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
       break;
     case IR_SUBS:
       emit(p, "sub rsp, %d", 8 * h->stack_idx);
+      break;
+    case IR_LABEL:
+      emit_id_label(p, h->label->id);
+      break;
+    case IR_JUMP:
+      emit_(p, "jmp ");
+      id_label_name(p, h->jump->id);
+      fprintf(p, "\n");
+      break;
+    case IR_BR:
+      emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
+      emit_(p, "je ");
+      id_label_name(p, h->else_->id);
+      fprintf(p, "\n");
+      emit_(p, "jmp ");
+      id_label_name(p, h->then_->id);
+      fprintf(p, "\n");
       break;
     default:
       CCC_UNREACHABLE;
@@ -136,11 +169,27 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   }
 }
 
+static void codegen_blocks(FILE* p, BBList* l) {
+  if (is_nil_BBList(l)) {
+    return;
+  }
+
+  BasicBlock* b = head_BBList(l);
+  if (!b->dead) {
+    codegen_insts(p, b->insts);
+  }
+
+  codegen_blocks(p, tail_BBList(l));
+}
+
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
   emit(p, ".global main");
   emit_label(p, "main");
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
-  codegen_insts(p, ir->insts);
+  emit_(p, "jmp ");
+  id_label_name(p, ir->entry->id);
+  fprintf(p, "\n");
+  codegen_blocks(p, ir->blocks);
 }

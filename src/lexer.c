@@ -38,7 +38,7 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     (*strp)++;
   }
 
-#define IS_SAME(sv, sc) (strncmp(sv, sc, sizeof(sc) - 1) == 0)
+#define IS_SAME(sv, sc) (memcmp(sv, sc, sizeof(sc) - 1) == 0)
   if (IS_SAME(init, "return")) {
     return add_token(TK_RETURN, cur);
   } else if (IS_SAME(init, "if")) {

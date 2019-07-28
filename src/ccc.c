@@ -25,15 +25,15 @@ int main(int argc, char** argv) {
   release_TokenList(tokens);
   /* print_AST(stderr, tree); */
 
-  IR* ir1 = generate_IR(tree);
+  IR* ir = generate_IR(tree);
   release_AST(tree);
-  reorder_blocks(ir1);
-  liveness(ir1);
-  /* IR* ir2 = reg_alloc(num_regs, ir1); */
-  print_IR(stderr, ir1);
+  reorder_blocks(ir);
+  RegIntervals* v = liveness(ir);
+  reg_alloc(num_regs, v, ir);
+  print_IR(stdout, ir);
 
   /* codegen(stdout, ir2); */
-  release_IR(ir1);
+  release_IR(ir);
 
   return 0;
 }

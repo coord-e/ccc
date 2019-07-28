@@ -189,11 +189,57 @@ static void walk_regs(Env* env, unsigned real_count, UIList* l) {
   walk_regs(env, real_count, tail_UIList(l));
 }
 
-IR* reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
+static void assign_reg(Env* env, Reg* r) {
+  unsigned real = get_UIVec(env->result, r->virtual);
+  if (real == -1) {
+    error("failed to allocate register: %d", r->virtual);
+  }
+
+  r->real = real;
+  r->kind = REG_REAL;
+}
+
+static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
+  if (is_nil_IRInstList(l)) {
+    return;
+  }
+
+  IRInst* inst = head_IRInstList(l);
+
+  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+    Reg ra = get_RegVec(inst->ras, i);
+    assert(ra.is_used);
+
+    assign_reg(env, &ra);
+    set_RegVec(inst->ras, i, ra);
+  }
+
+  if (inst->rd.is_used) {
+    assign_reg(env, &inst->rd);
+  }
+
+  assign_reg_num_iter_insts(env, tail_IRInstList(l));
+}
+
+static void assign_reg_num(Env* env, BBList* l) {
+  if (is_nil_BBList(l)) {
+    return;
+  }
+
+  BasicBlock* b = head_BBList(l);
+  assign_reg_num_iter_insts(env, b->insts);
+  b->sorted_insts = NULL;
+
+  assign_reg_num(env, tail_BBList(l));
+}
+
+void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
   Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
   walk_regs(env, num_regs, ordered_regs);
 
   release_UIList(ordered_regs);
+
+  assign_reg_num(env, ir->blocks);
 }

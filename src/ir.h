@@ -87,6 +87,7 @@ struct BasicBlock {
 
   // will filled in `reorder`
   // sorted in normal order
+  // NULL if there is no usable instance (e.g. before `reorder` or after `reg_alloc`)
   IRInstVec* sorted_insts;  // not owned
 };
 

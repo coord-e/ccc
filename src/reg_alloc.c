@@ -64,6 +64,10 @@ static void alloc_reg(Env* env, unsigned virtual) {
 
 static void release_reg(Env* env, unsigned virtual) {
   unsigned real = get_UIVec(env->result, virtual);
+  if (real == -1) {
+    return;
+  }
+
   set_BitSet(env->used, real, false);
   set_UIVec(env->result, virtual, -1);
 }

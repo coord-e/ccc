@@ -291,6 +291,24 @@ static Statement* statement(TokenList** t) {
       s->body      = body;
       return s;
     }
+    case TK_FOR: {
+      consume(t);
+      expect(t, TK_LPAREN);
+      Expr* init = expr(t);
+      expect(t, TK_SEMICOLON);
+      Expr* before = expr(t);
+      expect(t, TK_SEMICOLON);
+      Expr* after = expr(t);
+      expect(t, TK_RPAREN);
+      Statement* body = statement(t);
+
+      Statement* s = new_statement(ST_FOR, NULL);
+      s->init      = init;
+      s->before    = before;
+      s->after     = after;
+      s->body      = body;
+      return s;
+    }
     case TK_LBRACE: {
       consume(t);
       Statement* s = new_statement(ST_COMPOUND, NULL);

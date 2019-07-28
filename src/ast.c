@@ -131,6 +131,16 @@ void print_statement(FILE* p, Statement* d) {
       print_expr(p, d->expr);
       fputs(");", p);
       break;
+    case ST_FOR:
+      fputs("for (", p);
+      print_expr(p, d->init);
+      fputs("; ", p);
+      print_expr(p, d->before);
+      fputs("; ", p);
+      print_expr(p, d->after);
+      fputs(") ", p);
+      print_statement(p, d->body);
+      break;
     case ST_COMPOUND:
       fputs("{ ", p);
       print_BlockItemList(p, d->items);

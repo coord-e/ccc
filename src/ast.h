@@ -51,6 +51,7 @@ typedef enum {
   ST_COMPOUND,
   ST_WHILE,
   ST_DO,
+  ST_FOR,
 } StmtKind;
 
 struct Statement {
@@ -61,6 +62,10 @@ struct Statement {
 
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF
+
+  Expr* init;    // for ST_FOR
+  Expr* before;  // for ST_FOR
+  Expr* after;   // for ST_FOR
 
   BlockItemList* items;  // for ST_COMPOUND
 };

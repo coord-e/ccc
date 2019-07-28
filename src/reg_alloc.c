@@ -1,44 +1,121 @@
 #include "reg_alloc.h"
-#include "vector.h"
 #include "bit_set.h"
+#include "vector.h"
 
 // TODO: Type and distinguish real and virtual register index
 // TODO: Stop using -1 or 0 to mark something
 
-DECLARE_LIST(unsigned, UIList)
 static void release_unsigned(unsigned i) {}
+
+DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
 
-typeof struct {
+DECLARE_VECTOR(unsigned, UIVec)
+DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
+
+typedef struct {
   RegIntervals* intervals;
   UIList* active;
   unsigned active_count;
   BitSet* used;
-  UIVec* result;
+  UIVec* result;  // -1 -> not allocated
 } Env;
 
-static Env* init_Env(unsigned reg_count, RegIntervals* ivs) {
-  Env* env = calloc(1, sizeof(Env));
-  env->intervals = ivs;
-  env->active = nil_UIList();
+static Env* init_Env(unsigned virt_count, unsigned real_count, RegIntervals* ivs) {
+  Env* env          = calloc(1, sizeof(Env));
+  env->intervals    = ivs;
+  env->active       = nil_UIList();
   env->active_count = 0;
-  env->used = zero_BitSet(reg_count);
-  env->result = new_UIVec(reg_count);
-  resize_UIVec(env->result, reg_count);
+  env->used         = zero_BitSet(real_count);
+  env->result       = new_UIVec(virt_count);
+  resize_UIVec(env->result, virt_count);
+  fill_UIVec(env->result, -1);
   return env;
 }
 
+static Interval* interval_of(Env* env, unsigned virtual) {
+  return get_RegIntervals(env->intervals, virtual);
+}
+
+static unsigned find_free_reg(Env* env) {
+  for (unsigned i = 0; i < length_BitSet(env->used); i++) {
+    if (!get_BitSet(env->used, i)) {
+      return i;
+    }
+  }
+  error("no free reg found");
+}
+
+static void alloc_reg(Env* env, unsigned virtual) {
+  unsigned real = find_free_reg(env);
+  set_BitSet(env->used, real, true);
+  set_UIVec(env->result, virtual, real);
+}
+
+static void release_reg(Env* env, unsigned virtual) {
+  unsigned real = get_UIVec(env->result, virtual);
+  set_BitSet(env->used, real, false);
+  set_UIVec(env->result, virtual, -1);
+}
+
+static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {
+  if (is_nil_UIList(l)) {
+    insert_UIList(l, target_virt);
+    return;
+  }
+
+  Interval* intv = interval_of(env, head_UIList(l));
+  if (intv->to > current->to) {
+    insert_UIList(l, target_virt);
+    return;
+  }
+
+  add_to_active_iter(env, target_virt, current, tail_UIList(l));
+}
+
+static void add_to_active(Env* env, unsigned target_virt) {
+  add_to_active_iter(env, target_virt, interval_of(env, target_virt), env->active);
+  env->active_count++;
+}
+
+static void remove_from_active(Env* env, UIList* cur) {
+  remove_UIList(cur);
+  env->active_count--;
+}
+
+static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
+  if (is_nil_UIList(l)) {
+    return;
+  }
+
+  unsigned virtual = head_UIList(l);
+  Interval* intv   = interval_of(env, virtual);
+  if (intv->to >= current->from) {
+    return;
+  }
+
+  // expired
+  remove_from_active(env, l);
+  release_reg(env, virtual);
+
+  expire_old_intervals_iter(env, current, tail_UIList(l));
+}
+
+static void expire_old_intervals(Env* env, unsigned target_virt) {
+  expire_old_intervals_iter(env, interval_of(env, target_virt), env->active);
+}
+
 IR* reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
-  Env* env = init_Env(ir->reg_count, ivs);
+  Env* env            = init_Env(ir->reg_count, num_regs, ivs);
   UIVec* ordered_regs = sort_intervals(ivs);
 
-  for (unsigned virtual = 0; virtual < length_UIVec(ordered_regs); virtual++) {
+  for (unsigned virtual = 0; virtual < length_UIVec(ordered_regs); virtual ++) {
     expire_old_intervals(env, virtual);
 
     if (env->active_count == num_regs) {
       spill_at_interval(env, virtual);
     } else {
-      alloc_free_reg(env, virtual);
+      alloc_reg(env, virtual);
       add_to_active(env, virtual);
     }
   }

@@ -391,6 +391,24 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       break;
     }
+    case ST_BREAK: {
+      if (env->loop_break == NULL) {
+        error("invalid break statement");
+      }
+
+      new_jump(env, env->loop_break, NULL);
+
+      break;
+    }
+    case ST_CONTINUE: {
+      if (env->loop_continue == NULL) {
+        error("invalid continue statement");
+      }
+
+      new_jump(env, env->loop_continue, NULL);
+
+      break;
+    }
     case ST_COMPOUND: {
       // compound statement is a block
       UIMap* save = copy_UIMap(env->vars);

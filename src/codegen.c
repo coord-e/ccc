@@ -188,5 +188,8 @@ void codegen(FILE* p, IR* ir) {
   emit_label(p, "main");
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
+  emit_(p, "jmp ");
+  id_label_name(p, ir->entry->id);
+  fprintf(p, "\n");
   codegen_blocks(p, ir->blocks);
 }

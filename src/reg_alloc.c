@@ -14,13 +14,13 @@ DECLARE_VECTOR(unsigned, UIVec)
 DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
 
 typedef struct {
-  RegIntervals* intervals;
-  UIList* active;
+  RegIntervals* intervals;  // not owned
+  UIList* active;           // owned
   unsigned active_count;
-  BitSet* used;
-  UIVec* result;  // -1 -> not allocated, -2 -> spilled
+  BitSet* used;   // owned
+  UIVec* result;  // owned, -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
-  UIVec* locations;  // -1 -> not spilled
+  UIVec* locations;  // owned, -1 -> not spilled
   unsigned inst_count;
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
@@ -51,6 +51,14 @@ static Env* init_Env(unsigned virt_count,
   fill_UIVec(env->locations, -1);
 
   return env;
+}
+
+static void release_Env(Env* env) {
+  release_UIList(env->active);
+  release_BitSet(env->used);
+  release_UIVec(env->result);
+  release_UIVec(env->locations);
+  free(env);
 }
 
 static Interval* interval_of(Env* env, unsigned virtual) {
@@ -285,4 +293,6 @@ void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
   release_UIList(ordered_regs);
 
   assign_reg_num(env, ir->blocks);
+
+  release_Env(env);
 }

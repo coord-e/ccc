@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
   reorder_blocks(ir);
   RegIntervals* v = liveness(ir);
   reg_alloc(num_regs, v, ir);
+  release_RegIntervals(v);
   print_IR(stdout, ir);
 
   /* codegen(stdout, ir2); */

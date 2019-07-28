@@ -74,4 +74,10 @@ items 10 "decl var; var = 10; return var;"
 items 42 "decl va; decl vb; va = 11; vb = 31; decl vc; vc = va + vb; return vc;"
 items 50 "decl v; v = 30; v = 50; return v;"
 
+# if
+items 5 "if (1) return 5; else return 20;"
+items 10 "if (0) return 5; else if (0) return 20; else return 10;"
+items 10 "decl a; a = 0; decl b; b = 0; if(a) b = 10; else if (0) return a; else if (a) return b; else return 10;"
+items 27 "decl a; a = 15; decl b; b = 2; if(a-15) b = 10; else if (b) return (a + b + 10); else if (a) return b; else return 10;"
+
 echo OK

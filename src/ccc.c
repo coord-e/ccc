@@ -27,11 +27,14 @@ int main(int argc, char** argv) {
 
   IR* ir = generate_IR(tree);
   release_AST(tree);
+
   reorder_blocks(ir);
+
   RegIntervals* v = liveness(ir);
   reg_alloc(num_regs, v, ir);
   release_RegIntervals(v);
-  print_IR(stderr, ir);
+
+  /* print_IR(stderr, ir); */
 
   codegen(stdout, ir);
   release_IR(ir);

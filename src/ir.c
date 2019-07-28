@@ -352,7 +352,7 @@ void gen_block_item_list(Env* env, BlockItemList* ast) {
   gen_block_item_list(env, tail_BlockItemList(ast));
 }
 
-static void gen_ast(Env* env, AST* ast) {
+static void gen_ir(Env* env, AST* ast) {
   gen_block_item_list(env, ast);
 }
 

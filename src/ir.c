@@ -330,6 +330,7 @@ IR* generate_IR(AST* ast) {
   ir->bb_count      = env->bb_count;
   ir->reg_count     = env->reg_count;
   ir->stack_count   = env->stack_count;
+  ir->inst_count    = env->inst_count;
   ir->blocks        = env->blocks;
   ir->sorted_blocks = NULL;
 

@@ -102,6 +102,7 @@ typedef struct {
   unsigned bb_count;
   unsigned reg_count;
   unsigned stack_count;
+  unsigned inst_count;
 
   // will filled in `reorder`
   // sorted in reverse order

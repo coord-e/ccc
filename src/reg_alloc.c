@@ -21,6 +21,7 @@ typedef struct {
   UIVec* result;  // -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
   UIVec* locations;  // -1 -> not spilled
+  unsigned inst_count;
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
 } Env;
@@ -28,6 +29,7 @@ typedef struct {
 static Env* init_Env(unsigned virt_count,
                      unsigned real_count,
                      unsigned stack_count,
+                     unsigned inst_count,
                      RegIntervals* ivs) {
   Env* env                = calloc(1, sizeof(Env));
   env->usable_regs_count  = real_count - 1;
@@ -42,6 +44,7 @@ static Env* init_Env(unsigned virt_count,
   fill_UIVec(env->result, -1);
 
   env->stack_count = stack_count;
+  env->inst_count  = inst_count;
 
   env->locations = new_UIVec(virt_count);
   resize_UIVec(env->locations, virt_count);
@@ -193,14 +196,39 @@ static void walk_regs(Env* env, UIList* l) {
   walk_regs(env, tail_UIList(l));
 }
 
-static void assign_reg(Env* env, Reg* r) {
+static bool assign_reg(Env* env, Reg* r) {
   unsigned real = get_UIVec(env->result, r->virtual);
   if (real == -1) {
     error("failed to allocate register: %d", r->virtual);
   }
 
-  r->real = real;
   r->kind = REG_REAL;
+
+  if (real == -2) {
+    r->real = env->reserved_for_spill;
+    return true;
+  }
+
+  r->real = real;
+  return false;
+}
+
+static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList* l) {
+  IRInst* inst    = new_inst(env->inst_count++, IR_LOAD);
+  inst->rd        = r;
+  inst->stack_idx = get_UIVec(env->locations, r.virtual);
+  insert_IRInstList(inst, l);
+  return tail_IRInstList(tail_IRInstList(l));
+}
+
+static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
+  IRInst* inst = new_inst(env->inst_count++, IR_STORE);
+  push_RegVec(inst->ras, r);
+  inst->stack_idx = get_UIVec(env->locations, r.virtual);
+
+  IRInstList* t = tail_IRInstList(l);
+  insert_IRInstList(inst, t);
+  return tail_IRInstList(t);
 }
 
 static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
@@ -208,21 +236,27 @@ static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
     return;
   }
 
-  IRInst* inst = head_IRInstList(l);
+  IRInst* inst     = head_IRInstList(l);
+  IRInstList* tail = tail_IRInstList(l);
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg ra = get_RegVec(inst->ras, i);
     assert(ra.is_used);
 
-    assign_reg(env, &ra);
+    if (assign_reg(env, &ra)) {
+      tail = emit_spill_load(env, ra, l);
+    }
+
     set_RegVec(inst->ras, i, ra);
   }
 
   if (inst->rd.is_used) {
-    assign_reg(env, &inst->rd);
+    if (assign_reg(env, &inst->rd)) {
+      tail = emit_spill_store(env, inst->rd, l);
+    }
   }
 
-  assign_reg_num_iter_insts(env, tail_IRInstList(l));
+  assign_reg_num_iter_insts(env, tail);
 }
 
 static void assign_reg_num(Env* env, BBList* l) {
@@ -238,7 +272,7 @@ static void assign_reg_num(Env* env, BBList* l) {
 }
 
 void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
-  Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ivs);
+  Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
   walk_regs(env, ordered_regs);

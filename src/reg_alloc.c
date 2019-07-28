@@ -213,12 +213,17 @@ static bool assign_reg(Env* env, Reg* r) {
   return false;
 }
 
-static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList* l) {
+static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
+  IRInstList* l = *lref;
+
   IRInst* inst    = new_inst(env->inst_count++, IR_LOAD);
   inst->rd        = r;
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
   insert_IRInstList(inst, l);
-  return tail_IRInstList(tail_IRInstList(l));
+
+  IRInstList* t = tail_IRInstList(l);
+  *lref         = t;
+  return tail_IRInstList(t);
 }
 
 static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
@@ -244,7 +249,7 @@ static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
     assert(ra.is_used);
 
     if (assign_reg(env, &ra)) {
-      tail = emit_spill_load(env, ra, l);
+      tail = emit_spill_load(env, ra, &l);
     }
 
     set_RegVec(inst->ras, i, ra);

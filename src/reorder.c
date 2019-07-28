@@ -66,7 +66,7 @@ static bool mark_dead_iter(BasicBlock* entry, IntVec* visited, BBList* l, bool a
 
   int v = get_IntVec(visited, b->id);
   if (v != -1) {
-    return v;
+    return mark_dead_iter(entry, visited, tail_BBList(l), acc && v);
   }
 
   set_IntVec(visited, b->id, false);

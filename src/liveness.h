@@ -8,6 +8,8 @@
 #include "vector.h"
 
 typedef struct {
+  // -1 for undefined
+  // TODO: stop using -1 to indicate undefined value
   unsigned from;
   unsigned to;
 } Interval;

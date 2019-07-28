@@ -118,6 +118,69 @@ void compute_global_live_sets(IR* ir) {
   release_BSVec(lasts);
 }
 
+static Interval* new_interval(unsigned from, unsigned to) {
+  Interval* iv = calloc(1, sizeof(Interval));
+  iv->from     = from;
+  iv->to       = to;
+  return iv;
+}
+
+static void add_range(RegIntervals* ivs, unsigned virtual, unsigned from, unsigned to) {
+  Interval* iv = get_RegIntervals(ivs, virtual);
+  if (iv->from == -1 || iv->from > from) {
+    iv->from = from;
+  }
+  if (iv->to == -1 || iv->to < to) {
+    iv->to = to;
+  }
+}
+
+static void set_from(RegIntervals* ivs, unsigned virtual, unsigned from) {
+  Interval* iv = get_RegIntervals(ivs, virtual);
+  iv->from     = from;
+}
+
+static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned block_from) {
+  // reverse order
+  for (unsigned ii = length_IRInstVec(v); ii > 0; ii--) {
+    IRInst* inst = get_IRInstVec(v, ii - 1);
+
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      Reg ra = get_RegVec(inst->ras, i);
+      assert(ra.is_used);
+
+      add_range(ivs, ra.virtual, block_from, inst->id);
+    }
+
+    if (inst->rd.is_used) {
+      set_from(ivs, inst->rd.virtual, inst->id);
+    }
+  }
+}
+
 RegIntervals* build_intervals(IR* ir) {
-  return NULL;
+  BBVec* v = ir->sorted_blocks;
+
+  RegIntervals* ivs = new_RegIntervals(ir->reg_count);
+  for (unsigned i = 0; i < ir->reg_count; i++) {
+    push_RegIntervals(ivs, new_interval(-1, -1));
+  }
+
+  // reverse order
+  for (unsigned i = 0; i < length_BBVec(v); i++) {
+    BasicBlock* b       = get_BBVec(v, i);
+    IRInstVec* is       = b->sorted_insts;
+    unsigned block_from = get_IRInstVec(is, 0)->id;
+    unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->id;
+
+    for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
+      if (get_BitSet(b->live_out, vi)) {
+        add_range(ivs, vi, block_from, block_to);
+      }
+    }
+
+    build_intervals_insts(ivs, is, block_from);
+  }
+
+  return ivs;
 }

@@ -111,7 +111,8 @@ static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
   remove_from_active(env, l);
   release_reg(env, virtual);
 
-  expire_old_intervals_iter(env, current, tail_UIList(l));
+  // not `tail` but `l` because `l` has removed in `remove_from_active`
+  expire_old_intervals_iter(env, current, l);
 }
 
 static void expire_old_intervals(Env* env, unsigned target_virt) {

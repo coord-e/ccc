@@ -174,7 +174,10 @@ static void codegen_blocks(FILE* p, BBList* l) {
     return;
   }
 
-  codegen_insts(p, head_BBList(l)->insts);
+  BasicBlock* b = head_BBList(l);
+  if (!b->dead) {
+    codegen_insts(p, b->insts);
+  }
 
   codegen_blocks(p, tail_BBList(l));
 }

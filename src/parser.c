@@ -326,6 +326,10 @@ static Statement* statement(TokenList** t) {
       expect(t, TK_RBRACE);
       return s;
     }
+    case TK_SEMICOLON: {
+      consume(t);
+      return new_statement(ST_NULL, NULL);
+    }
     default: {
       Expr* e = expr(t);
       expect(t, TK_SEMICOLON);

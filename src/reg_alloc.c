@@ -23,7 +23,10 @@ typedef struct {
   UIVec* locations;  // -1 -> not spilled
 } Env;
 
-static Env* init_Env(unsigned virt_count, unsigned real_count, RegIntervals* ivs) {
+static Env* init_Env(unsigned virt_count,
+                     unsigned real_count,
+                     unsigned stack_count,
+                     RegIntervals* ivs) {
   Env* env          = calloc(1, sizeof(Env));
   env->intervals    = ivs;
   env->active       = nil_UIList();
@@ -34,7 +37,7 @@ static Env* init_Env(unsigned virt_count, unsigned real_count, RegIntervals* ivs
   resize_UIVec(env->result, virt_count);
   fill_UIVec(env->result, -1);
 
-  env->stack_count = 0;
+  env->stack_count = stack_count;
 
   env->locations = new_UIVec(virt_count);
   resize_UIVec(env->locations, virt_count);
@@ -187,7 +190,7 @@ static void walk_regs(Env* env, unsigned real_count, UIList* l) {
 }
 
 IR* reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
-  Env* env             = init_Env(ir->reg_count, num_regs, ivs);
+  Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
   walk_regs(env, num_regs, ordered_regs);

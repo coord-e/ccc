@@ -1,6 +1,7 @@
 #include <argp.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "codegen.h"
 #include "error.h"
@@ -83,7 +84,11 @@ static FILE* open_file(const char* path, const char* mode) {
   if (mode[1] == 'w' && is_hyphen(path)) {
     return stdout;
   }
-  return fopen(path, mode);
+  FILE* f = fopen(path, mode);
+  if (f == NULL) {
+    error("could not open \"%s\": %s", path, strerror(errno));
+  }
+  return f;
 }
 
 static void close_file(FILE* f) {

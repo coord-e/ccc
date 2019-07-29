@@ -9,10 +9,12 @@ function try() {
     local expected="$1"
     local input="$2"
 
+    local tmp_in="$(mktemp --suffix .c)"
     local tmp_asm="$(mktemp --suffix .s)"
     local tmp_exe="$(mktemp)"
 
-    "$CCC" "$input" > "$tmp_asm"
+    echo "$input" > "$tmp_in"
+    "$CCC" "$tmp_in" -o "$tmp_asm"
     gcc -o "$tmp_exe" "$tmp_asm"
     "$tmp_exe"
     local actual="$?"

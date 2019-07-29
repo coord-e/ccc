@@ -75,19 +75,50 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
 
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
+char* read_file(const char* path) {
+  FILE* f = fopen(path, "rb");
+  fseek(f, 0, SEEK_END);
+  size_t size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  char* buf = malloc(size + 1);
+  fread(buf, 1, size, f);
+  fclose(f);
+
+  buf[size] = 0;
+
+  return buf;
+}
+
 int main(int argc, char** argv) {
   Options opts;
   argp_parse(&argp, argc, argv, 0, 0, &opts);
 
+  char* input = read_file(opts.source);
+
   TokenList* tokens = tokenize(input);
-  /* print_TokenList(stderr, tokens); */
+  free(input);
+  if (opts.emit_tokens != NULL) {
+    FILE* f = fopen(opts.emit_tokens, "w");
+    print_TokenList(f, tokens);
+    fclose(f);
+  }
 
   AST* tree = parse(tokens);
   release_TokenList(tokens);
-  /* print_AST(stderr, tree); */
+  if (opts.emit_ast != NULL) {
+    FILE* f = fopen(opts.emit_ast, "w");
+    print_AST(f, tree);
+    fclose(f);
+  }
 
   IR* ir = generate_IR(tree);
   release_AST(tree);
+  if (opts.emit_ir1 != NULL) {
+    FILE* f = fopen(opts.emit_ir1, "w");
+    print_IR(f, ir);
+    fclose(f);
+  }
 
   reorder_blocks(ir);
 
@@ -95,9 +126,15 @@ int main(int argc, char** argv) {
   reg_alloc(num_regs, v, ir);
   release_RegIntervals(v);
 
-  /* print_IR(stderr, ir); */
+  if (opts.emit_ir2 != NULL) {
+    FILE* f = fopen(opts.emit_ir2, "w");
+    print_IR(f, ir);
+    fclose(f);
+  }
 
-  codegen(stdout, ir);
+  FILE* f = fopen(opts.output, "w");
+  codegen(f, ir);
+  fclose(f);
   release_IR(ir);
 
   return 0;

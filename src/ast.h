@@ -24,12 +24,41 @@ struct Expr {
   int num;          // for ND_NUM
 };
 
-typedef struct Statement Statement;
+typedef struct Declarator Declarator;
+
+typedef struct {
+  Declarator* decl;
+} ParameterDeclaration;
+
+DECLARE_LIST(ParameterDeclaration*, ParameterList)
+
+typedef enum {
+  DD_IDENT,
+  DD_FUNCTION,
+} DirectDeclKind;
+
+typedef struct DirectDeclarator DirectDeclarator;
+
+struct DirectDeclarator {
+  DirectDeclKind kind;
+
+  char* ident;  // for DD_IDENT
+
+  DirectDeclarator* dd;   // for DD_FUNCTION
+  ParameterList* params;  // for DD_FUNCTION
+};
+
+struct Declarator {
+  DirectDeclarator* dd;
+};
 
 typedef struct {
   // TODO: Add declaration specifiers
-  char* declarator;  // owned TODO: Add initializer
+  // TODO: Add initializer
+  Declarator* decl;
 } Declaration;
+
+typedef struct Statement Statement;
 
 typedef enum {
   BI_STMT,

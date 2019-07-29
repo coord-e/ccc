@@ -234,6 +234,14 @@ static void new_exit_ret(Env* env) {
   add_inst(env, i);
 }
 
+static void new_void_ret(Env* env, BasicBlock* next) {
+  IRInst* i = new_inst_(env, IR_RET);
+  add_inst(env, i);
+
+  connect_bb(env->cur, env->exit);
+  create_or_start_bb(env, next);
+}
+
 static Reg new_ret(Env* env, Reg r, BasicBlock* next) {
   IRInst* i = new_inst_(env, IR_RET);
   push_RegVec(i->ras, r);
@@ -309,8 +317,12 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_expr(env, stmt->expr);
       break;
     case ST_RETURN: {
-      Reg r = gen_expr(env, stmt->expr);
-      new_ret(env, r, NULL);
+      if (stmt->expr == NULL) {
+        new_void_ret(env, NULL);
+      } else {
+        Reg r = gen_expr(env, stmt->expr);
+        new_ret(env, r, NULL);
+      }
       break;
     }
     case ST_IF: {

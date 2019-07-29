@@ -252,7 +252,12 @@ static Statement* statement(TokenList** t) {
   switch (head_of(t)) {
     case TK_RETURN: {
       consume(t);
-      Expr* e = expr(t);
+      Expr* e;
+      if (head_of(t) == TK_SEMICOLON) {
+        e = NULL;
+      } else {
+        e = expr(t);
+      }
       expect(t, TK_SEMICOLON);
       return new_statement(ST_RETURN, e);
     }

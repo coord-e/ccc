@@ -75,8 +75,26 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
 
 static struct argp argp = {options, parse_opt, args_doc, doc};
 
-char* read_file(const char* path) {
-  FILE* f = fopen(path, "rb");
+static bool is_hyphen(const char* path) {
+  return path[0] == '-' && path[1] == '\0';
+}
+
+static FILE* open_file(const char* path, const char* mode) {
+  if (mode[1] == 'w' && is_hyphen(path)) {
+    return stdout;
+  }
+  return fopen(path, mode);
+}
+
+static void close_file(FILE* f) {
+  if (f == stdout) {
+    return;
+  }
+  fclose(f);
+}
+
+static char* read_file(const char* path) {
+  FILE* f = open_file(path, "rb");
   fseek(f, 0, SEEK_END);
   size_t size = ftell(f);
   fseek(f, 0, SEEK_SET);
@@ -90,20 +108,6 @@ char* read_file(const char* path) {
   return buf;
 }
 
-FILE* open_file_w(const char* path) {
-  if (path[0] == '-' && path[1] == '\0') {
-    return stdout;
-  }
-  return fopen(path, "w");
-}
-
-void close_file_w(FILE* f) {
-  if (f == stdout) {
-    return;
-  }
-  fclose(f);
-}
-
 int main(int argc, char** argv) {
   Options opts = {0};
   argp_parse(&argp, argc, argv, 0, 0, &opts);
@@ -113,25 +117,25 @@ int main(int argc, char** argv) {
   TokenList* tokens = tokenize(input);
   free(input);
   if (opts.emit_tokens != NULL) {
-    FILE* f = open_file_w(opts.emit_tokens);
+    FILE* f = open_file(opts.emit_tokens, "w");
     print_TokenList(f, tokens);
-    close_file_w(f);
+    close_file(f);
   }
 
   AST* tree = parse(tokens);
   release_TokenList(tokens);
   if (opts.emit_ast != NULL) {
-    FILE* f = open_file_w(opts.emit_ast);
+    FILE* f = open_file(opts.emit_ast, "w");
     print_AST(f, tree);
-    close_file_w(f);
+    close_file(f);
   }
 
   IR* ir = generate_IR(tree);
   release_AST(tree);
   if (opts.emit_ir1 != NULL) {
-    FILE* f = open_file_w(opts.emit_ir1);
+    FILE* f = open_file(opts.emit_ir1, "w");
     print_IR(f, ir);
-    close_file_w(f);
+    close_file(f);
   }
 
   reorder_blocks(ir);
@@ -141,14 +145,14 @@ int main(int argc, char** argv) {
   release_RegIntervals(v);
 
   if (opts.emit_ir2 != NULL) {
-    FILE* f = open_file_w(opts.emit_ir2);
+    FILE* f = open_file(opts.emit_ir2, "w");
     print_IR(f, ir);
-    close_file_w(f);
+    close_file(f);
   }
 
-  FILE* f = open_file_w(opts.output);
+  FILE* f = open_file(opts.output, "w");
   codegen(f, ir);
-  close_file_w(f);
+  close_file(f);
 
   release_IR(ir);
 

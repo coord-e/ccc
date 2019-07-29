@@ -262,11 +262,16 @@ static Statement* statement(TokenList** t) {
       Expr* c = expr(t);
       expect(t, TK_RPAREN);
       Statement* then_ = statement(t);
-      expect(t, TK_ELSE);
-      Statement* else_ = statement(t);
-      Statement* s     = new_statement(ST_IF, c);
-      s->then_         = then_;
-      s->else_         = else_;
+      Statement* else_;
+      if (head_of(t) == TK_ELSE) {
+        consume(t);
+        else_ = statement(t);
+      } else {
+        else_ = new_statement(ST_NULL, NULL);
+      }
+      Statement* s = new_statement(ST_IF, c);
+      s->then_     = then_;
+      s->else_     = else_;
       return s;
     }
     case TK_WHILE: {

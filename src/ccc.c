@@ -90,6 +90,20 @@ char* read_file(const char* path) {
   return buf;
 }
 
+FILE* open_file_w(const char* path) {
+  if (path[0] == '-' && path[1] == '\0') {
+    return stdout;
+  }
+  return fopen(path, "w");
+}
+
+void close_file_w(FILE* f) {
+  if (f == stdout) {
+    return;
+  }
+  fclose(f);
+}
+
 int main(int argc, char** argv) {
   Options opts = {0};
   argp_parse(&argp, argc, argv, 0, 0, &opts);
@@ -99,25 +113,25 @@ int main(int argc, char** argv) {
   TokenList* tokens = tokenize(input);
   free(input);
   if (opts.emit_tokens != NULL) {
-    FILE* f = fopen(opts.emit_tokens, "w");
+    FILE* f = open_file_w(opts.emit_tokens);
     print_TokenList(f, tokens);
-    fclose(f);
+    close_file_w(f);
   }
 
   AST* tree = parse(tokens);
   release_TokenList(tokens);
   if (opts.emit_ast != NULL) {
-    FILE* f = fopen(opts.emit_ast, "w");
+    FILE* f = open_file_w(opts.emit_ast);
     print_AST(f, tree);
-    fclose(f);
+    close_file_w(f);
   }
 
   IR* ir = generate_IR(tree);
   release_AST(tree);
   if (opts.emit_ir1 != NULL) {
-    FILE* f = fopen(opts.emit_ir1, "w");
+    FILE* f = open_file_w(opts.emit_ir1);
     print_IR(f, ir);
-    fclose(f);
+    close_file_w(f);
   }
 
   reorder_blocks(ir);
@@ -127,14 +141,15 @@ int main(int argc, char** argv) {
   release_RegIntervals(v);
 
   if (opts.emit_ir2 != NULL) {
-    FILE* f = fopen(opts.emit_ir2, "w");
+    FILE* f = open_file_w(opts.emit_ir2);
     print_IR(f, ir);
-    fclose(f);
+    close_file_w(f);
   }
 
-  FILE* f = fopen(opts.output, "w");
+  FILE* f = open_file_w(opts.output);
   codegen(f, ir);
-  fclose(f);
+  close_file_w(f);
+
   release_IR(ir);
 
   return 0;

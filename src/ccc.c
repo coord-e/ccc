@@ -17,10 +17,10 @@ static char args_doc[] =
     "[--emit-tokens FILE] [--emit-ast FILE] [--emit-ir1 FILE] [--emit-ir2 FILE] -o FILE SOURCE";
 
 static struct argp_option options[] = {
-    {"emit-tokens", 't', 0, OPTION_ARG_OPTIONAL, "Dump tokens to the file"},
-    {"emit-ast", 'a', 0, OPTION_ARG_OPTIONAL, "Dump parsed ast to the file"},
-    {"emit-ir1", 'c', 0, OPTION_ARG_OPTIONAL, "Dump the initial IR to the file"},
-    {"emit-ir2", 'i', 0, OPTION_ARG_OPTIONAL, "Dump the final IR to the file"},
+    {"emit-tokens", 't', "FILE", 0, "Dump tokens to the file"},
+    {"emit-ast", 'a', "FILE", 0, "Dump parsed ast to the file"},
+    {"emit-ir1", 'c', "FILE", 0, "Dump the initial IR to the file"},
+    {"emit-ir2", 'i', "FILE", 0, "Dump the final IR to the file"},
     {"output", 'o', "FILE", 0, "Output to FILE"},
     {0}};
 

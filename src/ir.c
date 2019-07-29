@@ -228,10 +228,14 @@ void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
 }
 
 static void new_exit_ret(Env* env) {
-  Reg r     = new_imm(env, 0);
-  IRInst* i = new_inst_(env, IR_RET);
-  push_RegVec(i->ras, r);
-  add_inst(env, i);
+  add_inst(env, new_inst_(env, IR_RET));
+}
+
+static void new_void_ret(Env* env, BasicBlock* next) {
+  add_inst(env, new_inst_(env, IR_RET));
+
+  connect_bb(env->cur, env->exit);
+  create_or_start_bb(env, next);
 }
 
 static Reg new_ret(Env* env, Reg r, BasicBlock* next) {
@@ -309,8 +313,12 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_expr(env, stmt->expr);
       break;
     case ST_RETURN: {
-      Reg r = gen_expr(env, stmt->expr);
-      new_ret(env, r, NULL);
+      if (stmt->expr == NULL) {
+        new_void_ret(env, NULL);
+      } else {
+        Reg r = gen_expr(env, stmt->expr);
+        new_ret(env, r, NULL);
+      }
       break;
     }
     case ST_IF: {
@@ -376,7 +384,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       set_loop(env, next_bb, cont_bb);
 
-      gen_expr(env, stmt->init);
+      if (stmt->init != NULL) {
+        gen_expr(env, stmt->init);
+      }
       create_or_start_bb(env, for_bb);
       Reg cond = gen_expr(env, stmt->before);
       new_br(env, cond, body_bb, next_bb, body_bb);
@@ -384,7 +394,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
       // body
       gen_stmt(env, stmt->body);
       create_or_start_bb(env, cont_bb);
-      gen_expr(env, stmt->after);
+      if (stmt->after != NULL) {
+        gen_expr(env, stmt->after);
+      }
       new_jump(env, for_bb, next_bb);
 
       reset_loop(env);

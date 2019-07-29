@@ -252,7 +252,12 @@ static Statement* statement(TokenList** t) {
   switch (head_of(t)) {
     case TK_RETURN: {
       consume(t);
-      Expr* e = expr(t);
+      Expr* e;
+      if (head_of(t) == TK_SEMICOLON) {
+        e = NULL;
+      } else {
+        e = expr(t);
+      }
       expect(t, TK_SEMICOLON);
       return new_statement(ST_RETURN, e);
     }
@@ -262,11 +267,16 @@ static Statement* statement(TokenList** t) {
       Expr* c = expr(t);
       expect(t, TK_RPAREN);
       Statement* then_ = statement(t);
-      expect(t, TK_ELSE);
-      Statement* else_ = statement(t);
-      Statement* s     = new_statement(ST_IF, c);
-      s->then_         = then_;
-      s->else_         = else_;
+      Statement* else_;
+      if (head_of(t) == TK_ELSE) {
+        consume(t);
+        else_ = statement(t);
+      } else {
+        else_ = new_statement(ST_NULL, NULL);
+      }
+      Statement* s = new_statement(ST_IF, c);
+      s->then_     = then_;
+      s->else_     = else_;
       return s;
     }
     case TK_WHILE: {
@@ -294,11 +304,32 @@ static Statement* statement(TokenList** t) {
     case TK_FOR: {
       consume(t);
       expect(t, TK_LPAREN);
-      Expr* init = expr(t);
+
+      Expr* init;
+      if (head_of(t) == TK_SEMICOLON) {
+        init = NULL;
+      } else {
+        init = expr(t);
+      }
+
       expect(t, TK_SEMICOLON);
-      Expr* before = expr(t);
+
+      Expr* before;
+      if (head_of(t) == TK_SEMICOLON) {
+        before = new_node_num(1);
+      } else {
+        before = expr(t);
+      }
+
       expect(t, TK_SEMICOLON);
-      Expr* after = expr(t);
+
+      Expr* after;
+      if (head_of(t) == TK_RPAREN) {
+        after = NULL;
+      } else {
+        after = expr(t);
+      }
+
       expect(t, TK_RPAREN);
       Statement* body = statement(t);
 

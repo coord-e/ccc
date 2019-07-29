@@ -294,11 +294,32 @@ static Statement* statement(TokenList** t) {
     case TK_FOR: {
       consume(t);
       expect(t, TK_LPAREN);
-      Expr* init = expr(t);
+
+      Expr* init;
+      if (head_of(t) == TK_SEMICOLON) {
+        init = NULL;
+      } else {
+        init = expr(t);
+      }
+
       expect(t, TK_SEMICOLON);
-      Expr* before = expr(t);
+
+      Expr* before;
+      if (head_of(t) == TK_SEMICOLON) {
+        before = new_node_num(1);
+      } else {
+        before = expr(t);
+      }
+
       expect(t, TK_SEMICOLON);
-      Expr* after = expr(t);
+
+      Expr* after;
+      if (head_of(t) == TK_RPAREN) {
+        after = NULL;
+      } else {
+        after = expr(t);
+      }
+
       expect(t, TK_RPAREN);
       Statement* body = statement(t);
 

@@ -66,9 +66,9 @@ struct Statement {
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF
 
-  Expr* init;    // for ST_FOR
+  Expr* init;    // for ST_FOR, NULL if omitted
   Expr* before;  // for ST_FOR
-  Expr* after;   // for ST_FOR
+  Expr* after;   // for ST_FOR, NULL if omitted
 
   BlockItemList* items;  // for ST_COMPOUND
 };

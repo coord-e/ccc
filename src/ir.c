@@ -228,15 +228,11 @@ void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
 }
 
 static void new_exit_ret(Env* env) {
-  Reg r     = new_imm(env, 0);
-  IRInst* i = new_inst_(env, IR_RET);
-  push_RegVec(i->ras, r);
-  add_inst(env, i);
+  add_inst(env, new_inst_(env, IR_RET));
 }
 
 static void new_void_ret(Env* env, BasicBlock* next) {
-  IRInst* i = new_inst_(env, IR_RET);
-  add_inst(env, i);
+  add_inst(env, new_inst_(env, IR_RET));
 
   connect_bb(env->cur, env->exit);
   create_or_start_bb(env, next);

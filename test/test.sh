@@ -93,8 +93,12 @@ items 45 "decl i; decl acc; acc = 0; for (i = 0; i < 10; i = i + 1) { acc = acc 
 items 45 "decl i; decl j; i=0; j=0; while (i<10) { j=j+i; i=i+1; } return j;"
 items 1 "decl x; x=0; do {x = x + 1; break;} while (1); return x;"
 items 1 "decl x; x=0; do {x = x + 1; continue;} while (0); return x;"
-items 7 "decl i; i=0; decl j; for (j = 0; j < 10; j = j + 1) { if (j < 3) continue; else 0; i = i + 1; } return i;"
+items 7 "decl i; i=0; decl j; for (j = 0; j < 10; j = j + 1) { if (j < 3) continue; i = i + 1; } return i;"
 items 10 "while(0); return 10;"
+items 10 "while(1) break; return 10;"
+items 10 "for(;;) break; return 10;"
 items 0 "decl x; for(x = 10; x > 0; x = x - 1); return x;"
+items 30 "decl i; decl acc; i = 0; acc = 0; do { i = i + 1; if (i - 1 < 5) continue; acc = acc + i; if (i == 9) break; } while (i < 10); return acc;"
+items 26 "decl acc; acc = 0; decl i; for (i = 0; i < 100; i=i+1) { if (i < 5) continue; if (i == 9) break; acc = acc + i; } return acc;"
 
 echo OK

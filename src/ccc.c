@@ -91,7 +91,7 @@ char* read_file(const char* path) {
 }
 
 int main(int argc, char** argv) {
-  Options opts;
+  Options opts = {0};
   argp_parse(&argp, argc, argv, 0, 0, &opts);
 
   char* input = read_file(opts.source);

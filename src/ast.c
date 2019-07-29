@@ -107,7 +107,9 @@ void print_statement(FILE* p, Statement* d) {
       break;
     case ST_RETURN:
       fputs("return ", p);
-      print_expr(p, d->expr);
+      if (d->expr != NULL) {
+        print_expr(p, d->expr);
+      }
       fputs(";", p);
       break;
     case ST_IF:
@@ -133,11 +135,15 @@ void print_statement(FILE* p, Statement* d) {
       break;
     case ST_FOR:
       fputs("for (", p);
-      print_expr(p, d->init);
+      if (d->init != NULL) {
+        print_expr(p, d->init);
+      }
       fputs("; ", p);
       print_expr(p, d->before);
       fputs("; ", p);
-      print_expr(p, d->after);
+      if (d->after != NULL) {
+        print_expr(p, d->after);
+      }
       fputs(") ", p);
       print_statement(p, d->body);
       break;

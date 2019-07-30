@@ -201,6 +201,15 @@ static Reg new_store(Env* env, unsigned s, Reg r) {
   return r;
 }
 
+static Reg nth_arg(Env* env, unsigned nth) {
+  Reg r           = new_reg(env);
+  IRInst* i       = new_inst_(env, IR_ARG);
+  i->argument_idx = nth;
+  i->rd           = r;
+  add_inst(env, i);
+  return r;
+}
+
 static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next);
 
 static bool is_exit(IRInstKind k) {
@@ -468,11 +477,27 @@ void gen_block_item_list(Env* env, BlockItemList* ast) {
   gen_block_item_list(env, tail_BlockItemList(ast));
 }
 
+static void gen_params(Env* env, unsigned nth, StringList* l) {
+  if (is_nil_StringList(l)) {
+    return;
+  }
+
+  char* name = head_StringList(l);
+  new_var(env, name);
+
+  unsigned addr = get_var(env, name);
+  Reg rhs       = nth_arg(env, nth);
+  new_store(env, addr, rhs);
+
+  gen_params(env, nth + 1, tail_StringList(l));
+}
+
 static Function* gen_function(FunctionDef* ast) {
   Env* env = new_env();
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
+  gen_params(env, 0, ast->params);
   gen_block_item_list(env, ast->items);
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);

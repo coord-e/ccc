@@ -6,8 +6,10 @@
 #include "codegen.h"
 #include "error.h"
 
-static const char* regs[]  = {"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "rbx"};
-static const char* regs8[] = {"r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b", "bl"};
+// clang-format off
+static const char* regs[]  = {"r12",  "r13",  "r14",  "r15",  "rbx"};
+static const char* regs8[] = {"r12b", "r13b", "r14b", "r15b", "bl"};
+// clang-format on
 
 // declared as an extern variable in codegen.h
 size_t num_regs = sizeof(regs) / sizeof(*regs);

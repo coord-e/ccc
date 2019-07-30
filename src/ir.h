@@ -13,6 +13,7 @@
 typedef enum {
   IR_BIN,
   IR_IMM,
+  IR_ARG,
   IR_RET,
   IR_STORE,
   IR_LOAD,
@@ -46,9 +47,10 @@ typedef struct IRInst {
   IRInstKind kind;
   unsigned id;  // just for idenfitication
 
-  BinopKind binop;     // for IR_BIN
-  int imm;             // for IR_IMM
-  unsigned stack_idx;  // for IR_STORE, IR_LOAD
+  BinopKind binop;        // for IR_BIN
+  int imm;                // for IR_IMM
+  unsigned stack_idx;     // for IR_STORE, IR_LOAD
+  unsigned argument_idx;  // for IR_ARG
 
   BasicBlock* label;  // for IR_LABEL, not owned
 

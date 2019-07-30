@@ -468,20 +468,17 @@ void gen_block_item_list(Env* env, BlockItemList* ast) {
   gen_block_item_list(env, tail_BlockItemList(ast));
 }
 
-static void gen_ir(Env* env, AST* ast) {
-  gen_block_item_list(env, ast);
-}
-
-IR* generate_IR(AST* ast) {
+static Function* gen_function(FunctionDef* ast) {
   Env* env = new_env();
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
-  gen_ir(env, ast);
+  gen_block_item_list(env, ast->items);
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
 
-  IR* ir            = calloc(1, sizeof(IR));
+  Function* ir      = calloc(1, sizeof(Function));
+  ir->name          = strdup(ast->name);
   ir->entry         = entry;
   ir->exit          = env->cur;
   ir->bb_count      = env->bb_count;
@@ -493,6 +490,19 @@ IR* generate_IR(AST* ast) {
 
   free(env);
   return ir;
+}
+
+static FunctionList* gen_TranslationUnit(FunctionList* acc, TranslationUnit* l) {
+  if (is_nil_TranslationUnit(l)) {
+    return acc;
+  }
+
+  Function* f = gen_function(head_TranslationUnit(l));
+  return gen_TranslationUnit(cons_FunctionList(f, acc), tail_TranslationUnit(l));
+}
+
+IR* generate_IR(AST* ast) {
+  return gen_TranslationUnit(nil_FunctionList(), ast);
 }
 
 void release_IR(IR* ir) {
@@ -520,6 +530,9 @@ static void print_inst(FILE* p, IRInst* i) {
     fprintf(p, " = ");
   }
   switch (i->kind) {
+    case IR_ARG:
+      fprintf(p, "ARG %d", i->argument_idx);
+      break;
     case IR_IMM:
       fprintf(p, "IMM %d", i->imm);
       break;

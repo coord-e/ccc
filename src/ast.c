@@ -149,6 +149,9 @@ void print_statement(FILE* p, Statement* d) {
       fputs(" else ", p);
       print_statement(p, d->else_);
       break;
+    case ST_NULL:
+      fputs(";", p);
+      break;
     case ST_WHILE:
       fputs("while (", p);
       print_expr(p, d->expr);

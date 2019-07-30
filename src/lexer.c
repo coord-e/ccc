@@ -229,6 +229,9 @@ static void print_token(FILE* p, Token t) {
     case TK_SEMICOLON:
       fprintf(p, "(;)");
       break;
+    case TK_COMMA:
+      fprintf(p, "(,)");
+      break;
     case TK_RETURN:
       fprintf(p, "(return)");
       break;

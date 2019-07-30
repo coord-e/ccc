@@ -415,6 +415,10 @@ static StringList* parameter_list(TokenList** t) {
   StringList* cur  = nil_StringList();
   StringList* list = cur;
 
+  if (head_of(t) != TK_IDENT) {
+    return list;
+  }
+
   do {
     char* name = expect(t, TK_IDENT).ident;
     cur        = snoc_StringList(strdup(name), cur);

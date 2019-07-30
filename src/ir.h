@@ -96,8 +96,7 @@ struct BasicBlock {
 DECLARE_VECTOR(BasicBlock*, BBVec)
 
 typedef struct {
-  BasicBlock* entry;  // not owned
-  BasicBlock* exit;   // not owend
+  char* name;  // owned
 
   BBList* blocks;  // owned
 
@@ -106,10 +105,17 @@ typedef struct {
   unsigned stack_count;
   unsigned inst_count;
 
+  BasicBlock* entry;  // not owned
+  BasicBlock* exit;   // not owend
+
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
-} IR;
+} Function;
+
+DECLARE_LIST(Function*, FunctionList)
+
+typedef FunctionList IR;
 
 // build IR from ast
 IR* generate_IR(AST* ast);

@@ -46,6 +46,14 @@ static void release_BasicBlock(BasicBlock* bb) {
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 
+static void release_Function(Function* f) {
+  free(f->name);
+  release_BBList(f->blocks);
+  free(f);
+}
+
+DEFINE_LIST(release_Function, Function*, FunctionList)
+
 typedef struct {
   unsigned reg_count;
   unsigned stack_count;
@@ -488,8 +496,7 @@ IR* generate_IR(AST* ast) {
 }
 
 void release_IR(IR* ir) {
-  release_BBList(ir->blocks);
-  free(ir);
+  release_FunctionList(ir);
 }
 
 static void print_reg(FILE* p, Reg r) {
@@ -630,8 +637,15 @@ static void print_graph_blocks(FILE* p, BBList* l) {
   print_graph_blocks(p, tail_BBList(l));
 }
 
-void print_IR(FILE* p, IR* ir) {
-  fprintf(p, "digraph CFG {\n");
-  print_graph_blocks(p, ir->blocks);
+static void print_Function(FILE* p, Function* f) {
+  fprintf(p, "digraph %s {\n", f->name);
+  print_graph_blocks(p, f->blocks);
   fprintf(p, "}\n");
+}
+
+DECLARE_LIST_PRINTER(FunctionList)
+DEFINE_LIST_PRINTER(print_Function, "\n", "\n", FunctionList)
+
+void print_IR(FILE* p, IR* ir) {
+  print_FunctionList(p, ir);
 }

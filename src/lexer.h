@@ -21,6 +21,7 @@ typedef enum {
   TK_GE,
   TK_LE,
   TK_SEMICOLON,
+  TK_COMMA,
   TK_RETURN,
   TK_IF,
   TK_ELSE,

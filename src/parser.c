@@ -60,6 +60,14 @@ static BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaratio
   return item;
 }
 
+static FunctionDef* new_function_def() {
+  FunctionDef* def = calloc(1, sizeof(FunctionDef));
+  def->name        = NULL;
+  def->params      = NULL;
+  def->items       = NULL;
+  return def;
+}
+
 static void consume(TokenList** t) {
   *t = tail_TokenList(*t);
 }
@@ -70,15 +78,28 @@ static Token consuming(TokenList** t) {
   return head_TokenList(p);
 }
 
-static void expect(TokenList** t, TokenKind k) {
-  if (consuming(t).kind != k) {
+static Token expect(TokenList** t, TokenKind k) {
+  Token r = consuming(t);
+  if (r.kind != k) {
     error("unexpected token");
   }
+  return r;
 }
 
 static TokenKind head_of(TokenList** t) {
   return head_TokenList(*t).kind;
 }
+
+// if head_of(t) == k, consume it and return true.
+// otherwise, nothing is consumed and false is returned.
+static bool try
+  (TokenList** t, TokenKind k) {
+    if (head_of(t) == k) {
+      consume(t);
+      return true;
+    }
+    return false;
+  }
 
 static Expr* expr(TokenList** t);
 
@@ -380,7 +401,7 @@ static BlockItem* block_item(TokenList** t) {
   return new_block_item(BI_STMT, statement(t), NULL);
 }
 
-BlockItemList* block_item_list(TokenList** t) {
+static BlockItemList* block_item_list(TokenList** t) {
   BlockItemList* cur  = nil_BlockItemList();
   BlockItemList* list = cur;
 
@@ -390,7 +411,42 @@ BlockItemList* block_item_list(TokenList** t) {
   return list;
 }
 
+static StringList* parameter_list(TokenList** t) {
+  StringList* cur  = nil_StringList();
+  StringList* list = cur;
+
+  do {
+    char* name = expect(t, TK_IDENT).ident;
+    cur        = snoc_StringList(strdup(name), cur);
+  } while (try (t, TK_COMMA));
+
+  return list;
+}
+
+static FunctionDef* function_def(TokenList** t) {
+  FunctionDef* def = new_function_def();
+
+  def->name = strdup(expect(t, TK_IDENT).ident);
+  expect(t, TK_LPAREN);
+  def->params = parameter_list(t);
+  expect(t, TK_RPAREN);
+  expect(t, TK_LBRACE);
+  def->items = block_item_list(t);
+  expect(t, TK_RBRACE);
+  return def;
+}
+
+static TranslationUnit* translation_unit(TokenList** t) {
+  TranslationUnit* cur  = nil_TranslationUnit();
+  TranslationUnit* list = cur;
+
+  while (head_of(t) != TK_END) {
+    cur = snoc_TranslationUnit(function_def(t), cur);
+  }
+  return list;
+}
+
 // parse tokens into AST
 AST* parse(TokenList* t) {
-  return block_item_list(&t);
+  return translation_unit(&t);
 }

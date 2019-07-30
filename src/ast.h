@@ -73,7 +73,18 @@ struct Statement {
   BlockItemList* items;  // for ST_COMPOUND
 };
 
-typedef BlockItemList AST;
+DECLARE_LIST(char*, StringList)
+
+typedef struct {
+  char* name;          // owned
+  StringList* params;  // owned
+
+  BlockItemList* items;  // owned
+} FunctionDef;
+
+DECLARE_LIST(FunctionDef*, TranslationUnit)
+
+typedef TranslationUnit AST;
 
 void print_AST(FILE*, AST*);
 

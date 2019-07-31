@@ -192,14 +192,29 @@ static void codegen_blocks(FILE* p, BBList* l) {
   codegen_blocks(p, tail_BBList(l));
 }
 
-void codegen(FILE* p, IR* ir) {
-  emit(p, ".intel_syntax noprefix");
-  emit(p, ".global main");
-  emit_label(p, "main");
+static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit_(p, "jmp ");
-  id_label_name(p, ir->entry->id);
+  id_label_name(p, f->entry->id);
   fprintf(p, "\n");
-  codegen_blocks(p, ir->blocks);
+}
+
+static void codegen_functions(FILE* p, FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  Function* f = head_FunctionList(l);
+  emit(p, ".global %s", f->name);
+  emit_label(p, f->name);
+  emit_prologue(p, f);
+  codegen_blocks(p, f->blocks);
+
+  codegen_functions(p, tail_FunctionList(l));
+}
+
+void codegen(FILE* p, IR* ir) {
+  emit(p, ".intel_syntax noprefix");
+  codegen_functions(p, ir);
 }

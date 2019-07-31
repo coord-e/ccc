@@ -284,7 +284,8 @@ static void assign_reg_num(Env* env, BBList* l) {
   assign_reg_num(env, tail_BBList(l));
 }
 
-void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
+static void reg_alloc_function(unsigned num_regs, Function* ir) {
+  RegIntervals* ivs    = ir->intervals;
   Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
@@ -295,4 +296,18 @@ void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir) {
   assign_reg_num(env, ir->blocks);
 
   release_Env(env);
+}
+
+static void reg_alloc_functions(unsigned num_regs, FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  reg_alloc_function(num_regs, head_FunctionList(l));
+
+  reg_alloc_functions(num_regs, tail_FunctionList(l));
+}
+
+void reg_alloc(unsigned num_regs, IR* ir) {
+  reg_alloc_functions(num_regs, ir);
 }

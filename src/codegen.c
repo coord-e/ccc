@@ -46,18 +46,18 @@ static const char* nth_reg_of(unsigned i, RegVec* rs) {
   return reg_of(get_RegVec(rs, i));
 }
 
-static void id_label_name(FILE* p, Function* f, unsigned id) {
-  fprintf(p, "_%s_%d", f->name, id);
+static void id_label_name(FILE* p, unsigned id) {
+  fprintf(p, "_ccc_%d", id);
 }
 
-static void emit_id_label(FILE* p, Function* f, unsigned id) {
-  id_label_name(p, f, id);
+static void emit_id_label(FILE* p, unsigned id) {
+  id_label_name(p, id);
   fprintf(p, ":\n");
 }
 
 static void codegen_binop(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
+static void codegen_insts(FILE* p, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
     return;
   }
@@ -95,27 +95,27 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       emit(p, "sub rsp, %d", 8 * h->stack_idx);
       break;
     case IR_LABEL:
-      emit_id_label(p, f, h->label->id);
+      emit_id_label(p, h->label->id);
       break;
     case IR_JUMP:
       emit_(p, "jmp ");
-      id_label_name(p, f, h->jump->id);
+      id_label_name(p, h->jump->id);
       fprintf(p, "\n");
       break;
     case IR_BR:
       emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
       emit_(p, "je ");
-      id_label_name(p, f, h->else_->id);
+      id_label_name(p, h->else_->id);
       fprintf(p, "\n");
       emit_(p, "jmp ");
-      id_label_name(p, f, h->then_->id);
+      id_label_name(p, h->then_->id);
       fprintf(p, "\n");
       break;
     default:
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, tail_IRInstList(insts));
+  codegen_insts(p, tail_IRInstList(insts));
 }
 
 static void codegen_cmp(FILE* p, const char* s, unsigned rd_id, unsigned rhs_id) {
@@ -179,24 +179,24 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   }
 }
 
-static void codegen_blocks(FILE* p, Function* f, BBList* l) {
+static void codegen_blocks(FILE* p, BBList* l) {
   if (is_nil_BBList(l)) {
     return;
   }
 
   BasicBlock* b = head_BBList(l);
   if (!b->dead) {
-    codegen_insts(p, f, b->insts);
+    codegen_insts(p, b->insts);
   }
 
-  codegen_blocks(p, f, tail_BBList(l));
+  codegen_blocks(p, tail_BBList(l));
 }
 
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit_(p, "jmp ");
-  id_label_name(p, f, f->entry->id);
+  id_label_name(p, f->entry->id);
   fprintf(p, "\n");
 }
 
@@ -209,7 +209,7 @@ static void codegen_functions(FILE* p, FunctionList* l) {
   emit(p, ".global %s", f->name);
   emit_label(p, f->name);
   emit_prologue(p, f);
-  codegen_blocks(p, f, f->blocks);
+  codegen_blocks(p, f->blocks);
 
   codegen_functions(p, tail_FunctionList(l));
 }

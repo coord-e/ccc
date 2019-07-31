@@ -97,6 +97,9 @@ struct BasicBlock {
 
 DECLARE_VECTOR(BasicBlock*, BBVec)
 
+// forward decralation; will declared in `liveness.h`
+typedef struct RegIntervals RegIntervals;
+
 typedef struct {
   char* name;  // owned
 
@@ -113,6 +116,9 @@ typedef struct {
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
+
+  // will filled in `liveness`
+  RegIntervals* intervals;  // owned
 } Function;
 
 DECLARE_LIST(Function*, FunctionList)

@@ -1,5 +1,6 @@
 #include "ir.h"
 #include "error.h"
+#include "liveness.h"
 #include "map.h"
 #include "parser.h"
 
@@ -49,6 +50,7 @@ DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 static void release_Function(Function* f) {
   free(f->name);
   release_BBList(f->blocks);
+  release_RegIntervals(f->intervals);
   free(f);
 }
 
@@ -512,6 +514,7 @@ static Function* gen_function(FunctionDef* ast) {
   ir->inst_count    = env->inst_count;
   ir->blocks        = env->blocks;
   ir->sorted_blocks = NULL;
+  ir->intervals     = NULL;
 
   free(env);
   return ir;

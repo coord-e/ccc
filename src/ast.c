@@ -94,6 +94,7 @@ static void print_expr(FILE* p, Expr* expr) {
       fprintf(p, "(");
       print_ExprList(p, expr->args);
       fprintf(p, ")");
+      return;
     default:
       CCC_UNREACHABLE;
   }

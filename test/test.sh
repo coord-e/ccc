@@ -28,13 +28,15 @@ function try() {
 }
 
 function items() {
-    try "$@"
+    local expected="$1"
+    local input="$2"
+    try "$expected" "main(argc, argv) { $input }"
 }
 
 function expr() {
     local expected="$1"
     local input="$2"
-    try "$expected" "return ($input);"
+    items "$expected" "return ($input);"
 }
 
 # just a number

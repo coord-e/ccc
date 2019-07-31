@@ -125,18 +125,51 @@ static Expr* term(TokenList** t) {
   }
 }
 
+static ExprList* argument_list(TokenList** t) {
+  ExprList* cur  = nil_ExprList();
+  ExprList* list = cur;
+
+  if (head_of(t) == TK_RPAREN) {
+    return list;
+  }
+
+  do {
+    cur = snoc_ExprList(expr(t), cur);
+  } while (try (t, TK_COMMA));
+
+  return list;
+}
+
+static Expr* call(TokenList** t) {
+  Expr* node = term(t);
+
+  if (head_of(t) == TK_LPAREN) {
+    // function call
+    consume(t);
+    ExprList* args = argument_list(t);
+    expect(t, TK_RPAREN);
+
+    Expr* call = new_node(ND_CALL, NULL, NULL);
+    call->lhs  = node;
+    call->args = args;
+    return call;
+  } else {
+    return node;
+  }
+}
+
 static Expr* unary(TokenList** t) {
   switch (head_of(t)) {
     case TK_PLUS:
       consume(t);
       // parse `+n` as `n`
-      return term(t);
+      return call(t);
     case TK_MINUS:
       consume(t);
       // parse `-n` as `0 - n`
-      return new_node_binop(BINOP_SUB, new_node_num(0), term(t));
+      return new_node_binop(BINOP_SUB, new_node_num(0), call(t));
     default:
-      return term(t);
+      return call(t);
   }
 }
 

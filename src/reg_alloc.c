@@ -21,15 +21,18 @@ typedef struct {
   UIVec* result;  // owned, -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
   UIVec* locations;  // owned, -1 -> not spilled
-  unsigned inst_count;
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
+
+  unsigned local_count;   // local inst count
+  unsigned global_count;  // global inst count
 } Env;
 
 static Env* init_Env(unsigned virt_count,
                      unsigned real_count,
                      unsigned stack_count,
-                     unsigned inst_count,
+                     unsigned local_inst_count,
+                     unsigned global_inst_count,
                      RegIntervals* ivs) {
   Env* env                = calloc(1, sizeof(Env));
   env->usable_regs_count  = real_count - 1;
@@ -43,8 +46,9 @@ static Env* init_Env(unsigned virt_count,
   resize_UIVec(env->result, virt_count);
   fill_UIVec(env->result, -1);
 
-  env->stack_count = stack_count;
-  env->inst_count  = inst_count;
+  env->stack_count  = stack_count;
+  env->local_count  = local_inst_count;
+  env->global_count = global_inst_count;
 
   env->locations = new_UIVec(virt_count);
   resize_UIVec(env->locations, virt_count);
@@ -59,6 +63,10 @@ static void release_Env(Env* env) {
   release_UIVec(env->result);
   release_UIVec(env->locations);
   free(env);
+}
+
+static IRInst* new_inst_(Env* env, IRInstKind kind) {
+  return new_inst(env->local_count++, env->global_count++, kind);
 }
 
 static Interval* interval_of(Env* env, unsigned virtual) {
@@ -224,7 +232,7 @@ static bool assign_reg(Env* env, Reg* r) {
 static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
   IRInstList* l = *lref;
 
-  IRInst* inst    = new_inst(env->inst_count++, IR_LOAD);
+  IRInst* inst    = new_inst_(env, IR_LOAD);
   inst->rd        = r;
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
   insert_IRInstList(inst, l);
@@ -235,7 +243,7 @@ static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
 }
 
 static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
-  IRInst* inst = new_inst(env->inst_count++, IR_STORE);
+  IRInst* inst = new_inst_(env, IR_STORE);
   push_RegVec(inst->ras, r);
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
 
@@ -284,9 +292,10 @@ static void assign_reg_num(Env* env, BBList* l) {
   assign_reg_num(env, tail_BBList(l));
 }
 
-static void reg_alloc_function(unsigned num_regs, Function* ir) {
-  RegIntervals* ivs    = ir->intervals;
-  Env* env             = init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, ivs);
+static void reg_alloc_function(unsigned num_regs, unsigned global_inst_count, Function* ir) {
+  RegIntervals* ivs = ir->intervals;
+  Env* env =
+      init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, global_inst_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
   walk_regs(env, ordered_regs);
@@ -298,16 +307,16 @@ static void reg_alloc_function(unsigned num_regs, Function* ir) {
   release_Env(env);
 }
 
-static void reg_alloc_functions(unsigned num_regs, FunctionList* l) {
+static void reg_alloc_functions(unsigned num_regs, unsigned inst_count, FunctionList* l) {
   if (is_nil_FunctionList(l)) {
     return;
   }
 
-  reg_alloc_function(num_regs, head_FunctionList(l));
+  reg_alloc_function(num_regs, inst_count, head_FunctionList(l));
 
-  reg_alloc_functions(num_regs, tail_FunctionList(l));
+  reg_alloc_functions(num_regs, inst_count, tail_FunctionList(l));
 }
 
 void reg_alloc(unsigned num_regs, IR* ir) {
-  reg_alloc_functions(num_regs, ir->functions);
+  reg_alloc_functions(num_regs, ir->inst_count, ir->functions);
 }

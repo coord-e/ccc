@@ -9,11 +9,12 @@ DECLARE_MAP(unsigned, UIMap)
 static void release_unsigned(unsigned i) {}
 DEFINE_MAP(release_unsigned, unsigned, UIMap)
 
-IRInst* new_inst(unsigned id, IRInstKind kind) {
-  IRInst* i = calloc(1, sizeof(IRInst));
-  i->kind   = kind;
-  i->id     = id;
-  i->ras    = new_RegVec(1);
+IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
+  IRInst* i    = calloc(1, sizeof(IRInst));
+  i->kind      = kind;
+  i->local_id  = local;
+  i->global_id = global;
+  i->ras       = new_RegVec(1);
   return i;
 }
 
@@ -94,22 +95,24 @@ typedef struct {
 } Env;
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {
-  return new_inst(env->inst_count++, kind);
+  return new_inst(env->inst_count++, env->global_env->inst_count++, kind);
 }
 
 static BasicBlock* new_bb(Env* env) {
-  unsigned i = env->bb_count++;
+  unsigned local_id  = env->bb_count++;
+  unsigned global_id = env->global_env->bb_count++;
 
   IRInst* inst = new_inst_(env, IR_LABEL);
 
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
   inst->label    = bb;
 
-  bb->id    = i;
-  bb->insts = single_IRInstList(inst);
-  bb->succs = nil_BBList();
-  bb->preds = nil_BBList();
-  bb->dead  = false;
+  bb->local_id  = local_id;
+  bb->global_id = global_id;
+  bb->insts     = single_IRInstList(inst);
+  bb->succs     = nil_BBList();
+  bb->preds     = nil_BBList();
+  bb->dead      = false;
 
   bb->live_gen     = NULL;
   bb->live_kill    = NULL;
@@ -613,13 +616,13 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "SUBS %d", i->stack_idx);
       break;
     case IR_BR:
-      fprintf(p, "BR %d %d ", i->then_->id, i->else_->id);
+      fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);
       break;
     case IR_JUMP:
-      fprintf(p, "JUMP %d", i->jump->id);
+      fprintf(p, "JUMP %d", i->jump->local_id);
       break;
     case IR_LABEL:
-      fprintf(p, "LABEL %d", i->label->id);
+      fprintf(p, "LABEL %d", i->label->local_id);
       break;
     default:
       CCC_UNREACHABLE;
@@ -634,16 +637,16 @@ static unsigned print_graph_insts(FILE* p, IRInstList* l) {
   IRInst* i1    = head_IRInstList(l);
   IRInstList* t = tail_IRInstList(l);
 
-  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->id, i1->id);
+  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->global_id, i1->global_id);
   print_inst(p, i1);
   fputs("\"];\n", p);
 
   if (is_nil_IRInstList(t)) {
-    return i1->id;
+    return i1->global_id;
   }
 
   IRInst* i2 = head_IRInstList(t);
-  fprintf(p, "inst_%d -> inst_%d;\n", i1->id, i2->id);
+  fprintf(p, "inst_%d -> inst_%d;\n", i1->global_id, i2->global_id);
   return print_graph_insts(p, t);
 }
 
@@ -655,10 +658,10 @@ static void print_graph_succs(FILE* p, unsigned id, BBList* l) {
   }
   BasicBlock* head = head_BBList(l);
   if (is_nil_IRInstList(head->insts)) {
-    error("unexpected empty basic block %d", head->id);
+    error("unexpected empty basic block %d", head->global_id);
   }
 
-  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->id);
+  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->global_id);
   print_graph_succs(p, id, l->tail);
 }
 
@@ -667,8 +670,8 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
     return;
   }
 
-  fprintf(p, "subgraph cluster_%d {\n", bb->id);
-  fprintf(p, "label = \"BasicBlock %d", bb->id);
+  fprintf(p, "subgraph cluster_%d {\n", bb->global_id);
+  fprintf(p, "label = \"BasicBlock %d", bb->global_id);
 
   if (bb->live_gen != NULL) {
     fprintf(p, "\\ngen: ");
@@ -690,7 +693,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
   fprintf(p, "\";\n");
 
   if (is_nil_IRInstList(bb->insts)) {
-    error("unexpected empty basic block %d", bb->id);
+    error("unexpected empty basic block %d", bb->global_id);
   }
   unsigned last_id = print_graph_insts(p, bb->insts);
 

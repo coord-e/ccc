@@ -45,7 +45,9 @@ typedef struct BasicBlock BasicBlock;
 
 typedef struct IRInst {
   IRInstKind kind;
-  unsigned id;  // just for idenfitication
+
+  unsigned local_id;   // unique in `Function`
+  unsigned global_id;  // unique in `IR`
 
   BinopKind binop;        // for IR_BIN
   int imm;                // for IR_IMM
@@ -63,7 +65,7 @@ typedef struct IRInst {
   RegVec* ras;  // argument registers (won't be null)
 } IRInst;
 
-IRInst* new_inst(unsigned id, IRInstKind);
+IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
@@ -72,7 +74,9 @@ DECLARE_VECTOR(IRInst*, IRInstVec)
 
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {
-  unsigned id;        // just for identification
+  unsigned local_id;   // unique in `Function`
+  unsigned global_id;  // unique in `IR`
+
   IRInstList* insts;  // owned
 
   BBList* succs;  // not owned (owned by `IR`)

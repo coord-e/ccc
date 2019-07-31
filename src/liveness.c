@@ -161,11 +161,11 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
       Reg ra = get_RegVec(inst->ras, i);
       assert(ra.is_used);
 
-      add_range(ivs, ra.virtual, block_from, inst->id);
+      add_range(ivs, ra.virtual, block_from, inst->local_id);
     }
 
     if (inst->rd.is_used) {
-      set_from(ivs, inst->rd.virtual, inst->id);
+      set_from(ivs, inst->rd.virtual, inst->local_id);
     }
   }
 }
@@ -182,8 +182,8 @@ RegIntervals* build_intervals(Function* ir) {
   for (unsigned i = 0; i < length_BBVec(v); i++) {
     BasicBlock* b       = get_BBVec(v, i);
     IRInstVec* is       = b->sorted_insts;
-    unsigned block_from = get_IRInstVec(is, 0)->id;
-    unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->id;
+    unsigned block_from = get_IRInstVec(is, 0)->local_id;
+    unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->local_id;
 
     for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
       if (get_BitSet(b->live_out, vi)) {

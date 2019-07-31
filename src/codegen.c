@@ -95,20 +95,20 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "sub rsp, %d", 8 * h->stack_idx);
       break;
     case IR_LABEL:
-      emit_id_label(p, h->label->id);
+      emit_id_label(p, h->label->global_id);
       break;
     case IR_JUMP:
       emit_(p, "jmp ");
-      id_label_name(p, h->jump->id);
+      id_label_name(p, h->jump->global_id);
       fprintf(p, "\n");
       break;
     case IR_BR:
       emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
       emit_(p, "je ");
-      id_label_name(p, h->else_->id);
+      id_label_name(p, h->else_->global_id);
       fprintf(p, "\n");
       emit_(p, "jmp ");
-      id_label_name(p, h->then_->id);
+      id_label_name(p, h->then_->global_id);
       fprintf(p, "\n");
       break;
     default:
@@ -196,7 +196,7 @@ static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit_(p, "jmp ");
-  id_label_name(p, f->entry->id);
+  id_label_name(p, f->entry->global_id);
   fprintf(p, "\n");
 }
 

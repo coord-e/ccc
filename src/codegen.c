@@ -126,9 +126,10 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
         Reg r = get_RegVec(h->ras, i);
-        emit(p, "mov %s, %s", nth_arg(i), reg_of(r));
+        emit(p, "mov %s, %s", nth_arg(i - 1), reg_of(r));
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
+      emit(p, "mov %s, rax", reg_of(h->rd));
       break;
     default:
       CCC_UNREACHABLE;

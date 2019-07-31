@@ -9,6 +9,8 @@
 // clang-format off
 static const char* regs[]  = {"r12",  "r13",  "r14",  "r15",  "rbx"};
 static const char* regs8[] = {"r12b", "r13b", "r14b", "r15b", "bl"};
+
+static const char* nth_arg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 // clang-format on
 
 // declared as an extern variable in codegen.h
@@ -64,6 +66,9 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
   switch (h->kind) {
     case IR_IMM:
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
+      break;
+    case IR_ARG:
+      emit(p, "mov %s, %s", reg_of(h->rd), nth_arg[h->argument_idx]);
       break;
     case IR_MOV:
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));

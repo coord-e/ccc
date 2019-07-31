@@ -79,6 +79,9 @@
     return new;                                                                                    \
   }                                                                                                \
   void release_##Name(Name* a) {                                                                   \
+    if (a == NULL) {                                                                               \
+      return;                                                                                      \
+    }                                                                                              \
     for (unsigned i = 0; i < a->length; i++) {                                                     \
       release_data(a->data[i]);                                                                    \
     }                                                                                              \

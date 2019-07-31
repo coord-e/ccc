@@ -172,12 +172,8 @@ static unsigned new_var(Env* env, char* name) {
   return i;
 }
 
-static unsigned get_var(Env* env, char* name) {
-  unsigned i;
-  if (!lookup_UIMap(env->vars, name, &i)) {
-    error("variable \"%s\" is not declared", name);
-  }
-  return i;
+static bool get_var(Env* env, char* name, unsigned* dest) {
+  return lookup_UIMap(env->vars, name, dest);
 }
 
 static void add_inst(Env* env, IRInst* inst) {
@@ -306,10 +302,25 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicB
   create_or_start_bb(env, next);
 }
 
+static Reg new_global(Env* env, const char* name) {
+  Reg r             = new_reg(env);
+  IRInst* inst      = new_inst_(env, IR_GLOBAL);
+  inst->rd          = r;
+  inst->global_name = strdup(name);
+  add_inst(env, inst);
+  return r;
+}
+
 static unsigned gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
-    case ND_VAR:
-      return get_var(env, node->var);
+    case ND_VAR: {
+      unsigned i;
+      if (get_var(env, node->var, &i)) {
+        return i;
+      } else {
+        error("undeclared name \"%s\"", node->var);
+      }
+    }
     default:
       error("invaild lhs");
   }
@@ -331,8 +342,12 @@ static Reg gen_expr(Env* env, Expr* node) {
       return rhs;
     }
     case ND_VAR: {
-      unsigned i = get_var(env, node->var);
-      return new_load(env, i);
+      unsigned i;
+      if (get_var(env, node->var, &i)) {
+        return new_load(env, i);
+      } else {
+        return new_global(env, node->var);
+      }
     }
     case ND_CALL: {
       IRInst* inst = new_inst_(env, IR_CALL);
@@ -346,6 +361,8 @@ static Reg gen_expr(Env* env, Expr* node) {
 
       Reg r    = new_reg(env);
       inst->rd = r;
+
+      add_inst(env, inst);
       return r;
     }
     default:
@@ -530,8 +547,10 @@ static void gen_params(Env* env, unsigned nth, StringList* l) {
   char* name = head_StringList(l);
   new_var(env, name);
 
-  unsigned addr = get_var(env, name);
-  Reg rhs       = nth_arg(env, nth);
+  unsigned addr;
+  get_var(env, name, &addr);
+
+  Reg rhs = nth_arg(env, nth);
   new_store(env, addr, rhs);
 
   gen_params(env, nth + 1, tail_StringList(l));
@@ -647,6 +666,9 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_LABEL:
       fprintf(p, "LABEL %d", i->label->local_id);
+      break;
+    case IR_GLOBAL:
+      fprintf(p, "GLOBAL %s", i->global_name);
       break;
     default:
       CCC_UNREACHABLE;

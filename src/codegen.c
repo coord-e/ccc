@@ -10,7 +10,7 @@
 static const char* regs[]  = {"r12",  "r13",  "r14",  "r15",  "rbx"};
 static const char* regs8[] = {"r12b", "r13b", "r14b", "r15b", "bl"};
 
-static const char* nth_arg[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
+static const char* nth_arg_regs[] = {"rdi", "rsi", "rdx", "rcx", "r8", "r9"};
 // clang-format on
 
 // declared as an extern variable in codegen.h
@@ -46,6 +46,15 @@ static const char* nth_reg_of(unsigned i, RegVec* rs) {
   return reg_of(get_RegVec(rs, i));
 }
 
+const size_t max_args = sizeof(nth_arg_regs) / sizeof(*nth_arg_regs);
+static const char* nth_arg(unsigned idx) {
+  if (idx >= max_args) {
+    error("unsupported number of arguments/parameters. (%d)", idx);
+  }
+
+  return nth_arg_regs[idx];
+}
+
 static void id_label_name(FILE* p, unsigned id) {
   fprintf(p, "_ccc_%d", id);
 }
@@ -68,7 +77,7 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
     case IR_ARG:
-      emit(p, "mov %s, %s", reg_of(h->rd), nth_arg[h->argument_idx]);
+      emit(p, "mov %s, %s", reg_of(h->rd), nth_arg(h->argument_idx));
       break;
     case IR_MOV:
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));

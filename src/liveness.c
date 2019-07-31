@@ -37,7 +37,7 @@ static void liveness_functions(FunctionList* l) {
 }
 
 void liveness(IR* ir) {
-  liveness_functions(ir);
+  liveness_functions(ir->functions);
 }
 
 static void iter_insts(BasicBlock* b, IRInstList* l) {

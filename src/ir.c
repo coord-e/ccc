@@ -57,6 +57,22 @@ static void release_Function(Function* f) {
 DEFINE_LIST(release_Function, Function*, FunctionList)
 
 typedef struct {
+  unsigned bb_count;
+  unsigned inst_count;
+} GlobalEnv;
+
+static GlobalEnv* init_GlobalEnv() {
+  GlobalEnv* env  = calloc(1, sizeof(GlobalEnv));
+  env->bb_count   = 0;
+  env->inst_count = 0;
+  return env;
+}
+
+static void release_GlobalEnv(GlobalEnv* env) {
+  free(env);
+}
+
+typedef struct {
   unsigned reg_count;
   unsigned stack_count;
   unsigned bb_count;
@@ -73,6 +89,8 @@ typedef struct {
 
   BasicBlock* loop_break;
   BasicBlock* loop_continue;
+
+  GlobalEnv* global_env;
 } Env;
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {
@@ -104,8 +122,9 @@ static BasicBlock* new_bb(Env* env) {
   return bb;
 }
 
-static Env* new_env() {
+static Env* new_env(GlobalEnv* genv) {
   Env* env         = calloc(1, sizeof(Env));
+  env->global_env  = genv;
   env->reg_count   = 0;
   env->stack_count = 0;
   env->bb_count    = 0;
@@ -494,8 +513,8 @@ static void gen_params(Env* env, unsigned nth, StringList* l) {
   gen_params(env, nth + 1, tail_StringList(l));
 }
 
-static Function* gen_function(FunctionDef* ast) {
-  Env* env = new_env();
+static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
+  Env* env = new_env(genv);
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
@@ -520,21 +539,30 @@ static Function* gen_function(FunctionDef* ast) {
   return ir;
 }
 
-static FunctionList* gen_TranslationUnit(FunctionList* acc, TranslationUnit* l) {
+static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, TranslationUnit* l) {
   if (is_nil_TranslationUnit(l)) {
     return acc;
   }
 
-  Function* f = gen_function(head_TranslationUnit(l));
-  return gen_TranslationUnit(cons_FunctionList(f, acc), tail_TranslationUnit(l));
+  Function* f = gen_function(genv, head_TranslationUnit(l));
+  return gen_TranslationUnit(genv, cons_FunctionList(f, acc), tail_TranslationUnit(l));
 }
 
 IR* generate_IR(AST* ast) {
-  return gen_TranslationUnit(nil_FunctionList(), ast);
+  GlobalEnv* genv = init_GlobalEnv();
+
+  IR* ir         = calloc(1, sizeof(IR));
+  ir->functions  = gen_TranslationUnit(genv, nil_FunctionList(), ast);
+  ir->inst_count = genv->inst_count;
+  ir->bb_count   = genv->bb_count;
+
+  release_GlobalEnv(genv);
+
+  return ir;
 }
 
 void release_IR(IR* ir) {
-  release_FunctionList(ir);
+  release_FunctionList(ir->functions);
 }
 
 static void print_reg(FILE* p, Reg r) {
@@ -688,5 +716,5 @@ DECLARE_LIST_PRINTER(FunctionList)
 DEFINE_LIST_PRINTER(print_Function, "\n", "\n", FunctionList)
 
 void print_IR(FILE* p, IR* ir) {
-  print_FunctionList(p, ir);
+  print_FunctionList(p, ir->functions);
 }

@@ -123,7 +123,12 @@ typedef struct {
 
 DECLARE_LIST(Function*, FunctionList)
 
-typedef FunctionList IR;
+typedef struct {
+  unsigned inst_count;
+  unsigned bb_count;
+
+  FunctionList* functions;  // owned
+} IR;
 
 // build IR from ast
 IR* generate_IR(AST* ast);

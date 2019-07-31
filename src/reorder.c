@@ -113,5 +113,5 @@ static void reorder_blocks_functions(FunctionList* l) {
 }
 
 void reorder_blocks(IR* ir) {
-  reorder_blocks_functions(ir);
+  reorder_blocks_functions(ir->functions);
 }

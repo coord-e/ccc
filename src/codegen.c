@@ -216,5 +216,5 @@ static void codegen_functions(FILE* p, FunctionList* l) {
 
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
-  codegen_functions(p, ir);
+  codegen_functions(p, ir->functions);
 }

@@ -309,5 +309,5 @@ static void reg_alloc_functions(unsigned num_regs, FunctionList* l) {
 }
 
 void reg_alloc(unsigned num_regs, IR* ir) {
-  reg_alloc_functions(num_regs, ir);
+  reg_alloc_functions(num_regs, ir->functions);
 }

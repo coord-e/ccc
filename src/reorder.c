@@ -90,7 +90,7 @@ static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
 
 // change `id`s of `BasicBlock` and `IRInst`
 // and collect `BasicBlock`s to `sorted_blocks` in reversed order
-void reorder_blocks(IR* ir) {
+static void reorder_blocks_function(Function* ir) {
   Env* env = init_Env(ir->bb_count);
 
   mark_dead(ir->bb_count, ir->entry, ir->exit);
@@ -100,4 +100,18 @@ void reorder_blocks(IR* ir) {
   release_BitSet(env->visited);
 
   number_insts(ir->sorted_blocks);
+}
+
+static void reorder_blocks_functions(FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  reorder_blocks_function(head_FunctionList(l));
+
+  reorder_blocks_functions(tail_FunctionList(l));
+}
+
+void reorder_blocks(IR* ir) {
+  reorder_blocks_functions(ir);
 }

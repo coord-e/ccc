@@ -14,13 +14,16 @@ IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   i->kind      = kind;
   i->local_id  = local;
   i->global_id = global;
-  i->ras       = new_RegVec(1);
+
+  i->ras         = new_RegVec(1);
+  i->global_name = NULL;
   return i;
 }
 
 void release_inst(IRInst* i) {
   assert(i->ras != NULL);
   release_RegVec(i->ras);
+  free(i->global_name);
   free(i);
 }
 

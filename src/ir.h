@@ -22,6 +22,8 @@ typedef enum {
   IR_BR,    // conditional branch
   IR_JUMP,  // unconditional branch
   IR_LABEL,
+  IR_CALL,
+  IR_GLOBAL,
 } IRInstKind;
 
 typedef enum {
@@ -53,6 +55,8 @@ typedef struct IRInst {
   int imm;                // for IR_IMM
   unsigned stack_idx;     // for IR_STORE, IR_LOAD
   unsigned argument_idx;  // for IR_ARG
+
+  char* global_name;  // for IR_GLOBAL, owned
 
   BasicBlock* label;  // for IR_LABEL, not owned
 

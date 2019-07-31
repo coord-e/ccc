@@ -304,6 +304,17 @@ static void reg_alloc_function(unsigned num_regs, unsigned global_inst_count, Fu
 
   assign_reg_num(env, ir->blocks);
 
+  ir->used_regs = zero_BitSet(num_regs);
+  for (unsigned i = 0; i < length_UIVec(env->result); i++) {
+    unsigned real = get_UIVec(env->result, i);
+    if (real == -2) {
+      set_BitSet(ir->used_regs, env->reserved_for_spill, true);
+    } else {
+      assert(real != -1);
+      set_BitSet(ir->used_regs, real, true);
+    }
+  }
+
   release_Env(env);
 }
 

@@ -127,6 +127,9 @@ typedef struct {
 
   // will filled in `liveness`
   RegIntervals* intervals;  // owned
+
+  // will filled in `reg_alloc`
+  BitSet* used_regs;  // owned
 } Function;
 
 DECLARE_LIST(Function*, FunctionList)

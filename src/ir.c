@@ -577,6 +577,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   ir->blocks        = env->blocks;
   ir->sorted_blocks = NULL;
   ir->intervals     = NULL;
+  ir->used_regs     = NULL;
 
   free(env);
   return ir;

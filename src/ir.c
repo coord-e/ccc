@@ -671,7 +671,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
   }
 
   fprintf(p, "subgraph cluster_%d {\n", bb->global_id);
-  fprintf(p, "label = \"BasicBlock %d", bb->global_id);
+  fprintf(p, "label = \"BasicBlock %d", bb->local_id);
 
   if (bb->live_gen != NULL) {
     fprintf(p, "\\ngen: ");
@@ -710,7 +710,8 @@ static void print_graph_blocks(FILE* p, BBList* l) {
 }
 
 static void print_Function(FILE* p, Function* f) {
-  fprintf(p, "digraph %s {\n", f->name);
+  fprintf(p, "subgraph cluster_%s {\n", f->name);
+  fprintf(p, "label = %s;\n", f->name);
   print_graph_blocks(p, f->blocks);
   fprintf(p, "}\n");
 }
@@ -719,5 +720,7 @@ DECLARE_LIST_PRINTER(FunctionList)
 DEFINE_LIST_PRINTER(print_Function, "\n", "\n", FunctionList)
 
 void print_IR(FILE* p, IR* ir) {
+  fprintf(p, "digraph CFG {\n");
   print_FunctionList(p, ir->functions);
+  fprintf(p, "}\n");
 }

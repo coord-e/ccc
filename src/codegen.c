@@ -120,6 +120,16 @@ static void codegen_insts(FILE* p, IRInstList* insts) {
       id_label_name(p, h->then_->global_id);
       fprintf(p, "\n");
       break;
+    case IR_GLOBAL:
+      emit(p, "lea %s, %s[rip]", reg_of(h->rd), h->global_name);
+      break;
+    case IR_CALL:
+      for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
+        Reg r = get_RegVec(h->ras, i);
+        emit(p, "mov %s, %s", nth_arg(i), reg_of(r));
+      }
+      emit(p, "call %s", nth_reg_of(0, h->ras));
+      break;
     default:
       CCC_UNREACHABLE;
   }

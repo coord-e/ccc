@@ -464,10 +464,14 @@ static void gen_stmt(Env* env, Statement* stmt) {
     }
     case ST_COMPOUND: {
       // compound statement is a block
-      UIMap* save = copy_UIMap(env->vars);
+      UIMap* save = env->vars;
+      UIMap* inst = copy_UIMap(env->vars);
+
+      env->vars = inst;
       gen_block_item_list(env, stmt->items);
-      release_UIMap(env->vars);
       env->vars = save;
+
+      release_UIMap(inst);
       break;
     }
     case ST_NULL:

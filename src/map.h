@@ -44,13 +44,21 @@
     }                                                                                              \
     return m;                                                                                      \
   }                                                                                                \
+  Name##Entries* copy_entries_##Name(const Name##Entries* list) {                                  \
+    if (list->is_nil) {                                                                            \
+      return nil_##Name##Entries();                                                                \
+    }                                                                                              \
+    Name##Entry e = list->head;                                                                    \
+    e.key         = strdup(e.key);                                                                 \
+    return cons_##Name##Entries(e, copy_entries_##Name(list->tail));                               \
+  }                                                                                                \
   Name* copy_##Name(const Name* m) {                                                               \
     Name* copy    = calloc(1, sizeof(Name));                                                       \
     unsigned size = length_##Name##Table(m->table);                                                \
     copy->table   = new_##Name##Table(size);                                                       \
     for (unsigned i = 0; i < size; i++) {                                                          \
       Name##Entries* l = get_##Name##Table(m->table, i);                                           \
-      push_##Name##Table(copy->table, copy_##Name##Entries(l));                                    \
+      push_##Name##Table(copy->table, copy_entries_##Name(l));                                     \
     }                                                                                              \
     return copy;                                                                                   \
   }                                                                                                \

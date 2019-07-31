@@ -334,6 +334,20 @@ static Reg gen_expr(Env* env, Expr* node) {
       unsigned i = get_var(env, node->var);
       return new_load(env, i);
     }
+    case ND_CALL: {
+      IRInst* inst = new_inst_(env, IR_CALL);
+      Reg f        = gen_expr(env, node->lhs);
+      push_RegVec(inst->ras, f);
+
+      for (unsigned i = 0; i < length_ExprVec(node->args); i++) {
+        Expr* e = get_ExprVec(node->args, i);
+        push_RegVec(inst->ras, gen_expr(env, e));
+      }
+
+      Reg r    = new_reg(env);
+      inst->rd = r;
+      return r;
+    }
     default:
       CCC_UNREACHABLE;
   }
@@ -607,6 +621,9 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_MOV:
       fprintf(p, "MOV ");
+      break;
+    case IR_CALL:
+      fprintf(p, "CALL ");
       break;
     case IR_BIN:
       fprintf(p, "BIN ");

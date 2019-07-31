@@ -14,6 +14,7 @@ static Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->lhs  = lhs;
   node->rhs  = rhs;
   node->var  = NULL;
+  node->args = NULL;
   return node;
 }
 

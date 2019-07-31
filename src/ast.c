@@ -9,9 +9,12 @@ static void release_expr(Expr* e) {
   release_expr(e->lhs);
   release_expr(e->rhs);
   free(e->var);
+  release_ExprList(e->args);
 
   free(e);
 }
+
+DEFINE_LIST(release_expr, Expr*, ExprList)
 
 static void release_declaration(Declaration* d) {
   if (d == NULL) {
@@ -61,6 +64,7 @@ void release_AST(AST* t) {
 }
 
 // printer functions
+DECLARE_LIST_PRINTER(ExprList)
 static void print_expr(FILE* p, Expr* expr) {
   switch (expr->kind) {
     case ND_NUM:
@@ -85,10 +89,16 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;
+    case ND_CALL:
+      print_expr(p, expr->lhs);
+      fprintf(p, "(");
+      print_ExprList(p, expr->args);
+      fprintf(p, ")");
     default:
       CCC_UNREACHABLE;
   }
 }
+DEFINE_LIST_PRINTER(print_expr, ",", "", ExprList)
 
 static void print_declaration(FILE* p, Declaration* d) {
   fprintf(p, "decl %s;", d->declarator);

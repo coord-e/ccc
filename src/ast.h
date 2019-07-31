@@ -11,9 +11,12 @@ typedef enum {
   ND_ASSIGN,
   ND_VAR,
   ND_NUM,
+  ND_CALL,
 } ExprKind;
 
 typedef struct Expr Expr;
+
+DECLARE_LIST(Expr*, ExprList)
 
 struct Expr {
   ExprKind kind;
@@ -22,6 +25,7 @@ struct Expr {
   BinopKind binop;  // for ND_BINOP
   char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
+  ExprList* args;   // for ND_CALL, owned
 };
 
 typedef struct Statement Statement;

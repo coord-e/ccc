@@ -125,19 +125,18 @@ static Expr* term(TokenList** t) {
   }
 }
 
-static ExprList* argument_list(TokenList** t) {
-  ExprList* cur  = nil_ExprList();
-  ExprList* list = cur;
+static ExprVec* argument_list(TokenList** t) {
+  ExprVec* args = new_ExprVec(1);
 
   if (head_of(t) == TK_RPAREN) {
-    return list;
+    return args;
   }
 
   do {
-    cur = snoc_ExprList(expr(t), cur);
+    push_ExprVec(args, expr(t));
   } while (try (t, TK_COMMA));
 
-  return list;
+  return args;
 }
 
 static Expr* call(TokenList** t) {
@@ -146,7 +145,7 @@ static Expr* call(TokenList** t) {
   if (head_of(t) == TK_LPAREN) {
     // function call
     consume(t);
-    ExprList* args = argument_list(t);
+    ExprVec* args = argument_list(t);
     expect(t, TK_RPAREN);
 
     Expr* call = new_node(ND_CALL, NULL, NULL);

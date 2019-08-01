@@ -145,9 +145,8 @@ int main(int argc, char** argv) {
 
   reorder_blocks(ir);
 
-  RegIntervals* v = liveness(ir);
-  reg_alloc(num_regs, v, ir);
-  release_RegIntervals(v);
+  liveness(ir);
+  reg_alloc(num_regs, ir);
 
   if (opts.emit_ir2 != NULL) {
     FILE* f = open_file(opts.emit_ir2, "w");

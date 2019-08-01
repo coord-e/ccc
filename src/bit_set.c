@@ -118,6 +118,18 @@ bool equal_to_BitSet(const BitSet* s1, const BitSet* s2) {
   return true;
 }
 
+unsigned count_BitSet(const BitSet* s) {
+  unsigned res = 0;
+  for (unsigned i = 0; i < length_U64Vec(s->data); i++) {
+    uint64_t d = get_U64Vec(s->data, i);
+    // TODO: faster count
+    for (; d != 0; d &= d - 1) {
+      res++;
+    }
+  }
+  return res;
+}
+
 void print_BitSet(FILE* p, const BitSet* s) {
   fputs("{", p);
   for (unsigned i = 0; i < s->length; i++) {

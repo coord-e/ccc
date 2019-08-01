@@ -13,14 +13,16 @@
 typedef enum {
   IR_BIN,
   IR_IMM,
+  IR_ARG,
   IR_RET,
   IR_STORE,
   IR_LOAD,
-  IR_SUBS,
   IR_MOV,
   IR_BR,    // conditional branch
   IR_JUMP,  // unconditional branch
   IR_LABEL,
+  IR_CALL,
+  IR_GLOBAL,
 } IRInstKind;
 
 typedef enum {
@@ -44,11 +46,16 @@ typedef struct BasicBlock BasicBlock;
 
 typedef struct IRInst {
   IRInstKind kind;
-  unsigned id;  // just for idenfitication
 
-  BinopKind binop;     // for IR_BIN
-  int imm;             // for IR_IMM
-  unsigned stack_idx;  // for IR_STORE, IR_LOAD
+  unsigned local_id;   // unique in `Function`
+  unsigned global_id;  // unique in `IR`
+
+  BinopKind binop;        // for IR_BIN
+  int imm;                // for IR_IMM
+  unsigned stack_idx;     // for IR_STORE, IR_LOAD
+  unsigned argument_idx;  // for IR_ARG
+
+  char* global_name;  // for IR_GLOBAL, owned
 
   BasicBlock* label;  // for IR_LABEL, not owned
 
@@ -61,7 +68,7 @@ typedef struct IRInst {
   RegVec* ras;  // argument registers (won't be null)
 } IRInst;
 
-IRInst* new_inst(unsigned id, IRInstKind);
+IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
@@ -70,7 +77,9 @@ DECLARE_VECTOR(IRInst*, IRInstVec)
 
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {
-  unsigned id;        // just for identification
+  unsigned local_id;   // unique in `Function`
+  unsigned global_id;  // unique in `IR`
+
   IRInstList* insts;  // owned
 
   BBList* succs;  // not owned (owned by `IR`)
@@ -95,9 +104,11 @@ struct BasicBlock {
 
 DECLARE_VECTOR(BasicBlock*, BBVec)
 
+// forward decralation; will declared in `liveness.h`
+typedef struct RegIntervals RegIntervals;
+
 typedef struct {
-  BasicBlock* entry;  // not owned
-  BasicBlock* exit;   // not owend
+  char* name;  // owned
 
   BBList* blocks;  // owned
 
@@ -106,9 +117,28 @@ typedef struct {
   unsigned stack_count;
   unsigned inst_count;
 
+  BasicBlock* entry;  // not owned
+  BasicBlock* exit;   // not owend
+
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
+
+  // will filled in `liveness`
+  RegIntervals* intervals;  // owned
+
+  // will filled in `reg_alloc`
+  BitSet* used_regs;  // owned
+  unsigned real_reg_count;
+} Function;
+
+DECLARE_LIST(Function*, FunctionList)
+
+typedef struct {
+  unsigned inst_count;
+  unsigned bb_count;
+
+  FunctionList* functions;  // owned
 } IR;
 
 // build IR from ast

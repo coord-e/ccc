@@ -4,6 +4,6 @@
 #include "ir.h"
 #include "liveness.h"
 
-void reg_alloc(unsigned num_regs, RegIntervals* ivs, IR* ir);
+void reg_alloc(unsigned num_regs, IR* ir);
 
 #endif

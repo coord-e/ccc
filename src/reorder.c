@@ -25,10 +25,10 @@ void traverse_bblist(Env* env, BBList* l) {
 }
 
 void traverse_blocks(Env* env, BasicBlock* b) {
-  if (get_BitSet(env->visited, b->id)) {
+  if (get_BitSet(env->visited, b->local_id)) {
     return;
   }
-  set_BitSet(env->visited, b->id, true);
+  set_BitSet(env->visited, b->local_id, true);
 
   traverse_bblist(env, b->succs);
   push_BBVec(env->bbs, b);
@@ -39,8 +39,8 @@ void traverse_insts(unsigned* count, IRInstVec* acc, IRInstList* l) {
     return;
   }
 
-  IRInst* inst = head_IRInstList(l);
-  inst->id     = (*count)++;
+  IRInst* inst   = head_IRInstList(l);
+  inst->local_id = (*count)++;
   push_IRInstVec(acc, inst);
 
   traverse_insts(count, acc, tail_IRInstList(l));
@@ -51,7 +51,7 @@ void number_insts(BBVec* v) {
   unsigned len_bbs    = length_BBVec(v);
   for (unsigned i = len_bbs; i > 0; i--) {
     BasicBlock* b   = get_BBVec(v, i - 1);
-    b->id           = len_bbs - i;
+    b->local_id     = len_bbs - i;
     b->sorted_insts = new_IRInstVec(32);  // TODO: allocate accurate number of insts
     traverse_insts(&inst_count, b->sorted_insts, b->insts);
   }
@@ -64,18 +64,18 @@ static bool mark_dead_iter(BasicBlock* entry, IntVec* visited, BBList* l, bool a
 
   BasicBlock* b = head_BBList(l);
 
-  int v = get_IntVec(visited, b->id);
+  int v = get_IntVec(visited, b->local_id);
   if (v != -1) {
     return mark_dead_iter(entry, visited, tail_BBList(l), acc && v);
   }
 
-  set_IntVec(visited, b->id, false);
+  set_IntVec(visited, b->local_id, false);
 
-  if (b->id != entry->id && mark_dead_iter(entry, visited, b->preds, true)) {
+  if (b->local_id != entry->local_id && mark_dead_iter(entry, visited, b->preds, true)) {
     b->dead = true;
   }
 
-  set_IntVec(visited, b->id, b->dead);
+  set_IntVec(visited, b->local_id, b->dead);
 
   return mark_dead_iter(entry, visited, tail_BBList(l), acc && b->dead);
 }
@@ -88,9 +88,9 @@ static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
   release_IntVec(visited);
 }
 
-// change `id`s of `BasicBlock` and `IRInst`
+// change `local_id`s of `BasicBlock` and `IRInst`
 // and collect `BasicBlock`s to `sorted_blocks` in reversed order
-void reorder_blocks(IR* ir) {
+static void reorder_blocks_function(Function* ir) {
   Env* env = init_Env(ir->bb_count);
 
   mark_dead(ir->bb_count, ir->entry, ir->exit);
@@ -100,4 +100,18 @@ void reorder_blocks(IR* ir) {
   release_BitSet(env->visited);
 
   number_insts(ir->sorted_blocks);
+}
+
+static void reorder_blocks_functions(FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  reorder_blocks_function(head_FunctionList(l));
+
+  reorder_blocks_functions(tail_FunctionList(l));
+}
+
+void reorder_blocks(IR* ir) {
+  reorder_blocks_functions(ir->functions);
 }

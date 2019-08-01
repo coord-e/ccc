@@ -1,5 +1,6 @@
 #include "ir.h"
 #include "error.h"
+#include "liveness.h"
 #include "map.h"
 #include "parser.h"
 
@@ -8,17 +9,21 @@ DECLARE_MAP(unsigned, UIMap)
 static void release_unsigned(unsigned i) {}
 DEFINE_MAP(release_unsigned, unsigned, UIMap)
 
-IRInst* new_inst(unsigned id, IRInstKind kind) {
-  IRInst* i = calloc(1, sizeof(IRInst));
-  i->kind   = kind;
-  i->id     = id;
-  i->ras    = new_RegVec(1);
+IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
+  IRInst* i    = calloc(1, sizeof(IRInst));
+  i->kind      = kind;
+  i->local_id  = local;
+  i->global_id = global;
+
+  i->ras         = new_RegVec(1);
+  i->global_name = NULL;
   return i;
 }
 
 void release_inst(IRInst* i) {
   assert(i->ras != NULL);
   release_RegVec(i->ras);
+  free(i->global_name);
   free(i);
 }
 
@@ -46,6 +51,31 @@ static void release_BasicBlock(BasicBlock* bb) {
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 
+static void release_Function(Function* f) {
+  free(f->name);
+  release_BBList(f->blocks);
+  release_RegIntervals(f->intervals);
+  free(f);
+}
+
+DEFINE_LIST(release_Function, Function*, FunctionList)
+
+typedef struct {
+  unsigned bb_count;
+  unsigned inst_count;
+} GlobalEnv;
+
+static GlobalEnv* init_GlobalEnv() {
+  GlobalEnv* env  = calloc(1, sizeof(GlobalEnv));
+  env->bb_count   = 0;
+  env->inst_count = 0;
+  return env;
+}
+
+static void release_GlobalEnv(GlobalEnv* env) {
+  free(env);
+}
+
 typedef struct {
   unsigned reg_count;
   unsigned stack_count;
@@ -63,25 +93,29 @@ typedef struct {
 
   BasicBlock* loop_break;
   BasicBlock* loop_continue;
+
+  GlobalEnv* global_env;
 } Env;
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {
-  return new_inst(env->inst_count++, kind);
+  return new_inst(env->inst_count++, env->global_env->inst_count++, kind);
 }
 
 static BasicBlock* new_bb(Env* env) {
-  unsigned i = env->bb_count++;
+  unsigned local_id  = env->bb_count++;
+  unsigned global_id = env->global_env->bb_count++;
 
   IRInst* inst = new_inst_(env, IR_LABEL);
 
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
   inst->label    = bb;
 
-  bb->id    = i;
-  bb->insts = single_IRInstList(inst);
-  bb->succs = nil_BBList();
-  bb->preds = nil_BBList();
-  bb->dead  = false;
+  bb->local_id  = local_id;
+  bb->global_id = global_id;
+  bb->insts     = single_IRInstList(inst);
+  bb->succs     = nil_BBList();
+  bb->preds     = nil_BBList();
+  bb->dead      = false;
 
   bb->live_gen     = NULL;
   bb->live_kill    = NULL;
@@ -94,8 +128,9 @@ static BasicBlock* new_bb(Env* env) {
   return bb;
 }
 
-static Env* new_env() {
+static Env* new_env(GlobalEnv* genv) {
   Env* env         = calloc(1, sizeof(Env));
+  env->global_env  = genv;
   env->reg_count   = 0;
   env->stack_count = 0;
   env->bb_count    = 0;
@@ -137,12 +172,8 @@ static unsigned new_var(Env* env, char* name) {
   return i;
 }
 
-static unsigned get_var(Env* env, char* name) {
-  unsigned i;
-  if (!lookup_UIMap(env->vars, name, &i)) {
-    error("variable \"%s\" is not declared", name);
-  }
-  return i;
+static bool get_var(Env* env, char* name, unsigned* dest) {
+  return lookup_UIMap(env->vars, name, dest);
 }
 
 static void add_inst(Env* env, IRInst* inst) {
@@ -189,6 +220,15 @@ static Reg new_store(Env* env, unsigned s, Reg r) {
   IRInst* i    = new_inst_(env, IR_STORE);
   i->stack_idx = s;
   push_RegVec(i->ras, r);
+  add_inst(env, i);
+  return r;
+}
+
+static Reg nth_arg(Env* env, unsigned nth) {
+  Reg r           = new_reg(env);
+  IRInst* i       = new_inst_(env, IR_ARG);
+  i->argument_idx = nth;
+  i->rd           = r;
   add_inst(env, i);
   return r;
 }
@@ -262,10 +302,25 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicB
   create_or_start_bb(env, next);
 }
 
+static Reg new_global(Env* env, const char* name) {
+  Reg r             = new_reg(env);
+  IRInst* inst      = new_inst_(env, IR_GLOBAL);
+  inst->rd          = r;
+  inst->global_name = strdup(name);
+  add_inst(env, inst);
+  return r;
+}
+
 static unsigned gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
-    case ND_VAR:
-      return get_var(env, node->var);
+    case ND_VAR: {
+      unsigned i;
+      if (get_var(env, node->var, &i)) {
+        return i;
+      } else {
+        error("undeclared name \"%s\"", node->var);
+      }
+    }
     default:
       error("invaild lhs");
   }
@@ -287,8 +342,28 @@ static Reg gen_expr(Env* env, Expr* node) {
       return rhs;
     }
     case ND_VAR: {
-      unsigned i = get_var(env, node->var);
-      return new_load(env, i);
+      unsigned i;
+      if (get_var(env, node->var, &i)) {
+        return new_load(env, i);
+      } else {
+        return new_global(env, node->var);
+      }
+    }
+    case ND_CALL: {
+      IRInst* inst = new_inst_(env, IR_CALL);
+      Reg f        = gen_expr(env, node->lhs);
+      push_RegVec(inst->ras, f);
+
+      for (unsigned i = 0; i < length_ExprVec(node->args); i++) {
+        Expr* e = get_ExprVec(node->args, i);
+        push_RegVec(inst->ras, gen_expr(env, e));
+      }
+
+      Reg r    = new_reg(env);
+      inst->rd = r;
+
+      add_inst(env, inst);
+      return r;
     }
     default:
       CCC_UNREACHABLE;
@@ -423,10 +498,14 @@ static void gen_stmt(Env* env, Statement* stmt) {
     }
     case ST_COMPOUND: {
       // compound statement is a block
-      UIMap* save = copy_UIMap(env->vars);
+      UIMap* save = env->vars;
+      UIMap* inst = copy_UIMap(env->vars);
+
+      env->vars = inst;
       gen_block_item_list(env, stmt->items);
-      release_UIMap(env->vars);
       env->vars = save;
+
+      release_UIMap(inst);
       break;
     }
     case ST_NULL:
@@ -460,20 +539,35 @@ void gen_block_item_list(Env* env, BlockItemList* ast) {
   gen_block_item_list(env, tail_BlockItemList(ast));
 }
 
-static void gen_ir(Env* env, AST* ast) {
-  gen_block_item_list(env, ast);
+static void gen_params(Env* env, unsigned nth, StringList* l) {
+  if (is_nil_StringList(l)) {
+    return;
+  }
+
+  char* name = head_StringList(l);
+  new_var(env, name);
+
+  unsigned addr;
+  get_var(env, name, &addr);
+
+  Reg rhs = nth_arg(env, nth);
+  new_store(env, addr, rhs);
+
+  gen_params(env, nth + 1, tail_StringList(l));
 }
 
-IR* generate_IR(AST* ast) {
-  Env* env = new_env();
+static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
+  Env* env = new_env(genv);
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
-  gen_ir(env, ast);
+  gen_params(env, 0, ast->params);
+  gen_block_item_list(env, ast->items);
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
 
-  IR* ir            = calloc(1, sizeof(IR));
+  Function* ir      = calloc(1, sizeof(Function));
+  ir->name          = strdup(ast->name);
   ir->entry         = entry;
   ir->exit          = env->cur;
   ir->bb_count      = env->bb_count;
@@ -482,14 +576,37 @@ IR* generate_IR(AST* ast) {
   ir->inst_count    = env->inst_count;
   ir->blocks        = env->blocks;
   ir->sorted_blocks = NULL;
+  ir->intervals     = NULL;
+  ir->used_regs     = NULL;
 
   free(env);
   return ir;
 }
 
+static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, TranslationUnit* l) {
+  if (is_nil_TranslationUnit(l)) {
+    return acc;
+  }
+
+  Function* f = gen_function(genv, head_TranslationUnit(l));
+  return gen_TranslationUnit(genv, cons_FunctionList(f, acc), tail_TranslationUnit(l));
+}
+
+IR* generate_IR(AST* ast) {
+  GlobalEnv* genv = init_GlobalEnv();
+
+  IR* ir         = calloc(1, sizeof(IR));
+  ir->functions  = gen_TranslationUnit(genv, nil_FunctionList(), ast);
+  ir->inst_count = genv->inst_count;
+  ir->bb_count   = genv->bb_count;
+
+  release_GlobalEnv(genv);
+
+  return ir;
+}
+
 void release_IR(IR* ir) {
-  release_BBList(ir->blocks);
-  free(ir);
+  release_FunctionList(ir->functions);
 }
 
 static void print_reg(FILE* p, Reg r) {
@@ -513,6 +630,9 @@ static void print_inst(FILE* p, IRInst* i) {
     fprintf(p, " = ");
   }
   switch (i->kind) {
+    case IR_ARG:
+      fprintf(p, "ARG %d", i->argument_idx);
+      break;
     case IR_IMM:
       fprintf(p, "IMM %d", i->imm);
       break;
@@ -521,6 +641,9 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_MOV:
       fprintf(p, "MOV ");
+      break;
+    case IR_CALL:
+      fprintf(p, "CALL ");
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
@@ -533,17 +656,17 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_STORE:
       fprintf(p, "STORE %d ", i->stack_idx);
       break;
-    case IR_SUBS:
-      fprintf(p, "SUBS %d", i->stack_idx);
-      break;
     case IR_BR:
-      fprintf(p, "BR %d %d ", i->then_->id, i->else_->id);
+      fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);
       break;
     case IR_JUMP:
-      fprintf(p, "JUMP %d", i->jump->id);
+      fprintf(p, "JUMP %d", i->jump->local_id);
       break;
     case IR_LABEL:
-      fprintf(p, "LABEL %d", i->label->id);
+      fprintf(p, "LABEL %d", i->label->local_id);
+      break;
+    case IR_GLOBAL:
+      fprintf(p, "GLOBAL %s", i->global_name);
       break;
     default:
       CCC_UNREACHABLE;
@@ -558,16 +681,16 @@ static unsigned print_graph_insts(FILE* p, IRInstList* l) {
   IRInst* i1    = head_IRInstList(l);
   IRInstList* t = tail_IRInstList(l);
 
-  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->id, i1->id);
+  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->global_id, i1->global_id);
   print_inst(p, i1);
   fputs("\"];\n", p);
 
   if (is_nil_IRInstList(t)) {
-    return i1->id;
+    return i1->global_id;
   }
 
   IRInst* i2 = head_IRInstList(t);
-  fprintf(p, "inst_%d -> inst_%d;\n", i1->id, i2->id);
+  fprintf(p, "inst_%d -> inst_%d;\n", i1->global_id, i2->global_id);
   return print_graph_insts(p, t);
 }
 
@@ -579,10 +702,10 @@ static void print_graph_succs(FILE* p, unsigned id, BBList* l) {
   }
   BasicBlock* head = head_BBList(l);
   if (is_nil_IRInstList(head->insts)) {
-    error("unexpected empty basic block %d", head->id);
+    error("unexpected empty basic block %d", head->global_id);
   }
 
-  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->id);
+  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->global_id);
   print_graph_succs(p, id, l->tail);
 }
 
@@ -591,8 +714,8 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
     return;
   }
 
-  fprintf(p, "subgraph cluster_%d {\n", bb->id);
-  fprintf(p, "label = \"BasicBlock %d", bb->id);
+  fprintf(p, "subgraph cluster_%d {\n", bb->global_id);
+  fprintf(p, "label = \"BasicBlock %d", bb->local_id);
 
   if (bb->live_gen != NULL) {
     fprintf(p, "\\ngen: ");
@@ -614,7 +737,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
   fprintf(p, "\";\n");
 
   if (is_nil_IRInstList(bb->insts)) {
-    error("unexpected empty basic block %d", bb->id);
+    error("unexpected empty basic block %d", bb->global_id);
   }
   unsigned last_id = print_graph_insts(p, bb->insts);
 
@@ -630,8 +753,18 @@ static void print_graph_blocks(FILE* p, BBList* l) {
   print_graph_blocks(p, tail_BBList(l));
 }
 
+static void print_Function(FILE* p, Function* f) {
+  fprintf(p, "subgraph cluster_%s {\n", f->name);
+  fprintf(p, "label = %s;\n", f->name);
+  print_graph_blocks(p, f->blocks);
+  fprintf(p, "}\n");
+}
+
+DECLARE_LIST_PRINTER(FunctionList)
+DEFINE_LIST_PRINTER(print_Function, "\n", "\n", FunctionList)
+
 void print_IR(FILE* p, IR* ir) {
   fprintf(p, "digraph CFG {\n");
-  print_graph_blocks(p, ir->blocks);
+  print_FunctionList(p, ir->functions);
   fprintf(p, "}\n");
 }

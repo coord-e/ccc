@@ -5,15 +5,19 @@
 
 #include "binop.h"
 #include "list.h"
+#include "vector.h"
 
 typedef enum {
   ND_BINOP,
   ND_ASSIGN,
   ND_VAR,
   ND_NUM,
+  ND_CALL,
 } ExprKind;
 
 typedef struct Expr Expr;
+
+DECLARE_VECTOR(Expr*, ExprVec)
 
 struct Expr {
   ExprKind kind;
@@ -22,6 +26,7 @@ struct Expr {
   BinopKind binop;  // for ND_BINOP
   char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
+  ExprVec* args;    // for ND_CALL, owned
 };
 
 typedef struct Statement Statement;
@@ -73,7 +78,18 @@ struct Statement {
   BlockItemList* items;  // for ST_COMPOUND
 };
 
-typedef BlockItemList AST;
+DECLARE_LIST(char*, StringList)
+
+typedef struct {
+  char* name;          // owned
+  StringList* params;  // owned
+
+  BlockItemList* items;  // owned
+} FunctionDef;
+
+DECLARE_LIST(FunctionDef*, TranslationUnit)
+
+typedef TranslationUnit AST;
 
 void print_AST(FILE*, AST*);
 

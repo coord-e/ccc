@@ -9,9 +9,12 @@ static void release_expr(Expr* e) {
   release_expr(e->lhs);
   release_expr(e->rhs);
   free(e->var);
+  release_ExprVec(e->args);
 
   free(e);
 }
+
+DEFINE_VECTOR(release_expr, Expr*, ExprVec)
 
 static void release_declaration(Declaration* d) {
   if (d == NULL) {
@@ -43,11 +46,26 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
+static void release_string(char* s) {
+  free(s);
+}
+DEFINE_LIST(release_string, char*, StringList)
+
+static void release_FunctionDef(FunctionDef* def) {
+  free(def->name);
+  release_StringList(def->params);
+  release_BlockItemList(def->items);
+  free(def);
+}
+DEFINE_LIST(release_FunctionDef, FunctionDef*, TranslationUnit)
+
 void release_AST(AST* t) {
-  release_BlockItemList(t);
+  release_TranslationUnit(t);
 }
 
 // printer functions
+DECLARE_VECTOR_PRINTER(ExprVec)
+
 static void print_expr(FILE* p, Expr* expr) {
   switch (expr->kind) {
     case ND_NUM:
@@ -72,10 +90,17 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;
+    case ND_CALL:
+      print_expr(p, expr->lhs);
+      fprintf(p, "(");
+      print_ExprVec(p, expr->args);
+      fprintf(p, ")");
+      return;
     default:
       CCC_UNREACHABLE;
   }
 }
+DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
 static void print_declaration(FILE* p, Declaration* d) {
   fprintf(p, "decl %s;", d->declarator);
@@ -99,6 +124,22 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
 DECLARE_LIST_PRINTER(BlockItemList)
 DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
 
+DECLARE_LIST_PRINTER(StringList)
+static void print_string(FILE* p, char* s) {
+  fprintf(p, "%s", s);
+}
+DEFINE_LIST_PRINTER(print_string, ",", "", StringList)
+
+DECLARE_LIST_PRINTER(TranslationUnit)
+static void print_FunctionDef(FILE* p, FunctionDef* def) {
+  fprintf(p, "%s (", def->name);
+  print_StringList(p, def->params);
+  fprintf(p, ") {\n");
+  print_BlockItemList(p, def->items);
+  fprintf(p, "}\n");
+}
+DEFINE_LIST_PRINTER(print_FunctionDef, "\n", "\n", TranslationUnit)
+
 void print_statement(FILE* p, Statement* d) {
   switch (d->kind) {
     case ST_EXPRESSION:
@@ -119,6 +160,9 @@ void print_statement(FILE* p, Statement* d) {
       print_statement(p, d->then_);
       fputs(" else ", p);
       print_statement(p, d->else_);
+      break;
+    case ST_NULL:
+      fputs(";", p);
       break;
     case ST_WHILE:
       fputs("while (", p);
@@ -164,5 +208,5 @@ void print_statement(FILE* p, Statement* d) {
 }
 
 void print_AST(FILE* p, AST* ast) {
-  print_BlockItemList(p, ast);
+  print_TranslationUnit(p, ast);
 }

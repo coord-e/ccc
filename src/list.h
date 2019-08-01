@@ -109,6 +109,9 @@
     return cons_##Name(list->head, copy_##Name(list->tail));                                       \
   }                                                                                                \
   void release_##Name(Name* list) {                                                                \
+    if (list == NULL) {                                                                            \
+      return;                                                                                      \
+    }                                                                                              \
     if (!list->is_nil) {                                                                           \
       release_data(list->head);                                                                    \
       release_##Name(list->tail);                                                                  \

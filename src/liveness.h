@@ -16,7 +16,7 @@ typedef struct {
 
 DECLARE_VECTOR(Interval*, RegIntervals)
 
-RegIntervals* liveness(IR*);
+void liveness(IR*);
 
 void print_Intervals(FILE*, RegIntervals*);
 

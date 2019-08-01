@@ -18,14 +18,26 @@ void print_Intervals(FILE* p, RegIntervals* v) {
   }
 }
 
-static void compute_local_live_sets(IR*);
-static void compute_global_live_sets(IR*);
-static RegIntervals* build_intervals(IR*);
+static void compute_local_live_sets(Function*);
+static void compute_global_live_sets(Function*);
+static RegIntervals* build_intervals(Function*);
 
-RegIntervals* liveness(IR* ir) {
-  compute_local_live_sets(ir);
-  compute_global_live_sets(ir);
-  return build_intervals(ir);
+static void liveness_functions(FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  Function* f = head_FunctionList(l);
+  compute_local_live_sets(f);
+  compute_global_live_sets(f);
+
+  f->intervals = build_intervals(f);
+
+  liveness_functions(tail_FunctionList(l));
+}
+
+void liveness(IR* ir) {
+  liveness_functions(ir->functions);
 }
 
 static void iter_insts(BasicBlock* b, IRInstList* l) {
@@ -51,7 +63,7 @@ static void iter_insts(BasicBlock* b, IRInstList* l) {
   iter_insts(b, tail_IRInstList(l));
 }
 
-void compute_local_live_sets(IR* ir) {
+void compute_local_live_sets(Function* ir) {
   BBVec* v = ir->sorted_blocks;
   for (unsigned i = length_BBVec(v); i > 0; i--) {
     BasicBlock* b = get_BBVec(v, i - 1);
@@ -78,7 +90,7 @@ static void iter_succs(BasicBlock* b, BBList* l) {
 DECLARE_VECTOR(BitSet*, BSVec)
 DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
-void compute_global_live_sets(IR* ir) {
+void compute_global_live_sets(Function* ir) {
   BBVec* v = ir->sorted_blocks;
 
   // temporary vector to detect changes in `live_in`
@@ -149,16 +161,16 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
       Reg ra = get_RegVec(inst->ras, i);
       assert(ra.is_used);
 
-      add_range(ivs, ra.virtual, block_from, inst->id);
+      add_range(ivs, ra.virtual, block_from, inst->local_id);
     }
 
     if (inst->rd.is_used) {
-      set_from(ivs, inst->rd.virtual, inst->id);
+      set_from(ivs, inst->rd.virtual, inst->local_id);
     }
   }
 }
 
-RegIntervals* build_intervals(IR* ir) {
+RegIntervals* build_intervals(Function* ir) {
   BBVec* v = ir->sorted_blocks;
 
   RegIntervals* ivs = new_RegIntervals(ir->reg_count);
@@ -170,8 +182,8 @@ RegIntervals* build_intervals(IR* ir) {
   for (unsigned i = 0; i < length_BBVec(v); i++) {
     BasicBlock* b       = get_BBVec(v, i);
     IRInstVec* is       = b->sorted_insts;
-    unsigned block_from = get_IRInstVec(is, 0)->id;
-    unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->id;
+    unsigned block_from = get_IRInstVec(is, 0)->local_id;
+    unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->local_id;
 
     for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
       if (get_BitSet(b->live_out, vi)) {

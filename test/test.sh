@@ -27,14 +27,22 @@ function try() {
     fi
 }
 
+function try_() {
+    local expected="$1"
+    local input="$(cat)"
+    try "$expected" "$input"
+}
+
 function items() {
-    try "$@"
+    local expected="$1"
+    local input="$2"
+    try "$expected" "main(argc, argv) { $input }"
 }
 
 function expr() {
     local expected="$1"
     local input="$2"
-    try "$expected" "return ($input);"
+    items "$expected" "return ($input);"
 }
 
 # just a number
@@ -102,5 +110,76 @@ items 10 "for(;;) break; return 10;"
 items 0 "decl x; for(x = 10; x > 0; x = x - 1); return x;"
 items 30 "decl i; decl acc; i = 0; acc = 0; do { i = i + 1; if (i - 1 < 5) continue; acc = acc + i; if (i == 9) break; } while (i < 10); return acc;"
 items 26 "decl acc; acc = 0; decl i; for (i = 0; i < 100; i=i+1) { if (i < 5) continue; if (i == 9) break; acc = acc + i; } return acc;"
+
+# functions
+try_ 55 << EOF
+sum(m, n) {
+  decl acc;
+  acc = 0;
+  decl i;
+  for (i = m; i <= n; i = i + 1)
+    acc = acc + i;
+  return acc;
+}
+
+main() {
+  return sum(1, 10);
+}
+EOF
+
+try_ 120 << EOF
+fact(x) {
+  if (x == 0) {
+    return 1;
+  } else {
+    return x * fact(x - 1);
+  }
+}
+
+main() {
+  return fact(5);
+}
+EOF
+
+try_ 1 << EOF
+is_even(x) {
+  if (x == 0) {
+    return 1;
+  } else {
+    return is_odd(x - 1);
+  }
+}
+
+is_odd(x) {
+  if (x == 0) {
+    return 0;
+  } else {
+    return is_even(x - 1);
+
+  }
+}
+
+main() {
+  return is_even(20);
+}
+EOF
+
+try_ 253 << EOF
+ack(m, n) {
+  if (m == 0) {
+    return n + 1;
+  } else if (n == 0) {
+    return ack(m - 1, 1);
+  } else {
+    decl a;
+    a = ack(m, n - 1);
+    return ack(m - 1, a);
+  }
+}
+
+main() {
+  return ack(3, 5);
+}
+EOF
 
 echo OK

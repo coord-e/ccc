@@ -58,7 +58,7 @@ DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 DEFINE_LIST(release_Declarator, Declarator*, ParamList)
 
 static void release_FunctionDef(FunctionDef* def) {
-  free(def->name);
+  release_Declarator(def->decl);
   release_ParamList(def->params);
   release_BlockItemList(def->items);
   free(def);
@@ -109,7 +109,7 @@ static void print_expr(FILE* p, Expr* expr) {
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
 static void print_Declarator(FILE* p, Declarator* d) {
-  for (unsinged i = 0; i < d->num_ptrs; i++) {
+  for (unsigned i = 0; i < d->num_ptrs; i++) {
     fprintf(p, "*");
   }
   fprintf(p, "%s", d->name);
@@ -117,7 +117,7 @@ static void print_Declarator(FILE* p, Declarator* d) {
 
 static void print_declaration(FILE* p, Declaration* d) {
   fprintf(p, "int ");
-  print_Declarator(d);
+  print_Declarator(p, d->declarator);
   fprintf(p, ";");
 }
 
@@ -144,7 +144,8 @@ DEFINE_LIST_PRINTER(print_Declarator, ",", "", ParamList)
 
 DECLARE_LIST_PRINTER(TranslationUnit)
 static void print_FunctionDef(FILE* p, FunctionDef* def) {
-  fprintf(p, "%s (", def->name);
+  print_Declarator(p, def->decl);
+  fprintf(p, " (");
   print_ParamList(p, def->params);
   fprintf(p, ") {\n");
   print_BlockItemList(p, def->items);

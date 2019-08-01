@@ -40,9 +40,16 @@ static Expr* new_node_assign(Expr* lhs, Expr* rhs) {
   return new_node(ND_ASSIGN, lhs, rhs);
 }
 
-static Declaration* new_declaration(char* s) {
+static Declarator* new_Declarator() {
+  Declarator* d = calloc(1, sizeof(Declarator));
+  d->name       = NULL;
+  d->num_ptrs   = 0;
+  return d;
+}
+
+static Declaration* new_declaration(Declarator* s) {
   Declaration* d = calloc(1, sizeof(Declaration));
-  d->declarator  = strdup(s);
+  d->declarator  = s;
   return d;
 }
 
@@ -273,6 +280,21 @@ static Expr* expr(TokenList** t) {
   return assign(t);
 }
 
+static Declarator* try_declarator(TokenList** t) {
+  Declarator* d = new_Declarator();
+  while (head_of(t) == TK_STAR) {
+    consume(t);
+    d->num_ptrs++;
+  }
+
+  if (head_of(t) != TK_IDENT) {
+    return NULL;
+  }
+
+  d->name = strdup(expect(t, TK_IDENT).ident);
+  return d;
+}
+
 static Declaration* try_declaration(TokenList** t) {
   Token t1 = head_TokenList(*t);
 
@@ -287,11 +309,12 @@ static Declaration* try_declaration(TokenList** t) {
 
   consume(t);
 
-  if (head_of(t) != TK_IDENT) {
+  Declarator* dor = try_declarator(t);
+  if (dor == NULL) {
     return NULL;
   }
 
-  Declaration* d = new_declaration(consuming(t).ident);
+  Declaration* d = new_declaration(dor);
 
   if (consuming(t).kind != TK_SEMICOLON) {
     return NULL;
@@ -444,17 +467,20 @@ static BlockItemList* block_item_list(TokenList** t) {
   return list;
 }
 
-static StringList* parameter_list(TokenList** t) {
-  StringList* cur  = nil_StringList();
-  StringList* list = cur;
+static ParamList* parameter_list(TokenList** t) {
+  ParamList* cur  = nil_ParamList();
+  ParamList* list = cur;
 
   if (head_of(t) != TK_IDENT) {
     return list;
   }
 
   do {
-    char* name = expect(t, TK_IDENT).ident;
-    cur        = snoc_StringList(strdup(name), cur);
+    Declarator* d = try_declarator(t);
+    if (d == NULL) {
+      error("could not parse declarator.");
+    }
+    cur = snoc_ParamList(d, cur);
   } while (try (t, TK_COMMA));
 
   return list;

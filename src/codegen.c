@@ -123,9 +123,6 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
     case IR_STORE:
       emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
       break;
-    case IR_SUBS:
-      emit(p, "sub rsp, %d", 8 * h->stack_idx);
-      break;
     case IR_LABEL:
       emit_id_label(p, h->label->global_id);
       break;

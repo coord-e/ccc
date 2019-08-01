@@ -656,9 +656,6 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_STORE:
       fprintf(p, "STORE %d ", i->stack_idx);
       break;
-    case IR_SUBS:
-      fprintf(p, "SUBS %d", i->stack_idx);
-      break;
     case IR_BR:
       fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);
       break;

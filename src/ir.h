@@ -17,7 +17,6 @@ typedef enum {
   IR_RET,
   IR_STORE,
   IR_LOAD,
-  IR_SUBS,
   IR_MOV,
   IR_BR,    // conditional branch
   IR_JUMP,  // unconditional branch

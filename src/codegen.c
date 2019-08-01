@@ -141,7 +141,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       fprintf(p, "\n");
       break;
     case IR_GLOBAL:
-      emit(p, "lea %s, %s[rip]", reg_of(h->rd), h->global_name);
+      emit(p, "lea %s, %s@PLT[rip]", reg_of(h->rd), h->global_name);
       break;
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {

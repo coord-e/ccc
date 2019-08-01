@@ -1,21 +1,6 @@
 #include "ast.h"
 
-Type* new_Type(TypeKind kind) {
-  Type* t   = calloc(1, sizeof(Type));
-  t->kind   = kind;
-  t->ptr_to = NULL;
-  return t;
-}
-
-void release_Type(Type* t) {
-  if (t == NULL) {
-    return;
-  }
-
-  release_Type(t->ptr_to);
-  free(t);
-}
-
+// release functions
 static void release_expr(Expr* e) {
   if (e == NULL) {
     return;

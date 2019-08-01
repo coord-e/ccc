@@ -36,7 +36,6 @@ typedef struct {
   unsigned real;
 
   bool is_used;  // TODO: Use better way to represent unsued register slot
-  bool is_spilled;
 } Reg;
 
 DECLARE_VECTOR(Reg, RegVec)

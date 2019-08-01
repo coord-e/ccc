@@ -21,6 +21,7 @@ void clear_BitSet(BitSet*);
 BitSet* copy_BitSet(const BitSet*);
 void copy_to_BitSet(BitSet*, const BitSet*);
 bool equal_to_BitSet(const BitSet*, const BitSet*);
+unsigned count_BitSet(const BitSet*);
 
 void print_BitSet(FILE*, const BitSet*);
 void release_BitSet(BitSet*);

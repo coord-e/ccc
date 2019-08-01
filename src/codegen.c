@@ -65,26 +65,27 @@ static void emit_id_label(FILE* p, unsigned id) {
 }
 
 static void emit_prologue(FILE* p, Function* f) {
+  emit(p, "push rbp");
+  emit(p, "mov rbp, rsp");
+  emit(p, "sub rsp, %d", 8 * f->stack_count + 8);
   for (unsigned i = 0; i < length_BitSet(f->used_regs); i++) {
     if (get_BitSet(f->used_regs, i)) {
       emit(p, "push %s", regs[i]);
     }
   }
-  emit(p, "push rbp");
-  emit(p, "mov rbp, rsp");
   emit_(p, "jmp ");
   id_label_name(p, f->entry->global_id);
   fprintf(p, "\n");
 }
 
 static void emit_epilogue(FILE* p, Function* f) {
-  emit(p, "mov rsp, rbp");
-  emit(p, "pop rbp");
   for (unsigned i = length_BitSet(f->used_regs); i > 0; i--) {
     if (get_BitSet(f->used_regs, i - 1)) {
       emit(p, "pop %s", regs[i - 1]);
     }
   }
+  emit(p, "mov rsp, rbp");
+  emit(p, "pop rbp");
 }
 
 static void codegen_binop(FILE* p, IRInst* inst);

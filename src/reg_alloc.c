@@ -314,6 +314,7 @@ static void reg_alloc_function(unsigned num_regs, unsigned global_inst_count, Fu
       set_BitSet(ir->used_regs, real, true);
     }
   }
+  ir->real_reg_count = count_BitSet(ir->used_regs);
 
   release_Env(env);
 }

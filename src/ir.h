@@ -130,6 +130,7 @@ typedef struct {
 
   // will filled in `reg_alloc`
   BitSet* used_regs;  // owned
+  unsigned real_reg_count;
 } Function;
 
 DECLARE_LIST(Function*, FunctionList)

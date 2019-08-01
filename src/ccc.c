@@ -81,7 +81,7 @@ static bool is_hyphen(const char* path) {
 }
 
 static FILE* open_file(const char* path, const char* mode) {
-  if (mode[1] == 'w' && is_hyphen(path)) {
+  if (mode[0] == 'w' && is_hyphen(path)) {
     return stdout;
   }
   FILE* f = fopen(path, mode);

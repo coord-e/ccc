@@ -303,7 +303,7 @@ static Declaration* try_declaration(TokenList** t) {
   }
 
   // TODO: Parse type specifier
-  if (strcmp(t1.ident, "decl") != 0) {
+  if (strcmp(t1.ident, "int") != 0) {
     return NULL;
   }
 

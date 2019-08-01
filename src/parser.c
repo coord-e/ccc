@@ -70,7 +70,7 @@ static BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaratio
 
 static FunctionDef* new_function_def() {
   FunctionDef* def = calloc(1, sizeof(FunctionDef));
-  def->name        = NULL;
+  def->decl        = NULL;
   def->params      = NULL;
   def->items       = NULL;
   return def;
@@ -295,19 +295,42 @@ static Declarator* try_declarator(TokenList** t) {
   return d;
 }
 
-static Declaration* try_declaration(TokenList** t) {
+static Declarator* declarator(TokenList** t) {
+  Declarator* d = try_declarator(t);
+  if (d == NULL) {
+    error("could not parse the declarator.");
+  }
+
+  return d;
+}
+
+static bool try_declaration_specifiers(TokenList** t) {
   Token t1 = head_TokenList(*t);
 
   if (t1.kind != TK_IDENT) {
-    return NULL;
+    return false;
   }
 
   // TODO: Parse type specifier
   if (strcmp(t1.ident, "int") != 0) {
-    return NULL;
+    return false;
   }
 
   consume(t);
+
+  return true;
+}
+
+static void declaration_specifiers(TokenList** t) {
+  if (!try_declaration_specifiers(t)) {
+    error("could not parse declaration specifiers.");
+  }
+}
+
+static Declaration* try_declaration(TokenList** t) {
+  if (!try_declaration_specifiers(t)) {
+    return NULL;
+  }
 
   Declarator* dor = try_declarator(t);
   if (dor == NULL) {
@@ -476,11 +499,9 @@ static ParamList* parameter_list(TokenList** t) {
   }
 
   do {
-    Declarator* d = try_declarator(t);
-    if (d == NULL) {
-      error("could not parse declarator.");
-    }
-    cur = snoc_ParamList(d, cur);
+    declaration_specifiers(t);
+    Declarator* d = declarator(t);
+    cur           = snoc_ParamList(d, cur);
   } while (try (t, TK_COMMA));
 
   return list;
@@ -489,7 +510,8 @@ static ParamList* parameter_list(TokenList** t) {
 static FunctionDef* function_def(TokenList** t) {
   FunctionDef* def = new_function_def();
 
-  def->name = strdup(expect(t, TK_IDENT).ident);
+  declaration_specifiers(t);
+  def->decl = declarator(t);
   expect(t, TK_LPAREN);
   def->params = parameter_list(t);
   expect(t, TK_RPAREN);

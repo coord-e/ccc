@@ -86,7 +86,7 @@ struct Statement {
 DECLARE_LIST(Declarator*, ParamList)
 
 typedef struct {
-  char* name;         // owned
+  Declarator* decl;   // owned
   ParamList* params;  // owned
 
   BlockItemList* items;  // owned

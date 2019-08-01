@@ -516,7 +516,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator);
+  new_var(env, decl->declarator->name);
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -539,12 +539,12 @@ void gen_block_item_list(Env* env, BlockItemList* ast) {
   gen_block_item_list(env, tail_BlockItemList(ast));
 }
 
-static void gen_params(Env* env, unsigned nth, StringList* l) {
-  if (is_nil_StringList(l)) {
+static void gen_params(Env* env, unsigned nth, ParamList* l) {
+  if (is_nil_ParamList(l)) {
     return;
   }
 
-  char* name = head_StringList(l);
+  char* name = head_ParamList(l)->name;
   new_var(env, name);
 
   unsigned addr;
@@ -553,7 +553,7 @@ static void gen_params(Env* env, unsigned nth, StringList* l) {
   Reg rhs = nth_arg(env, nth);
   new_store(env, addr, rhs);
 
-  gen_params(env, nth + 1, tail_StringList(l));
+  gen_params(env, nth + 1, tail_ParamList(l));
 }
 
 static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
@@ -567,7 +567,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   new_exit_ret(env);
 
   Function* ir      = calloc(1, sizeof(Function));
-  ir->name          = strdup(ast->name);
+  ir->name          = strdup(ast->decl->name);
   ir->entry         = entry;
   ir->exit          = env->cur;
   ir->bb_count      = env->bb_count;

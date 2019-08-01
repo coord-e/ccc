@@ -8,6 +8,21 @@
 #include "vector.h"
 
 typedef enum {
+  TY_INT,
+  TY_PTR,
+} TypeKind;
+
+typedef struct Type Type;
+
+struct Type {
+  TypeKind kind;
+  Type* ptr_to;  // for TY_PTR
+};
+
+Type* new_Type(TypeKind);
+void release_Type(Type*);
+
+typedef enum {
   ND_BINOP,
   ND_ASSIGN,
   ND_VAR,

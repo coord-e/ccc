@@ -29,12 +29,17 @@ struct Expr {
   ExprVec* args;    // for ND_CALL, owned
 };
 
-typedef struct Statement Statement;
+typedef struct {
+  unsigned num_ptrs;
+  char* name;  // owned
+} Declarator;
 
 typedef struct {
   // TODO: Add declaration specifiers
-  char* declarator;  // owned TODO: Add initializer
+  Declarator* declarator;  // owned
 } Declaration;
+
+typedef struct Statement Statement;
 
 typedef enum {
   BI_STMT,
@@ -78,11 +83,11 @@ struct Statement {
   BlockItemList* items;  // for ST_COMPOUND
 };
 
-DECLARE_LIST(char*, StringList)
+DECLARE_LIST(Declarator*, ParamList)
 
 typedef struct {
-  char* name;          // owned
-  StringList* params;  // owned
+  char* name;         // owned
+  ParamList* params;  // owned
 
   BlockItemList* items;  // owned
 } FunctionDef;

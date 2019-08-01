@@ -16,12 +16,21 @@ static void release_expr(Expr* e) {
 
 DEFINE_VECTOR(release_expr, Expr*, ExprVec)
 
+static void release_Declarator(Declarator* d) {
+  if (d == NULL) {
+    return;
+  }
+
+  free(d->name);
+  free(d);
+}
+
 static void release_declaration(Declaration* d) {
   if (d == NULL) {
     return;
   }
 
-  free(d->declarator);
+  release_Declarator(d->declarator);
   free(d);
 }
 
@@ -46,14 +55,11 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
-static void release_string(char* s) {
-  free(s);
-}
-DEFINE_LIST(release_string, char*, StringList)
+DEFINE_LIST(release_Declarator, Declarator*, ParamList)
 
 static void release_FunctionDef(FunctionDef* def) {
   free(def->name);
-  release_StringList(def->params);
+  release_ParamList(def->params);
   release_BlockItemList(def->items);
   free(def);
 }
@@ -102,8 +108,17 @@ static void print_expr(FILE* p, Expr* expr) {
 }
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
+static void print_Declarator(FILE* p, Declarator* d) {
+  for (unsinged i = 0; i < d->num_ptrs; i++) {
+    fprintf(p, "*");
+  }
+  fprintf(p, "%s", d->name);
+}
+
 static void print_declaration(FILE* p, Declaration* d) {
-  fprintf(p, "decl %s;", d->declarator);
+  fprintf(p, "int ");
+  print_Declarator(d);
+  fprintf(p, ";");
 }
 
 static void print_statement(FILE* p, Statement* stmt);
@@ -124,16 +139,13 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
 DECLARE_LIST_PRINTER(BlockItemList)
 DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
 
-DECLARE_LIST_PRINTER(StringList)
-static void print_string(FILE* p, char* s) {
-  fprintf(p, "%s", s);
-}
-DEFINE_LIST_PRINTER(print_string, ",", "", StringList)
+DECLARE_LIST_PRINTER(ParamList)
+DEFINE_LIST_PRINTER(print_Declarator, ",", "", ParamList)
 
 DECLARE_LIST_PRINTER(TranslationUnit)
 static void print_FunctionDef(FILE* p, FunctionDef* def) {
   fprintf(p, "%s (", def->name);
-  print_StringList(p, def->params);
+  print_ParamList(p, def->params);
   fprintf(p, ") {\n");
   print_BlockItemList(p, def->items);
   fprintf(p, "}\n");

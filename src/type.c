@@ -52,8 +52,8 @@ void print_Type(FILE* p, Type* ty) {
       fprintf(p, "int");
       break;
     case TY_PTR:
-      print_Type(p, ty->ptr_to);
       fprintf(p, "*");
+      print_Type(p, ty->ptr_to);
       break;
     case TY_FUNC:
       fprintf(p, "func(");

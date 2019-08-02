@@ -76,6 +76,21 @@ static FunctionDef* new_function_def() {
   return def;
 }
 
+static FunctionDecl* new_function_decl() {
+  FunctionDecl* decl = calloc(1, sizeof(FunctionDecl));
+  decl->decl         = NULL;
+  decl->params       = NULL;
+  return decl;
+}
+
+static ExternalDecl* new_external_decl(ExtDeclKind kind) {
+  ExternalDecl* edecl = calloc(1, sizeof(ExternalDecl));
+  edecl->kind         = kind;
+  edecl->func         = NULL;
+  edecl->func_decl    = NULL;
+  return edecl;
+}
+
 static void consume(TokenList** t) {
   *t = tail_TokenList(*t);
 }
@@ -507,18 +522,34 @@ static ParamList* parameter_list(TokenList** t) {
   return list;
 }
 
-static FunctionDef* function_def(TokenList** t) {
-  FunctionDef* def = new_function_def();
-
+static ExternalDecl* external_declaration(TokenList** t) {
   declaration_specifiers(t);
-  def->decl = declarator(t);
+  Declarator* d = declarator(t);
   expect(t, TK_LPAREN);
-  def->params = parameter_list(t);
+  ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);
-  expect(t, TK_LBRACE);
-  def->items = block_item_list(t);
-  expect(t, TK_RBRACE);
-  return def;
+  if (head_of(t) == TK_LBRACE) {
+    consume(t);
+    FunctionDef* def = new_function_def();
+    def->decl        = d;
+    def->params      = params;
+    def->items       = block_item_list(t);
+    expect(t, TK_RBRACE);
+
+    ExternalDecl* edecl = new_external_decl(EX_FUNC);
+    edecl->func         = def;
+    return edecl;
+  } else {
+    expect(t, TK_SEMICOLON);
+
+    FunctionDecl* decl = new_function_decl();
+    decl->decl         = d;
+    decl->params       = params;
+
+    ExternalDecl* edecl = new_external_decl(EX_FUNC_DECL);
+    edecl->func_decl    = decl;
+    return edecl;
+  }
 }
 
 static TranslationUnit* translation_unit(TokenList** t) {
@@ -526,7 +557,7 @@ static TranslationUnit* translation_unit(TokenList** t) {
   TranslationUnit* list = cur;
 
   while (head_of(t) != TK_END) {
-    cur = snoc_TranslationUnit(function_def(t), cur);
+    cur = snoc_TranslationUnit(external_declaration(t), cur);
   }
   return list;
 }

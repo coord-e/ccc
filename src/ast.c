@@ -58,12 +58,29 @@ DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 DEFINE_LIST(release_Declarator, Declarator*, ParamList)
 
 static void release_FunctionDef(FunctionDef* def) {
+  if (def == NULL) {
+    return;
+  }
   release_Declarator(def->decl);
   release_ParamList(def->params);
   release_BlockItemList(def->items);
   free(def);
 }
-DEFINE_LIST(release_FunctionDef, FunctionDef*, TranslationUnit)
+static void release_FunctionDecl(FunctionDecl* decl) {
+  if (decl == NULL) {
+    return;
+  }
+  release_Declarator(decl->decl);
+  release_ParamList(decl->params);
+  free(decl);
+}
+static void release_ExternalDecl(ExternalDecl* edecl) {
+  release_FunctionDef(edecl->func);
+  release_FunctionDecl(edecl->func_decl);
+  free(edecl);
+}
+
+DEFINE_LIST(release_ExternalDecl, ExternalDecl*, TranslationUnit)
 
 void release_AST(AST* t) {
   release_TranslationUnit(t);
@@ -151,7 +168,25 @@ static void print_FunctionDef(FILE* p, FunctionDef* def) {
   print_BlockItemList(p, def->items);
   fprintf(p, "}\n");
 }
-DEFINE_LIST_PRINTER(print_FunctionDef, "\n", "\n", TranslationUnit)
+static void print_FunctionDecl(FILE* p, FunctionDecl* decl) {
+  print_Declarator(p, decl->decl);
+  fprintf(p, " (");
+  print_ParamList(p, decl->params);
+  fprintf(p, ");\n");
+}
+static void print_ExternalDecl(FILE* p, ExternalDecl* edecl) {
+  switch (edecl->kind) {
+    case EX_FUNC:
+      print_FunctionDef(p, edecl->func);
+      break;
+    case EX_FUNC_DECL:
+      print_FunctionDecl(p, edecl->func_decl);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+DEFINE_LIST_PRINTER(print_ExternalDecl, "\n", "\n", TranslationUnit)
 
 void print_statement(FILE* p, Statement* d) {
   switch (d->kind) {

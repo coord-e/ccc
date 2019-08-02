@@ -96,7 +96,25 @@ typedef struct {
   BlockItemList* items;  // owned
 } FunctionDef;
 
-DECLARE_LIST(FunctionDef*, TranslationUnit)
+// Separate function declaration and other declarations to simplify implementation,
+// while function declaration is expressed as a normal declaration in C spec.
+typedef struct {
+  Declarator* decl;   // owned
+  ParamList* params;  // owned
+} FunctionDecl;
+
+typedef enum {
+  EX_FUNC,
+  EX_FUNC_DECL,
+} ExtDeclKind;
+
+typedef struct {
+  ExtDeclKind kind;
+  FunctionDef* func;        // for EX_FUNC, owned
+  FunctionDecl* func_decl;  // for EX_FUNC_DECL, owned
+} ExternalDecl;
+
+DECLARE_LIST(ExternalDecl*, TranslationUnit)
 
 typedef TranslationUnit AST;
 

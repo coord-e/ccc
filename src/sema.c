@@ -6,12 +6,24 @@ DECLARE_MAP(Type*, TypeMap)
 DEFINE_MAP(release_Type, Type*, TypeMap)
 
 typedef struct {
+  TypeMap* names;
+} GlobalEnv;
+
+typedef struct {
   TypeMap* vars;
+  GlobalEnv* global;
 } Env;
 
-static Env* init_Env() {
-  Env* env  = calloc(1, sizeof(Env));
-  env->vars = new_TypeMap(64);
+static GlobalEnv* init_GlobalEnv() {
+  GlobalEnv* env = calloc(1, sizeof(GlobalEnv));
+  env->names     = new_TypeMap(64);
+  return env;
+}
+
+static Env* init_Env(GlobalEnv* global) {
+  Env* env    = calloc(1, sizeof(Env));
+  env->vars   = new_TypeMap(64);
+  env->global = global;
   return env;
 }
 
@@ -20,14 +32,25 @@ static void release_Env(Env* env) {
   free(env);
 }
 
+static void release_GlobalEnv(GlobalEnv* env) {
+  release_TypeMap(env->names);
+  free(env);
+}
+
 static void add_var(Env* env, const char* name, Type* ty) {
   insert_TypeMap(env->vars, name, ty);
+}
+
+static void add_global(GlobalEnv* env, const char* name, Type* ty) {
+  insert_TypeMap(env->names, name, ty);
 }
 
 static Type* get_var(Env* env, const char* name) {
   Type* ty;
   if (!lookup_TypeMap(env->vars, name, &ty)) {
-    error("undeclared identifier \"%s\"", name);
+    if (!lookup_TypeMap(env->global->names, name, &ty)) {
+      error("undeclared identifier \"%s\"", name);
+    }
   }
   return ty;
 }
@@ -209,9 +232,19 @@ static void sema_items(Env* env, BlockItemList* l);
 
 static void sema_stmt(Env* env, Statement* stmt) {
   switch (stmt->kind) {
-    case ST_COMPOUND:
+    case ST_COMPOUND: {
+      // block
+      TypeMap* save = env->vars;
+      TypeMap* inst = copy_TypeMap(env->vars);
+
+      env->vars = inst;
       sema_items(env, stmt->items);
+      env->vars = save;
+
+      // TODO: shallow release
+      /* release_TypeMap(inst); */
       break;
+    }
     case ST_EXPRESSION:
     case ST_RETURN:
       sema_expr(env, stmt->expr);
@@ -265,12 +298,14 @@ void sema_items(Env* env, BlockItemList* l) {
   sema_items(env, tail_BlockItemList(l));
 }
 
-static void sema_functions(Env* env, TranslationUnit* l) {
+static void sema_functions(GlobalEnv* global, TranslationUnit* l) {
   if (is_nil_TranslationUnit(l)) {
     return;
   }
 
-  FunctionDef* f  = head_TranslationUnit(l);
+  FunctionDef* f = head_TranslationUnit(l);
+  Env* env       = init_Env(global);
+
   Type* ret       = ptrify(int_ty(), f->decl->num_ptrs);
   TypeVec* params = new_TypeVec(2);
   ParamList* cur  = f->params;
@@ -281,14 +316,16 @@ static void sema_functions(Env* env, TranslationUnit* l) {
     add_var(env, d->name, copy_Type(t));
     cur = tail_ParamList(cur);
   }
-  add_var(env, f->decl->name, ptr_to_ty(func_ty(ret, params)));
+  add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
   sema_items(env, f->items);
 
-  sema_functions(env, tail_TranslationUnit(l));
+  release_Env(env);
+
+  sema_functions(global, tail_TranslationUnit(l));
 }
 
 void sema(AST* ast) {
-  Env* env = init_Env();
+  GlobalEnv* env = init_GlobalEnv();
   sema_functions(env, ast);
-  release_Env(env);
+  release_GlobalEnv(env);
 }

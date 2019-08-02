@@ -85,16 +85,21 @@ static void should_pointer(Type* ty) {
 static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
   switch (op) {
     case BINOP_ADD:
-      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
-        // TODO: is this correct in current situation
+      if (is_pointer_ty(lhs)) {
+        should_integer(rhs);
         return copy_Type(lhs);
       }
-      should_pointer(lhs);
-      should_integer(rhs);
+      if (is_pointer_ty(rhs)) {
+        should_integer(lhs);
+        return copy_Type(rhs);
+      }
+      should_arithmetic(lhs);
+      should_arithmetic(rhs);
+      // TODO: arithmetic conversion
       return copy_Type(lhs);
     case BINOP_SUB:
       if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
-        // TODO: is this correct in current situation
+        // TODO: arithmetic conversion
         return copy_Type(lhs);
       }
       if (is_pointer_ty(lhs) && is_pointer_ty(rhs)) {
@@ -109,7 +114,8 @@ static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
     case BINOP_DIV:
       should_arithmetic(lhs);
       should_arithmetic(rhs);
-      return int_ty();
+      // TODO: arithmetic conversion
+      return copy_Type(lhs);
     case BINOP_EQ:
     case BINOP_NE:
       if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {

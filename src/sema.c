@@ -43,7 +43,7 @@ static Type* ptrify(Type* base, unsigned num) {
 static noreturn void type_error(Type* expected, Type* got) {
   fputs("expected: ", stderr);
   print_Type(stderr, expected);
-  fputs("but got: ", stderr);
+  fputs(" but got: ", stderr);
   print_Type(stderr, got);
   fputs("\n", stderr);
   error("type mismatch");

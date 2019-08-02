@@ -11,6 +11,7 @@ typedef struct {
 
 typedef struct {
   TypeMap* vars;
+  Type* ret_ty;
   GlobalEnv* global;
 } Env;
 
@@ -20,10 +21,11 @@ static GlobalEnv* init_GlobalEnv() {
   return env;
 }
 
-static Env* init_Env(GlobalEnv* global) {
+static Env* init_Env(GlobalEnv* global, Type* ret) {
   Env* env    = calloc(1, sizeof(Env));
   env->vars   = new_TypeMap(64);
   env->global = global;
+  env->ret_ty = ret;
   return env;
 }
 
@@ -246,9 +248,13 @@ static void sema_stmt(Env* env, Statement* stmt) {
       break;
     }
     case ST_EXPRESSION:
-    case ST_RETURN:
       sema_expr(env, stmt->expr);
       break;
+    case ST_RETURN: {
+      Type* t = sema_expr(env, stmt->expr);
+      should_compatible(env->ret_ty, t);
+      break;
+    }
     case ST_IF:
       sema_expr(env, stmt->expr);
       sema_stmt(env, stmt->then_);
@@ -304,9 +310,9 @@ static void sema_functions(GlobalEnv* global, TranslationUnit* l) {
   }
 
   FunctionDef* f = head_TranslationUnit(l);
-  Env* env       = init_Env(global);
+  Type* ret      = ptrify(int_ty(), f->decl->num_ptrs);
+  Env* env       = init_Env(global, ret);
 
-  Type* ret       = ptrify(int_ty(), f->decl->num_ptrs);
   TypeVec* params = new_TypeVec(2);
   ParamList* cur  = f->params;
   while (!is_nil_ParamList(cur)) {

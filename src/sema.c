@@ -193,7 +193,11 @@ static Type* sema_expr(Env* env, Expr* expr) {
   return t;
 }
 
-static void sema_decl(Env* env, Declaration* decl);
+static void sema_decl(Env* env, Declaration* decl) {
+  Declarator* d = decl->declarator;
+  Type* ty      = ptrify(int_ty(), d->num_ptrs);
+  add_var(env, d->name, ty);
+}
 
 static void sema_items(Env* env, BlockItemList* l);
 

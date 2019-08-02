@@ -23,6 +23,26 @@ void release_Type(Type* ty) {
   free(ty);
 }
 
+Type* copy_Type(const Type* ty) {
+  Type* new = new_Type(ty->kind);
+  if (ty->ptr_to != NULL) {
+    new->ptr_to = copy_Type(ty->ptr_to);
+  }
+  if (ty->ret != NULL) {
+    new->ret = copy_Type(ty->ret);
+  }
+  if (ty->params != NULL) {
+    unsigned len = length_TypeVec(ty->params);
+    new->params  = new_TypeVec(len);
+    for (unsigned i = 0; i < len; i++) {
+      Type* t = get_TypeVec(ty->params, i);
+      push_TypeVec(new->params, copy_Type(t));
+    }
+  }
+
+  return new;
+}
+
 DEFINE_VECTOR(release_Type, Type*, TypeVec)
 DECLARE_VECTOR_PRINTER(TypeVec)
 

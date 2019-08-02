@@ -29,6 +29,7 @@ Type* new_Type(TypeKind);
 void release_Type(Type*);
 void print_Type(FILE*, Type*);
 bool equal_to_Type(const Type*, const Type*);
+Type* copy_Type(const Type*);
 
 Type* int_ty();
 Type* ptr_to_ty(Type*);

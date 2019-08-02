@@ -264,7 +264,18 @@ static void sema_functions(Env* env, TranslationUnit* l) {
     return;
   }
 
-  FunctionDef* f = head_TranslationUnit(l);
+  FunctionDef* f  = head_TranslationUnit(l);
+  Type* ret       = ptrify(int_ty(), f->decl->num_ptrs);
+  TypeVec* params = new_TypeVec(2);
+  ParamList* cur  = f->params;
+  while (!is_nil_ParamList(cur)) {
+    Declarator* d = head_ParamList(cur);
+    Type* t       = ptrify(int_ty(), d->num_ptrs);
+    push_TypeVec(params, t);
+    add_var(env, d->name, copy_Type(t));
+    cur = tail_ParamList(cur);
+  }
+  add_var(env, f->decl->name, ptr_to_ty(func_ty(ret, params)));
   sema_items(env, f->items);
 
   sema_functions(env, tail_TranslationUnit(l));

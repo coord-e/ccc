@@ -4,16 +4,25 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "vector.h"
+
 typedef enum {
   TY_INT,
   TY_PTR,
+  TY_FUNC,
 } TypeKind;
 
 typedef struct Type Type;
 
+DECLARE_VECTOR(Type*, TypeVec)
+
 struct Type {
   TypeKind kind;
   Type* ptr_to;
+
+  // for TY_FUNC
+  Type* ret;
+  TypeVec* params;
 };
 
 Type* new_Type(TypeKind);
@@ -23,5 +32,6 @@ bool equal_to_Type(const Type*, const Type*);
 
 Type* int_ty();
 Type* ptr_to_ty(Type*);
+Type* func_ty(Type*, TypeVec*);
 
 #endif

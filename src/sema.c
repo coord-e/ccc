@@ -49,9 +49,89 @@ static noreturn void type_error(Type* expected, Type* got) {
   error("type mismatch");
 }
 
-static void should_equal(Type* expected, Type* ty) {
-  if (!equal_to_Type(expected, ty)) {
+static void should_compatible(Type* expected, Type* ty) {
+  if (!is_compatible_ty(expected, ty)) {
     type_error(expected, ty);
+  }
+}
+
+static void should_arithmetic(Type* ty) {
+  if (!is_arithmetic_ty(ty)) {
+    fputs("arithmetic type is expected, but got ", stderr);
+    print_Type(stderr, ty);
+    fputs("\n", stderr);
+    error("type error");
+  }
+}
+
+static void should_integer(Type* ty) {
+  if (!is_integer_ty(ty)) {
+    fputs("integer type is expected, but got ", stderr);
+    print_Type(stderr, ty);
+    fputs("\n", stderr);
+    error("type error");
+  }
+}
+
+static void should_pointer(Type* ty) {
+  if (!is_pointer_ty(ty)) {
+    fputs("pointer is expected, but got ", stderr);
+    print_Type(stderr, ty);
+    fputs("\n", stderr);
+    error("type error");
+  }
+}
+
+static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
+  switch (op) {
+    case BINOP_ADD:
+      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
+        // TODO: is this correct in current situation
+        return copy_Type(lhs);
+      }
+      should_pointer(lhs);
+      should_integer(rhs);
+      return copy_Type(lhs);
+    case BINOP_SUB:
+      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
+        // TODO: is this correct in current situation
+        return copy_Type(lhs);
+      }
+      if (is_pointer_ty(lhs) && is_pointer_ty(rhs)) {
+        should_compatible(lhs->ptr_to, rhs->ptr_to);
+        // TODO: how to handle `ptrdiff_t`
+        return int_ty();
+      }
+      should_pointer(lhs);
+      should_integer(rhs);
+      return copy_Type(lhs);
+    case BINOP_MUL:
+    case BINOP_DIV:
+      should_arithmetic(lhs);
+      should_arithmetic(rhs);
+      return int_ty();
+    case BINOP_EQ:
+    case BINOP_NE:
+      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
+        return int_ty();
+      }
+      should_pointer(lhs);
+      should_pointer(rhs);
+      should_compatible(lhs->ptr_to, rhs->ptr_to);
+      return int_ty();
+    case BINOP_GT:
+    case BINOP_GE:
+    case BINOP_LT:
+    case BINOP_LE:
+      if (is_real_ty(lhs) && is_real_ty(rhs)) {
+        return int_ty();
+      }
+      should_pointer(lhs);
+      should_pointer(rhs);
+      should_compatible(lhs->ptr_to, rhs->ptr_to);
+      return int_ty();
+    default:
+      CCC_UNREACHABLE;
   }
 }
 
@@ -69,7 +149,7 @@ static Type* sema_expr(Env* env, Expr* expr) {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       Type* rhs_ty = sema_expr(env, expr->rhs);
       // TODO: type conversion
-      should_equal(lhs_ty, rhs_ty);
+      should_compatible(lhs_ty, rhs_ty);
       t = copy_Type(lhs_ty);
       break;
     }
@@ -100,9 +180,7 @@ static Type* sema_expr(Env* env, Expr* expr) {
         Type* a_ty = sema_expr(env, a);
         Type* p_ty = get_TypeVec(f->params, i);
 
-        if (!equal_to_Type(a_ty, p_ty)) {
-          type_error(a_ty, p_ty);
-        }
+        should_compatible(a_ty, p_ty);
       }
 
       t = copy_Type(f->ret);

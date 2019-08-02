@@ -35,4 +35,10 @@ Type* int_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 
+bool is_arithmetic_ty(const Type*);
+bool is_integer_ty(const Type*);
+bool is_real_ty(const Type*);
+bool is_compatible_ty(const Type*, const Type*);
+bool is_pointer_ty(const Type*);
+
 #endif

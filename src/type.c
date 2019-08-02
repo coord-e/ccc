@@ -117,3 +117,41 @@ Type* func_ty(Type* ret, TypeVec* params) {
   t->params = params;
   return t;
 }
+
+bool is_arithmetic_ty(const Type* ty) {
+  switch (ty->kind) {
+    case TY_INT:
+      return true;
+    case TY_PTR:
+      return false;
+    case TY_FUNC:
+      return false;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+bool is_integer_ty(const Type* ty) {
+  switch (ty->kind) {
+    case TY_INT:
+      return true;
+    case TY_PTR:
+      return false;
+    case TY_FUNC:
+      return false;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+bool is_real_ty(const Type* ty) {
+  return is_integer_ty(ty);
+}
+
+bool is_compatible_ty(const Type* t1, const Type* t2) {
+  return equal_to_Type(t1, t2);
+}
+
+bool is_pointer_ty(const Type* t) {
+  return t->kind == TY_PTR;
+}

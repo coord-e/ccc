@@ -5,6 +5,7 @@
 
 #include "binop.h"
 #include "list.h"
+#include "type.h"
 #include "vector.h"
 
 typedef enum {
@@ -27,6 +28,9 @@ struct Expr {
   char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
   ExprVec* args;    // for ND_CALL, owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 };
 
 typedef struct {
@@ -71,7 +75,7 @@ struct Statement {
   StmtKind kind;
   Expr* expr;  // for ST_EXPRESSION, ST_RETURN, ST_WHILE, ST_DO, and ST_IF, owned
 
-  Statement* body;  // for ST_WHILE, ST_DO
+  Statement* body;  // for ST_WHILE, ST_DO, ST_BODY
 
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF

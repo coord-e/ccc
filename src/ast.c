@@ -8,6 +8,7 @@ static void release_expr(Expr* e) {
 
   release_expr(e->lhs);
   release_expr(e->rhs);
+  release_expr(e->expr);
   free(e->var);
   release_ExprVec(e->args);
 
@@ -111,6 +112,13 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->lhs);
       fprintf(p, " ");
       print_expr(p, expr->rhs);
+      fprintf(p, ")");
+      return;
+    case ND_UNAOP:
+      fprintf(p, "(");
+      print_unaop(p, expr->unaop);
+      fprintf(p, " ");
+      print_expr(p, expr->expr);
       fprintf(p, ")");
       return;
     case ND_CALL:

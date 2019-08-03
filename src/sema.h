@@ -3,6 +3,7 @@
 
 #include "ast.h"
 
+// semantic analysis.
 void sema(AST*);
 
 #endif

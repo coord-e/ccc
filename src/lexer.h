@@ -9,6 +9,7 @@ typedef enum {
   TK_MINUS,
   TK_STAR,
   TK_SLASH,
+  TK_AND,
   TK_LPAREN,  // ()
   TK_RPAREN,
   TK_LBRACE,  // {}

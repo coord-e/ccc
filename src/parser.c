@@ -14,6 +14,7 @@ static Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->kind = kind;
   node->lhs  = lhs;
   node->rhs  = rhs;
+  node->expr = NULL;
   node->var  = NULL;
   node->args = NULL;
   return node;
@@ -34,6 +35,13 @@ static Expr* new_node_var(char* ident) {
 static Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs) {
   Expr* node  = new_node(ND_BINOP, lhs, rhs);
   node->binop = kind;
+  return node;
+}
+
+static Expr* new_node_unaop(UnaopKind kind, Expr* expr) {
+  Expr* node  = new_node(ND_UNAOP, NULL, NULL);
+  node->unaop = kind;
+  node->expr  = expr;
   return node;
 }
 
@@ -190,6 +198,12 @@ static Expr* unary(TokenList** t) {
       consume(t);
       // parse `-n` as `0 - n`
       return new_node_binop(BINOP_SUB, new_node_num(0), call(t));
+    case TK_STAR:
+      consume(t);
+      return new_node_unaop(UNAOP_DEREF, call(t));
+    case TK_AND:
+      consume(t);
+      return new_node_unaop(UNAOP_ADDR, call(t));
     default:
       return call(t);
   }

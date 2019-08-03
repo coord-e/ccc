@@ -23,9 +23,14 @@ DECLARE_VECTOR(Expr*, ExprVec)
 
 struct Expr {
   ExprKind kind;
-  Expr* lhs;        // for ND_BINOP and ND_ASSIGN, owned
-  Expr* rhs;        // ditto
+
+  Expr* lhs;  // for ND_BINOP and ND_ASSIGN, owned
+  Expr* rhs;  // ditto
+
+  Expr* expr;  // for ND_UNAOP, owned
+
   BinopKind binop;  // for ND_BINOP
+  UnaopKind unaop;  // for ND_UNAOP
   char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
   ExprVec* args;    // for ND_CALL, owned

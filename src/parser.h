@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 #include "ast.h"
-#include "binop.h"
 #include "lexer.h"
 
 // parse a list of tokens into AST.

@@ -1,4 +1,4 @@
-#include "binop.h"
+#include "ops.h"
 #include "error.h"
 
 void print_binop(FILE* p, BinopKind kind) {
@@ -32,6 +32,19 @@ void print_binop(FILE* p, BinopKind kind) {
       return;
     case BINOP_LE:
       fprintf(p, "<=");
+      return;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+void print_unaop(FILE* p, UnaopKind kind) {
+  switch (kind) {
+    case UNAOP_ADDR:
+      fprintf(p, "&");
+      return;
+    case UNAOP_DEREF:
+      fprintf(p, "*");
       return;
     default:
       CCC_UNREACHABLE;

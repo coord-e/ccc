@@ -4,10 +4,10 @@
 #include <stdio.h>
 
 #include "ast.h"
-#include "binop.h"
 #include "bit_set.h"
 #include "lexer.h"
 #include "list.h"
+#include "ops.h"
 #include "vector.h"
 
 typedef enum {

@@ -3,13 +3,14 @@
 
 #include <stdio.h>
 
-#include "binop.h"
 #include "list.h"
+#include "ops.h"
 #include "type.h"
 #include "vector.h"
 
 typedef enum {
   ND_BINOP,
+  ND_UNAOP,
   ND_ASSIGN,
   ND_VAR,
   ND_NUM,

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "error.h"
+#include "ops.h"
 #include "parser.h"
 #include "util.h"
 

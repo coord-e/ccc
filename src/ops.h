@@ -1,5 +1,5 @@
-#ifndef CCC_BINOP_H
-#define CCC_BINOP_H
+#ifndef CCC_OPS_H
+#define CCC_OPS_H
 
 #include <stdio.h>
 
@@ -17,5 +17,12 @@ typedef enum {
 } BinopKind;
 
 void print_binop(FILE*, BinopKind);
+
+typedef enum {
+  UNAOP_ADDR,
+  UNAOP_DEREF,
+} UnaopKind;
+
+void print_unaop(FILE*, UnaopKind);
 
 #endif

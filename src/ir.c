@@ -588,8 +588,18 @@ static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, Tra
     return acc;
   }
 
-  Function* f = gen_function(genv, head_TranslationUnit(l));
-  return gen_TranslationUnit(genv, cons_FunctionList(f, acc), tail_TranslationUnit(l));
+  ExternalDecl* d       = head_TranslationUnit(l);
+  TranslationUnit* tail = tail_TranslationUnit(l);
+  switch (d->kind) {
+    case EX_FUNC: {
+      Function* f = gen_function(genv, d->func);
+      return gen_TranslationUnit(genv, cons_FunctionList(f, acc), tail);
+    }
+    case EX_FUNC_DECL:
+      return gen_TranslationUnit(genv, acc, tail);
+    default:
+      CCC_UNREACHABLE;
+  }
 }
 
 IR* generate_IR(AST* ast) {

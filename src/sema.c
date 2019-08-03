@@ -304,34 +304,57 @@ void sema_items(Env* env, BlockItemList* l) {
   sema_items(env, tail_BlockItemList(l));
 }
 
-static void sema_functions(GlobalEnv* global, TranslationUnit* l) {
-  if (is_nil_TranslationUnit(l)) {
-    return;
-  }
-
-  FunctionDef* f = head_TranslationUnit(l);
-  Type* ret      = ptrify(int_ty(), f->decl->num_ptrs);
-  Env* env       = init_Env(global, ret);
-
+static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
-  ParamList* cur  = f->params;
   while (!is_nil_ParamList(cur)) {
     Declarator* d = head_ParamList(cur);
     Type* t       = ptrify(int_ty(), d->num_ptrs);
     push_TypeVec(params, t);
-    add_var(env, d->name, copy_Type(t));
+    if (env != NULL) {
+      add_var(env, d->name, copy_Type(t));
+    }
     cur = tail_ParamList(cur);
   }
+  return params;
+}
+
+static void sema_function(GlobalEnv* global, FunctionDef* f) {
+  Type* ret = ptrify(int_ty(), f->decl->num_ptrs);
+
+  Env* env        = init_Env(global, ret);
+  TypeVec* params = param_types(env, f->params);
+
   add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
   sema_items(env, f->items);
 
   release_Env(env);
+}
 
-  sema_functions(global, tail_TranslationUnit(l));
+static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
+  if (is_nil_TranslationUnit(l)) {
+    return;
+  }
+
+  ExternalDecl* d = head_TranslationUnit(l);
+  switch (d->kind) {
+    case EX_FUNC:
+      sema_function(global, d->func);
+      break;
+    case EX_FUNC_DECL: {
+      FunctionDecl* f = d->func_decl;
+      Type* ret       = ptrify(int_ty(), f->decl->num_ptrs);
+      TypeVec* params = param_types(NULL, f->params);
+      add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+  sema_translation_unit(global, tail_TranslationUnit(l));
 }
 
 void sema(AST* ast) {
   GlobalEnv* env = init_GlobalEnv();
-  sema_functions(env, ast);
+  sema_translation_unit(env, ast);
   release_GlobalEnv(env);
 }

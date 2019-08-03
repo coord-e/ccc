@@ -207,17 +207,17 @@ static Reg new_imm(Env* env, int num) {
   return r;
 }
 
-static Reg new_load(Env* env, unsigned s) {
+static Reg new_stack_load(Env* env, unsigned s) {
   Reg r        = new_reg(env);
-  IRInst* i    = new_inst_(env, IR_LOAD);
+  IRInst* i    = new_inst_(env, IR_STACK_LOAD);
   i->stack_idx = s;
   i->rd        = r;
   add_inst(env, i);
   return r;
 }
 
-static Reg new_store(Env* env, unsigned s, Reg r) {
-  IRInst* i    = new_inst_(env, IR_STORE);
+static Reg new_stack_store(Env* env, unsigned s, Reg r) {
+  IRInst* i    = new_inst_(env, IR_STACK_STORE);
   i->stack_idx = s;
   push_RegVec(i->ras, r);
   add_inst(env, i);
@@ -338,13 +338,13 @@ static Reg gen_expr(Env* env, Expr* node) {
     case ND_ASSIGN: {
       unsigned addr = gen_lhs(env, node->lhs);
       Reg rhs       = gen_expr(env, node->rhs);
-      new_store(env, addr, rhs);
+      new_stack_store(env, addr, rhs);
       return rhs;
     }
     case ND_VAR: {
       unsigned i;
       if (get_var(env, node->var, &i)) {
-        return new_load(env, i);
+        return new_stack_load(env, i);
       } else {
         return new_global(env, node->var);
       }
@@ -551,7 +551,7 @@ static void gen_params(Env* env, unsigned nth, ParamList* l) {
   get_var(env, name, &addr);
 
   Reg rhs = nth_arg(env, nth);
-  new_store(env, addr, rhs);
+  new_stack_store(env, addr, rhs);
 
   gen_params(env, nth + 1, tail_ParamList(l));
 }
@@ -660,11 +660,20 @@ static void print_inst(FILE* p, IRInst* i) {
       print_binop(p, i->binop);
       fprintf(p, " ");
       break;
+    case IR_STACK_ADDR:
+      fprintf(p, "STACK_ADDR %d ", i->stack_idx);
+      break;
+    case IR_STACK_LOAD:
+      fprintf(p, "STACK_LOAD %d", i->stack_idx);
+      break;
+    case IR_STACK_STORE:
+      fprintf(p, "STACK_STORE %d ", i->stack_idx);
+      break;
     case IR_LOAD:
-      fprintf(p, "LOAD %d", i->stack_idx);
+      fprintf(p, "LOAD ");
       break;
     case IR_STORE:
-      fprintf(p, "STORE %d ", i->stack_idx);
+      fprintf(p, "STORE ");
       break;
     case IR_BR:
       fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);

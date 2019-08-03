@@ -117,10 +117,10 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
     case IR_BIN:
       codegen_binop(p, h);
       break;
-    case IR_LOAD:
+    case IR_STACK_LOAD:
       emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
       break;
-    case IR_STORE:
+    case IR_STACK_STORE:
       emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
       break;
     case IR_LABEL:

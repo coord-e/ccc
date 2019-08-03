@@ -15,6 +15,9 @@ typedef enum {
   IR_IMM,
   IR_ARG,
   IR_RET,
+  IR_STACK_ADDR,
+  IR_STACK_STORE,
+  IR_STACK_LOAD,
   IR_STORE,
   IR_LOAD,
   IR_MOV,
@@ -51,7 +54,7 @@ typedef struct IRInst {
 
   BinopKind binop;        // for IR_BIN
   int imm;                // for IR_IMM
-  unsigned stack_idx;     // for IR_STORE, IR_LOAD
+  unsigned stack_idx;     // for IR_STACK_*
   unsigned argument_idx;  // for IR_ARG
 
   char* global_name;  // for IR_GLOBAL, owned

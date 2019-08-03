@@ -232,7 +232,7 @@ static bool assign_reg(Env* env, Reg* r) {
 static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
   IRInstList* l = *lref;
 
-  IRInst* inst    = new_inst_(env, IR_LOAD);
+  IRInst* inst    = new_inst_(env, IR_STACK_LOAD);
   inst->rd        = r;
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
   insert_IRInstList(inst, l);
@@ -243,7 +243,7 @@ static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
 }
 
 static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
-  IRInst* inst = new_inst_(env, IR_STORE);
+  IRInst* inst = new_inst_(env, IR_STACK_STORE);
   push_RegVec(inst->ras, r);
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
 

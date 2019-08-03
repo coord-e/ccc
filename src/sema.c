@@ -166,6 +166,18 @@ static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
   }
 }
 
+static Type* sema_unaop(UnaopKind op, Type* opr) {
+  switch (op) {
+    case UNAOP_ADDR:
+      return ptr_to_ty(copy_Type(opr));
+    case UNAOP_DEREF:
+      should_pointer(opr);
+      return copy_Type(opr->ptr_to);
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 // returned `Type*` is reference to a data is owned by `expr`
 static Type* sema_expr(Env* env, Expr* expr) {
   Type* t;
@@ -174,6 +186,11 @@ static Type* sema_expr(Env* env, Expr* expr) {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       Type* rhs_ty = sema_expr(env, expr->rhs);
       t            = sema_binop(expr->binop, lhs_ty, rhs_ty);
+      break;
+    }
+    case ND_UNAOP: {
+      Type* opr_ty = sema_expr(env, expr->expr);
+      t            = sema_unaop(expr->unaop, opr_ty);
       break;
     }
     case ND_ASSIGN: {

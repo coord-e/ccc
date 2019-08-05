@@ -107,6 +107,15 @@ static void should_pointer(Type* ty) {
   }
 }
 
+static void should_scalar(Type* ty) {
+  if (!is_scalar_ty(ty)) {
+    fputs("scalar type is expected, but got ", stderr);
+    print_Type(stderr, ty);
+    fputs("\n", stderr);
+    error("type error");
+  }
+}
+
 static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
   switch (op) {
     case BINOP_ADD:
@@ -182,6 +191,13 @@ static Type* sema_unaop(UnaopKind op, Type* opr) {
 static Type* sema_expr(Env* env, Expr* expr) {
   Type* t;
   switch (expr->kind) {
+    case ND_CAST: {
+      Type* ty = sema_expr(env, expr->expr);
+      // TODO: Check floating type
+      // TODO: arithmetic conversions
+      should_scalar(ty);
+      t = copy_Type(expr->cast_to);
+    }
     case ND_BINOP: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       Type* rhs_ty = sema_expr(env, expr->rhs);

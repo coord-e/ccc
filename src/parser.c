@@ -10,13 +10,15 @@
 
 // utilities to build AST
 static Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
-  Expr* node = calloc(1, sizeof(Expr));
-  node->kind = kind;
-  node->lhs  = lhs;
-  node->rhs  = rhs;
-  node->expr = NULL;
-  node->var  = NULL;
-  node->args = NULL;
+  Expr* node    = calloc(1, sizeof(Expr));
+  node->kind    = kind;
+  node->lhs     = lhs;
+  node->rhs     = rhs;
+  node->expr    = NULL;
+  node->var     = NULL;
+  node->args    = NULL;
+  node->cast_to = NULL;
+  node->type    = NULL;
   return node;
 }
 

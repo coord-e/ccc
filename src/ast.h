@@ -15,6 +15,7 @@ typedef enum {
   ND_VAR,
   ND_NUM,
   ND_CALL,
+  ND_CAST,
 } ExprKind;
 
 typedef struct Expr Expr;
@@ -27,7 +28,9 @@ struct Expr {
   Expr* lhs;  // for ND_BINOP and ND_ASSIGN, owned
   Expr* rhs;  // ditto
 
-  Expr* expr;  // for ND_UNAOP, owned
+  Expr* expr;  // for ND_UNAOP and ND_CAST, owned
+
+  Type* cast_to;  // for ND_CAST, owned
 
   BinopKind binop;  // for ND_BINOP
   UnaopKind unaop;  // for ND_UNAOP

@@ -11,6 +11,7 @@ static void release_expr(Expr* e) {
   release_expr(e->expr);
   free(e->var);
   release_ExprVec(e->args);
+  release_Type(e->cast_to);
 
   free(e);
 }
@@ -126,6 +127,12 @@ static void print_expr(FILE* p, Expr* expr) {
       fprintf(p, "(");
       print_ExprVec(p, expr->args);
       fprintf(p, ")");
+      return;
+    case ND_CAST:
+      fprintf(p, "(");
+      print_Type(p, expr->cast_to);
+      fprintf(p, ")");
+      print_expr(p, expr->expr);
       return;
     default:
       CCC_UNREACHABLE;

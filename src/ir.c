@@ -373,6 +373,8 @@ static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
 
 Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
+    case ND_CAST:
+      return gen_expr(env, node->expr);
     case ND_NUM:
       return new_imm(env, node->num);
     case ND_BINOP: {

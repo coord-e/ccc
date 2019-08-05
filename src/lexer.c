@@ -115,6 +115,14 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_RBRACE, cur);
         p++;
         continue;
+      case '[':
+        cur = add_token(TK_LBRACKET, cur);
+        p++;
+        continue;
+      case ']':
+        cur = add_token(TK_RBRACKET, cur);
+        p++;
+        continue;
       case ';':
         cur = add_token(TK_SEMICOLON, cur);
         p++;

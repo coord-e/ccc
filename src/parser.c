@@ -219,17 +219,32 @@ static Expr* expr(TokenList** t) {
 }
 
 static Declarator* try_declarator(TokenList** t) {
-  Declarator* d = new_Declarator(DE_IDENT, 0);
+  unsigned num_ptrs = 0;
   while (head_of(t) == TK_STAR) {
     consume(t);
-    d->num_ptrs++;
+    num_ptrs++;
   }
 
   if (head_of(t) != TK_IDENT) {
     return NULL;
   }
 
-  d->name = strdup(expect(t, TK_IDENT).ident);
+  Declarator* base = new_Declarator(DE_DIRECT);
+  base->num_ptrs   = num_ptrs;
+  base->name       = strdup(expect(t, TK_IDENT).ident);
+
+  Declarator* d = base;
+
+  while (head_of(t) == TK_LBRACKET) {
+    consume(t);
+    Declarator* ary = new_Declarator(DE_ARRAY);
+    ary->decl       = d;
+    ary->length     = assign(t);
+    expect(t, TK_RBRACKET);
+
+    d = ary;
+  }
+
   return d;
 }
 

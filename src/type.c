@@ -4,11 +4,13 @@
 #include <stdlib.h>
 
 Type* new_Type(TypeKind kind) {
-  Type* ty   = calloc(1, sizeof(Type));
-  ty->kind   = kind;
-  ty->ptr_to = NULL;
-  ty->ret    = NULL;
-  ty->params = NULL;
+  Type* ty    = calloc(1, sizeof(Type));
+  ty->kind    = kind;
+  ty->ptr_to  = NULL;
+  ty->ret     = NULL;
+  ty->params  = NULL;
+  ty->element = NULL;
+  ty->length  = 0;
   return ty;
 }
 
@@ -20,6 +22,7 @@ void release_Type(Type* ty) {
   release_Type(ty->ptr_to);
   release_Type(ty->ret);
   release_TypeVec(ty->params);
+  release_Type(ty->element);
   free(ty);
 }
 
@@ -39,6 +42,10 @@ Type* copy_Type(const Type* ty) {
       push_TypeVec(new->params, copy_Type(t));
     }
   }
+  if (ty->element != NULL) {
+    new->element = copy_Type(ty->element);
+  }
+  new->length = ty->length;
 
   return new;
 }
@@ -60,6 +67,10 @@ void print_Type(FILE* p, Type* ty) {
       print_TypeVec(p, ty->params);
       fprintf(p, ") ");
       print_Type(p, ty->ret);
+      break;
+    case TY_ARRAY:
+      print_Type(p, ty->element);
+      fprintf(p, "[%d]", ty->length);
       break;
     default:
       CCC_UNREACHABLE;
@@ -96,6 +107,11 @@ bool equal_to_Type(const Type* a, const Type* b) {
       }
 
       return true;
+    case TY_ARRAY:
+      if (a->length != b->length) {
+        return false;
+      }
+      return equal_to_Type(a->element, b->element);
     default:
       CCC_UNREACHABLE;
   }
@@ -118,6 +134,13 @@ Type* func_ty(Type* ret, TypeVec* params) {
   return t;
 }
 
+Type* array_ty(Type* element, unsigned length) {
+  Type* t    = new_Type(TY_ARRAY);
+  t->element = element;
+  t->length  = length;
+  return t;
+}
+
 bool is_arithmetic_ty(const Type* ty) {
   switch (ty->kind) {
     case TY_INT:
@@ -125,6 +148,8 @@ bool is_arithmetic_ty(const Type* ty) {
     case TY_PTR:
       return false;
     case TY_FUNC:
+      return false;
+    case TY_ARRAY:
       return false;
     default:
       CCC_UNREACHABLE;
@@ -138,6 +163,8 @@ bool is_integer_ty(const Type* ty) {
     case TY_PTR:
       return false;
     case TY_FUNC:
+      return false;
+    case TY_ARRAY:
       return false;
     default:
       CCC_UNREACHABLE;
@@ -168,6 +195,8 @@ unsigned sizeof_ty(const Type* t) {
       return 8;
     case TY_FUNC:
       error("attempt to obtain the size of function type");
+    case TY_ARRAY:
+      return t->length;
     default:
       CCC_UNREACHABLE;
   }

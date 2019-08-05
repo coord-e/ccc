@@ -10,6 +10,7 @@ typedef enum {
   TY_INT,
   TY_PTR,
   TY_FUNC,
+  TY_ARRAY,
 } TypeKind;
 
 typedef struct Type Type;
@@ -23,6 +24,10 @@ struct Type {
   // for TY_FUNC
   Type* ret;
   TypeVec* params;
+
+  // for TY_ARRAY
+  Type* element;
+  unsigned length;
 };
 
 Type* new_Type(TypeKind);
@@ -34,6 +39,7 @@ Type* copy_Type(const Type*);
 Type* int_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
+Type* array_ty(Type*, unsigned);
 
 bool is_arithmetic_ty(const Type*);
 bool is_integer_ty(const Type*);

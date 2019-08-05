@@ -25,7 +25,7 @@ typedef enum {
   IR_JUMP,  // unconditional branch
   IR_LABEL,
   IR_CALL,
-  IR_GLOBAL,
+  IR_GLOBAL_ADDR,
 } IRInstKind;
 
 typedef enum {

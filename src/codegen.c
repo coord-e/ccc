@@ -149,7 +149,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       id_label_name(p, h->then_->global_id);
       fprintf(p, "\n");
       break;
-    case IR_GLOBAL:
+    case IR_GLOBAL_ADDR:
       emit(p, "lea %s, %s@PLT[rip]", reg_of(h->rd), h->global_name);
       break;
     case IR_CALL:

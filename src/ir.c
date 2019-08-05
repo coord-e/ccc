@@ -329,7 +329,7 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicB
 
 static Reg new_global(Env* env, const char* name) {
   Reg r             = new_reg(env);
-  IRInst* inst      = new_inst_(env, IR_GLOBAL);
+  IRInst* inst      = new_inst_(env, IR_GLOBAL_ADDR);
   inst->rd          = r;
   inst->global_name = strdup(name);
   add_inst(env, inst);
@@ -709,7 +709,7 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_LABEL:
       fprintf(p, "LABEL %d", i->label->local_id);
       break;
-    case IR_GLOBAL:
+    case IR_GLOBAL_ADDR:
       fprintf(p, "GLOBAL %s", i->global_name);
       break;
     default:

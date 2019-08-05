@@ -42,15 +42,26 @@ struct Expr {
   Type* type;  // owned
 };
 
+Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs);
+Expr* new_node_num(int num);
+Expr* new_node_var(char* ident);
+Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
+Expr* new_node_unaop(UnaopKind kind, Expr* expr);
+Expr* new_node_assign(Expr* lhs, Expr* rhs);
+
 typedef struct {
   unsigned num_ptrs;
   char* name;  // owned
 } Declarator;
 
+Declarator* new_Declarator();
+
 typedef struct {
   // TODO: Add declaration specifiers
   Declarator* declarator;  // owned
 } Declaration;
+
+Declaration* new_declaration(Declarator* s);
 
 typedef struct Statement Statement;
 
@@ -64,6 +75,8 @@ typedef struct {
   Statement* stmt;    // for BI_STMT, owned
   Declaration* decl;  // for BI_DECL, owned
 } BlockItem;
+
+BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl);
 
 DECLARE_LIST(BlockItem*, BlockItemList)
 
@@ -96,6 +109,8 @@ struct Statement {
   BlockItemList* items;  // for ST_COMPOUND
 };
 
+Statement* new_statement(StmtKind kind, Expr* expr);
+
 DECLARE_LIST(Declarator*, ParamList)
 
 typedef struct {
@@ -105,12 +120,16 @@ typedef struct {
   BlockItemList* items;  // owned
 } FunctionDef;
 
+FunctionDef* new_function_def();
+
 // Separate function declaration and other declarations to simplify implementation,
 // while function declaration is expressed as a normal declaration in C spec.
 typedef struct {
   Declarator* decl;   // owned
   ParamList* params;  // owned
 } FunctionDecl;
+
+FunctionDecl* new_function_decl();
 
 typedef enum {
   EX_FUNC,
@@ -122,6 +141,8 @@ typedef struct {
   FunctionDef* func;        // for EX_FUNC, owned
   FunctionDecl* func_decl;  // for EX_FUNC_DECL, owned
 } ExternalDecl;
+
+ExternalDecl* new_external_decl(ExtDeclKind kind);
 
 DECLARE_LIST(ExternalDecl*, TranslationUnit)
 

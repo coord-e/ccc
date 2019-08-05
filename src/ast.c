@@ -274,3 +274,97 @@ void print_statement(FILE* p, Statement* d) {
 void print_AST(FILE* p, AST* ast) {
   print_TranslationUnit(p, ast);
 }
+
+// constructors
+Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
+  Expr* node    = calloc(1, sizeof(Expr));
+  node->kind    = kind;
+  node->lhs     = lhs;
+  node->rhs     = rhs;
+  node->expr    = NULL;
+  node->var     = NULL;
+  node->args    = NULL;
+  node->cast_to = NULL;
+  node->type    = NULL;
+  return node;
+}
+
+Expr* new_node_num(int num) {
+  Expr* node = new_node(ND_NUM, NULL, NULL);
+  node->num  = num;
+  return node;
+}
+
+Expr* new_node_var(char* ident) {
+  Expr* node = new_node(ND_VAR, NULL, NULL);
+  node->var  = strdup(ident);
+  return node;
+}
+
+Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs) {
+  Expr* node  = new_node(ND_BINOP, lhs, rhs);
+  node->binop = kind;
+  return node;
+}
+
+Expr* new_node_unaop(UnaopKind kind, Expr* expr) {
+  Expr* node  = new_node(ND_UNAOP, NULL, NULL);
+  node->unaop = kind;
+  node->expr  = expr;
+  return node;
+}
+
+Expr* new_node_assign(Expr* lhs, Expr* rhs) {
+  return new_node(ND_ASSIGN, lhs, rhs);
+}
+
+Declarator* new_Declarator() {
+  Declarator* d = calloc(1, sizeof(Declarator));
+  d->name       = NULL;
+  d->num_ptrs   = 0;
+  return d;
+}
+
+Declaration* new_declaration(Declarator* s) {
+  Declaration* d = calloc(1, sizeof(Declaration));
+  d->declarator  = s;
+  return d;
+}
+
+Statement* new_statement(StmtKind kind, Expr* expr) {
+  Statement* s = calloc(1, sizeof(Statement));
+  s->kind      = kind;
+  s->expr      = expr;
+  return s;
+}
+
+BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl) {
+  BlockItem* item = calloc(1, sizeof(BlockItem));
+  item->kind      = kind;
+  item->stmt      = stmt;
+  item->decl      = decl;
+  return item;
+}
+
+FunctionDef* new_function_def() {
+  FunctionDef* def = calloc(1, sizeof(FunctionDef));
+  def->decl        = NULL;
+  def->params      = NULL;
+  def->items       = NULL;
+  return def;
+}
+
+FunctionDecl* new_function_decl() {
+  FunctionDecl* decl = calloc(1, sizeof(FunctionDecl));
+  decl->decl         = NULL;
+  decl->params       = NULL;
+  return decl;
+}
+
+ExternalDecl* new_external_decl(ExtDeclKind kind) {
+  ExternalDecl* edecl = calloc(1, sizeof(ExternalDecl));
+  edecl->kind         = kind;
+  edecl->func         = NULL;
+  edecl->func_decl    = NULL;
+  return edecl;
+}

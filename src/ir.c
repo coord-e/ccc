@@ -361,7 +361,7 @@ static Reg gen_lhs(Env* env, Expr* node) {
 static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
   switch (op) {
     case UNAOP_ADDR:
-      return gen_lhs(env, opr);
+      return gen_lhs(env, opr->expr);
     case UNAOP_DEREF: {
       Reg r = gen_expr(env, opr->expr);
       return new_load(env, r);

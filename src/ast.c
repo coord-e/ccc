@@ -26,6 +26,8 @@ static void release_Declarator(Declarator* d) {
   }
 
   free(d->name);
+  release_Declarator(d->decl);
+  release_expr(d->length);
   free(d);
 }
 
@@ -143,10 +145,22 @@ static void print_expr(FILE* p, Expr* expr) {
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
 static void print_Declarator(FILE* p, Declarator* d) {
-  for (unsigned i = 0; i < d->num_ptrs; i++) {
-    fprintf(p, "*");
+  switch (d->kind) {
+    case DE_DIRECT:
+      for (unsigned i = 0; i < d->num_ptrs; i++) {
+        fprintf(p, "*");
+      }
+      fprintf(p, "%s", d->name);
+      break;
+    case DE_ARRAY:
+      print_Declarator(p, d->decl);
+      fputs("[", p);
+      print_expr(p, d->length);
+      fputs("]", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
   }
-  fprintf(p, "%s", d->name);
 }
 
 static void print_declaration(FILE* p, Declaration* d) {
@@ -326,10 +340,13 @@ Expr* new_node_cast(Type* ty, Expr* opr) {
   return node;
 }
 
-Declarator* new_Declarator() {
+Declarator* new_Declarator(DeclaratorKind kind) {
   Declarator* d = calloc(1, sizeof(Declarator));
-  d->name       = NULL;
+  d->kind       = kind;
   d->num_ptrs   = 0;
+  d->name       = NULL;
+  d->decl       = NULL;
+  d->length     = NULL;
   return d;
 }
 

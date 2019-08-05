@@ -219,7 +219,7 @@ static Expr* expr(TokenList** t) {
 }
 
 static Declarator* try_declarator(TokenList** t) {
-  Declarator* d = new_Declarator();
+  Declarator* d = new_Declarator(DE_IDENT, 0);
   while (head_of(t) == TK_STAR) {
     consume(t);
     d->num_ptrs++;

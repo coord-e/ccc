@@ -50,12 +50,24 @@ Expr* new_node_unaop(UnaopKind kind, Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_cast(Type* ty, Expr* opr);
 
-typedef struct {
-  unsigned num_ptrs;
-  char* name;  // owned
-} Declarator;
+typedef enum {
+  DE_DIRECT,
+  DE_ARRAY,
+} DeclaratorKind;
 
-Declarator* new_Declarator();
+typedef struct Declarator Declarator;
+
+struct Declarator {
+  DeclaratorKind kind;
+
+  char* name;         // for DE_DIRECT, owned
+  unsigned num_ptrs;  // for DE_DIRECT
+
+  Declarator* decl;  // for DE_ARRAY, owned
+  Expr* length;      // for DE_ARRAY, owned
+};
+
+Declarator* new_Declarator(DeclaratorKind);
 
 typedef struct {
   // TODO: Add declaration specifiers

@@ -318,6 +318,13 @@ Expr* new_node_assign(Expr* lhs, Expr* rhs) {
   return new_node(ND_ASSIGN, lhs, rhs);
 }
 
+Expr* new_node_cast(Type* ty, Expr* opr) {
+  Expr* node    = new_node(ND_CAST, NULL, NULL);
+  node->cast_to = ty;
+  node->expr    = opr;
+  return node;
+}
+
 Declarator* new_Declarator() {
   Declarator* d = calloc(1, sizeof(Declarator));
   d->name       = NULL;

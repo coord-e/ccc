@@ -149,15 +149,29 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   return new_node_binop(BINOP_DIV, new_expr, new_node_num(sizeof_ty(opr1->type->ptr_to)));
 }
 
-static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
+static Type* sema_expr(Env* env, Expr* expr);
+
+static Type* sema_binop(Env* env, Expr* expr) {
+  BinopKind op = expr->binop;
+  Type* lhs    = sema_expr(env, expr->lhs);
+  Type* rhs    = sema_expr(env, expr->rhs);
+
   switch (op) {
     case BINOP_ADD:
       if (is_pointer_ty(lhs)) {
         should_integer(rhs);
+
+        // TODO: shallow release of rhs of this assignment
+        *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
+
         return copy_Type(lhs);
       }
       if (is_pointer_ty(rhs)) {
         should_integer(lhs);
+
+        // TODO: shallow release of rhs of this assignment
+        *expr = *build_pointer_arith(op, expr->rhs, expr->lhs);
+
         return copy_Type(rhs);
       }
       should_arithmetic(lhs);
@@ -171,11 +185,19 @@ static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
       }
       if (is_pointer_ty(lhs) && is_pointer_ty(rhs)) {
         should_compatible(lhs->ptr_to, rhs->ptr_to);
+
+        // TODO: shallow release of rhs of this assignment
+        *expr = *build_pointer_diff(expr->lhs, expr->rhs);
+
         // TODO: how to handle `ptrdiff_t`
         return int_ty();
       }
       should_pointer(lhs);
       should_integer(rhs);
+
+      // TODO: shallow release of rhs of this assignment
+      *expr = *build_pointer_arith(op, expr->rhs, expr->lhs);
+
       return copy_Type(lhs);
     case BINOP_MUL:
     case BINOP_DIV:
@@ -221,7 +243,7 @@ static Type* sema_unaop(UnaopKind op, Type* opr) {
 }
 
 // returned `Type*` is reference to a data is owned by `expr`
-static Type* sema_expr(Env* env, Expr* expr) {
+Type* sema_expr(Env* env, Expr* expr) {
   Type* t;
   switch (expr->kind) {
     case ND_CAST: {
@@ -232,9 +254,7 @@ static Type* sema_expr(Env* env, Expr* expr) {
       t = copy_Type(expr->cast_to);
     }
     case ND_BINOP: {
-      Type* lhs_ty = sema_expr(env, expr->lhs);
-      Type* rhs_ty = sema_expr(env, expr->rhs);
-      t            = sema_binop(expr->binop, lhs_ty, rhs_ty);
+      t = sema_binop(env, expr);
       break;
     }
     case ND_UNAOP: {

@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "util.h"
 
 // release functions
 static void release_expr(Expr* e) {

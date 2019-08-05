@@ -351,7 +351,22 @@ static Reg gen_lhs(Env* env, Expr* node) {
   }
 }
 
-static Reg gen_expr(Env* env, Expr* node) {
+static Reg gen_expr(Env* env, Expr* node);
+
+static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
+  switch (op) {
+    case UNAOP_ADDR:
+      return gen_lhs(env, opr);
+    case UNAOP_DEREF: {
+      Reg r = gen_expr(env, opr->expr);
+      return new_load(env, r);
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_NUM:
       return new_imm(env, node->num);
@@ -360,6 +375,8 @@ static Reg gen_expr(Env* env, Expr* node) {
       Reg rhs = gen_expr(env, node->rhs);
       return new_binop(env, node->binop, lhs, rhs);
     }
+    case ND_UNAOP:
+      return gen_unaop(env, node->unaop, node);
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);

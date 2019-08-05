@@ -336,6 +336,8 @@ static Reg new_global(Env* env, const char* name) {
   return r;
 }
 
+static Reg gen_expr(Env* env, Expr* node);
+
 static Reg gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_VAR: {
@@ -346,12 +348,15 @@ static Reg gen_lhs(Env* env, Expr* node) {
         error("undeclared name \"%s\"", node->var);
       }
     }
+    case ND_UNAOP:
+      if (node->unaop == UNAOP_DEREF) {
+        return gen_expr(env, node->expr);
+      }
+      // fallthrough
     default:
       error("invaild lhs");
   }
 }
-
-static Reg gen_expr(Env* env, Expr* node);
 
 static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
   switch (op) {

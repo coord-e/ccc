@@ -224,6 +224,31 @@ static Reg new_stack_store(Env* env, unsigned s, Reg r) {
   return r;
 }
 
+static Reg new_stack_addr(Env* env, unsigned s) {
+  Reg r        = new_reg(env);
+  IRInst* i    = new_inst_(env, IR_STACK_ADDR);
+  i->stack_idx = s;
+  i->rd        = r;
+  add_inst(env, i);
+  return r;
+}
+
+static Reg new_load(Env* env, Reg s) {
+  Reg r     = new_reg(env);
+  IRInst* i = new_inst_(env, IR_LOAD);
+  push_RegVec(i->ras, s);
+  i->rd = r;
+  add_inst(env, i);
+  return r;
+}
+
+static void new_store(Env* env, Reg s, Reg r) {
+  IRInst* i = new_inst_(env, IR_STORE);
+  push_RegVec(i->ras, s);
+  push_RegVec(i->ras, r);
+  add_inst(env, i);
+}
+
 static Reg nth_arg(Env* env, unsigned nth) {
   Reg r           = new_reg(env);
   IRInst* i       = new_inst_(env, IR_ARG);
@@ -311,12 +336,12 @@ static Reg new_global(Env* env, const char* name) {
   return r;
 }
 
-static unsigned gen_lhs(Env* env, Expr* node) {
+static Reg gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_VAR: {
       unsigned i;
       if (get_var(env, node->var, &i)) {
-        return i;
+        return new_stack_addr(env, i);
       } else {
         error("undeclared name \"%s\"", node->var);
       }
@@ -336,9 +361,9 @@ static Reg gen_expr(Env* env, Expr* node) {
       return new_binop(env, node->binop, lhs, rhs);
     }
     case ND_ASSIGN: {
-      unsigned addr = gen_lhs(env, node->lhs);
-      Reg rhs       = gen_expr(env, node->rhs);
-      new_stack_store(env, addr, rhs);
+      Reg addr = gen_lhs(env, node->lhs);
+      Reg rhs  = gen_expr(env, node->rhs);
+      new_store(env, addr, rhs);
       return rhs;
     }
     case ND_VAR: {

@@ -116,6 +116,38 @@ static void should_scalar(Type* ty) {
   }
 }
 
+// p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
+// both `int_opr` and `ptr_opr` are consumed and new node is returned
+static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
+  assert(is_pointer_ty(ptr_opr->type));
+  assert(is_integer_ty(int_opr->type));
+
+  // TODO: wrap with unsigned
+  Type* int_ty = int_of_size_ty(sizeof_ty(ptr_opr->type));
+
+  Expr* ptr_opr_c = new_node_cast(int_ty, ptr_opr);
+  Expr* int_opr_c = new_node_binop(BINOP_MUL, int_opr, sizeof_ty(ptr_opr->type->ptr_to));
+  Expr* new_expr  = new_node_binop(op, ptr_opr_c, int_opr_c);
+
+  return new_node_cast(copy_Type(ptr_opr->type), new_expr);
+}
+
+// p1 - p2 (p1, p2: t*, s: sizeof(t)) -> ((uint64_t)p1 - (uint64_t)p2) / s
+// both `opr1` and `opr2` are consumed and new node is returned
+static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
+  assert(is_pointer_ty(opr1->type));
+  assert(is_pointer_ty(opr2->type));
+  assert(equal_to_Type(opr1->type->ptr_to, opr2->type->ptr_to));
+
+  Type* int_ty = int_of_size_ty(sizeof_ty(opr1->type));
+
+  Expr* opr1_c   = new_node_cast(int_ty, opr1);
+  Expr* opr2_c   = new_node_cast(int_ty, opr2);
+  Expr* new_expr = new_node_binop(BINOP_SUB, opr1_c, opr2_c);
+
+  return new_node_binop(BINOP_DIV, new_expr, sizeof_ty(opr1->type->ptr_to));
+}
+
 static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {
   switch (op) {
     case BINOP_ADD:

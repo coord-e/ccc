@@ -172,3 +172,15 @@ unsigned sizeof_ty(const Type* t) {
       CCC_UNREACHABLE;
   }
 }
+
+Type* int_of_size_ty(unsigned size) {
+  switch (size) {
+    case 8:
+      // TODO: this must be long
+      return int_ty();
+    case 4:
+      return int_ty();
+    default:
+      CCC_UNREACHABLE;
+  }
+}

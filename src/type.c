@@ -155,3 +155,16 @@ bool is_compatible_ty(const Type* t1, const Type* t2) {
 bool is_pointer_ty(const Type* t) {
   return t->kind == TY_PTR;
 }
+
+unsigned sizeof_ty(const Type* t) {
+  switch (t->kind) {
+    case TY_INT:
+      return 4;
+    case TY_PTR:
+      return 8;
+    case TY_FUNC:
+      error("attempt to obtain the size of function type");
+    default:
+      CCC_UNREACHABLE;
+  }
+}

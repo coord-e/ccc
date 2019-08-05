@@ -12,6 +12,7 @@ static void release_expr(Expr* e) {
   free(e->var);
   release_ExprVec(e->args);
   release_Type(e->cast_to);
+  release_Type(e->type);
 
   free(e);
 }

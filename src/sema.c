@@ -54,7 +54,7 @@ static Type* get_var(Env* env, const char* name) {
       error("undeclared identifier \"%s\"", name);
     }
   }
-  return ty;
+  return copy_Type(ty);
 }
 
 static Type* ptrify(Type* base, unsigned num) {

@@ -196,7 +196,7 @@ static Type* sema_binop(Env* env, Expr* expr) {
       should_integer(rhs);
 
       // TODO: shallow release of rhs of this assignment
-      *expr = *build_pointer_arith(op, expr->rhs, expr->lhs);
+      *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
       return copy_Type(lhs);
     case BINOP_MUL:
@@ -252,6 +252,7 @@ Type* sema_expr(Env* env, Expr* expr) {
       // TODO: arithmetic conversions
       should_scalar(ty);
       t = copy_Type(expr->cast_to);
+      break;
     }
     case ND_BINOP: {
       t = sema_binop(env, expr);

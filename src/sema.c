@@ -123,10 +123,11 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   assert(is_integer_ty(int_opr->type));
 
   // TODO: wrap with unsigned
-  Type* int_ty = int_of_size_ty(sizeof_ty(ptr_opr->type));
+  Type* int_ty       = int_of_size_ty(sizeof_ty(ptr_opr->type));
+  unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
   Expr* ptr_opr_c = new_node_cast(int_ty, ptr_opr);
-  Expr* int_opr_c = new_node_binop(BINOP_MUL, int_opr, sizeof_ty(ptr_opr->type->ptr_to));
+  Expr* int_opr_c = new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size));
   Expr* new_expr  = new_node_binop(op, ptr_opr_c, int_opr_c);
 
   return new_node_cast(copy_Type(ptr_opr->type), new_expr);
@@ -142,10 +143,10 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   Type* int_ty = int_of_size_ty(sizeof_ty(opr1->type));
 
   Expr* opr1_c   = new_node_cast(int_ty, opr1);
-  Expr* opr2_c   = new_node_cast(int_ty, opr2);
+  Expr* opr2_c   = new_node_cast(copy_Type(int_ty), opr2);
   Expr* new_expr = new_node_binop(BINOP_SUB, opr1_c, opr2_c);
 
-  return new_node_binop(BINOP_DIV, new_expr, sizeof_ty(opr1->type->ptr_to));
+  return new_node_binop(BINOP_DIV, new_expr, new_node_num(sizeof_ty(opr1->type->ptr_to)));
 }
 
 static Type* sema_binop(BinopKind op, Type* lhs, Type* rhs) {

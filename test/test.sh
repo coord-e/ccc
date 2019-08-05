@@ -183,4 +183,26 @@ int main() {
 }
 EOF
 
+# pointers
+items 3 "int x; x = 3; int* y; y = &x; return *y;"
+items 5 "int b; b = 10; int* a; a = &b; *a = 5; return b;"
+try_ 10 << EOF
+int change_it(int* p) {
+  if (*p == 0) {
+    *p = 10;
+  } else {
+    *p = *p - 1;
+  }
+}
+
+int main() {
+  int v;
+  v = 2;
+  change_it(&v);
+  change_it(&v);
+  change_it(&v);
+  return v;
+}
+EOF
+
 echo OK

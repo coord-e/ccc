@@ -4,70 +4,9 @@
 #include <string.h>
 
 #include "error.h"
+#include "ops.h"
 #include "parser.h"
 #include "util.h"
-
-// utilities to build AST
-static Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
-  Expr* node = calloc(1, sizeof(Expr));
-  node->kind = kind;
-  node->lhs  = lhs;
-  node->rhs  = rhs;
-  node->var  = NULL;
-  node->args = NULL;
-  return node;
-}
-
-static Expr* new_node_num(int num) {
-  Expr* node = new_node(ND_NUM, NULL, NULL);
-  node->num  = num;
-  return node;
-}
-
-static Expr* new_node_var(char* ident) {
-  Expr* node = new_node(ND_VAR, NULL, NULL);
-  node->var  = strdup(ident);
-  return node;
-}
-
-static Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs) {
-  Expr* node  = new_node(ND_BINOP, lhs, rhs);
-  node->binop = kind;
-  return node;
-}
-
-static Expr* new_node_assign(Expr* lhs, Expr* rhs) {
-  return new_node(ND_ASSIGN, lhs, rhs);
-}
-
-static Declaration* new_declaration(char* s) {
-  Declaration* d = calloc(1, sizeof(Declaration));
-  d->declarator  = strdup(s);
-  return d;
-}
-
-static Statement* new_statement(StmtKind kind, Expr* expr) {
-  Statement* s = calloc(1, sizeof(Statement));
-  s->kind      = kind;
-  s->expr      = expr;
-  return s;
-}
-
-static BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl) {
-  BlockItem* item = calloc(1, sizeof(BlockItem));
-  item->kind      = kind;
-  item->stmt      = stmt;
-  item->decl      = decl;
-  return item;
-}
-
-static FunctionDef* new_function_def() {
-  FunctionDef* def = calloc(1, sizeof(FunctionDef));
-  def->name        = NULL;
-  def->params      = NULL;
-  def->items       = NULL;
-  return def;
-}
 
 static void consume(TokenList** t) {
   *t = tail_TokenList(*t);
@@ -167,6 +106,12 @@ static Expr* unary(TokenList** t) {
       consume(t);
       // parse `-n` as `0 - n`
       return new_node_binop(BINOP_SUB, new_node_num(0), call(t));
+    case TK_STAR:
+      consume(t);
+      return new_node_unaop(UNAOP_DEREF, call(t));
+    case TK_AND:
+      consume(t);
+      return new_node_unaop(UNAOP_ADDR, call(t));
     default:
       return call(t);
   }
@@ -273,25 +218,64 @@ static Expr* expr(TokenList** t) {
   return assign(t);
 }
 
-static Declaration* try_declaration(TokenList** t) {
-  Token t1 = head_TokenList(*t);
-
-  if (t1.kind != TK_IDENT) {
-    return NULL;
+static Declarator* try_declarator(TokenList** t) {
+  Declarator* d = new_Declarator();
+  while (head_of(t) == TK_STAR) {
+    consume(t);
+    d->num_ptrs++;
   }
-
-  // TODO: Parse type specifier
-  if (strcmp(t1.ident, "decl") != 0) {
-    return NULL;
-  }
-
-  consume(t);
 
   if (head_of(t) != TK_IDENT) {
     return NULL;
   }
 
-  Declaration* d = new_declaration(consuming(t).ident);
+  d->name = strdup(expect(t, TK_IDENT).ident);
+  return d;
+}
+
+static Declarator* declarator(TokenList** t) {
+  Declarator* d = try_declarator(t);
+  if (d == NULL) {
+    error("could not parse the declarator.");
+  }
+
+  return d;
+}
+
+static bool try_declaration_specifiers(TokenList** t) {
+  Token t1 = head_TokenList(*t);
+
+  if (t1.kind != TK_IDENT) {
+    return false;
+  }
+
+  // TODO: Parse type specifier
+  if (strcmp(t1.ident, "int") != 0) {
+    return false;
+  }
+
+  consume(t);
+
+  return true;
+}
+
+static void declaration_specifiers(TokenList** t) {
+  if (!try_declaration_specifiers(t)) {
+    error("could not parse declaration specifiers.");
+  }
+}
+
+static Declaration* try_declaration(TokenList** t) {
+  if (!try_declaration_specifiers(t)) {
+    return NULL;
+  }
+
+  Declarator* dor = try_declarator(t);
+  if (dor == NULL) {
+    return NULL;
+  }
+
+  Declaration* d = new_declaration(dor);
 
   if (consuming(t).kind != TK_SEMICOLON) {
     return NULL;
@@ -444,33 +428,51 @@ static BlockItemList* block_item_list(TokenList** t) {
   return list;
 }
 
-static StringList* parameter_list(TokenList** t) {
-  StringList* cur  = nil_StringList();
-  StringList* list = cur;
+static ParamList* parameter_list(TokenList** t) {
+  ParamList* cur  = nil_ParamList();
+  ParamList* list = cur;
 
   if (head_of(t) != TK_IDENT) {
     return list;
   }
 
   do {
-    char* name = expect(t, TK_IDENT).ident;
-    cur        = snoc_StringList(strdup(name), cur);
+    declaration_specifiers(t);
+    Declarator* d = declarator(t);
+    cur           = snoc_ParamList(d, cur);
   } while (try (t, TK_COMMA));
 
   return list;
 }
 
-static FunctionDef* function_def(TokenList** t) {
-  FunctionDef* def = new_function_def();
-
-  def->name = strdup(expect(t, TK_IDENT).ident);
+static ExternalDecl* external_declaration(TokenList** t) {
+  declaration_specifiers(t);
+  Declarator* d = declarator(t);
   expect(t, TK_LPAREN);
-  def->params = parameter_list(t);
+  ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);
-  expect(t, TK_LBRACE);
-  def->items = block_item_list(t);
-  expect(t, TK_RBRACE);
-  return def;
+  if (head_of(t) == TK_LBRACE) {
+    consume(t);
+    FunctionDef* def = new_function_def();
+    def->decl        = d;
+    def->params      = params;
+    def->items       = block_item_list(t);
+    expect(t, TK_RBRACE);
+
+    ExternalDecl* edecl = new_external_decl(EX_FUNC);
+    edecl->func         = def;
+    return edecl;
+  } else {
+    expect(t, TK_SEMICOLON);
+
+    FunctionDecl* decl = new_function_decl();
+    decl->decl         = d;
+    decl->params       = params;
+
+    ExternalDecl* edecl = new_external_decl(EX_FUNC_DECL);
+    edecl->func_decl    = decl;
+    return edecl;
+  }
 }
 
 static TranslationUnit* translation_unit(TokenList** t) {
@@ -478,7 +480,7 @@ static TranslationUnit* translation_unit(TokenList** t) {
   TranslationUnit* list = cur;
 
   while (head_of(t) != TK_END) {
-    cur = snoc_TranslationUnit(function_def(t), cur);
+    cur = snoc_TranslationUnit(external_declaration(t), cur);
   }
   return list;
 }

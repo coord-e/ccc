@@ -91,6 +91,10 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_STAR, cur);
         p++;
         continue;
+      case '&':
+        cur = add_token(TK_AND, cur);
+        p++;
+        continue;
       case '/':
         cur = add_token(TK_SLASH, cur);
         p++;
@@ -231,6 +235,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_COMMA:
       fprintf(p, "(,)");
+      break;
+    case TK_AND:
+      fprintf(p, "(&)");
       break;
     case TK_RETURN:
       fprintf(p, "(return)");

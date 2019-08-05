@@ -11,6 +11,7 @@
 #include "parser.h"
 #include "reg_alloc.h"
 #include "reorder.h"
+#include "sema.h"
 
 static char doc[] = "ccc: c compiler";
 
@@ -134,6 +135,8 @@ int main(int argc, char** argv) {
     print_AST(f, tree);
     close_file(f);
   }
+
+  sema(tree);
 
   IR* ir = generate_IR(tree);
   release_AST(tree);

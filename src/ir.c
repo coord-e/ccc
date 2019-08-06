@@ -162,12 +162,13 @@ static Reg new_reg(Env* env) {
   return r;
 }
 
-static unsigned new_var(Env* env, char* name) {
+static unsigned new_var(Env* env, char* name, unsigned size) {
   if (lookup_UIMap(env->vars, name, NULL)) {
     error("redeclaration of \"%s\"", name);
   }
 
-  unsigned i = env->stack_count++;
+  unsigned i = env->stack_count;
+  env->stack_count += size;
   insert_UIMap(env->vars, name, i);
   return i;
 }
@@ -207,19 +208,21 @@ static Reg new_imm(Env* env, int num) {
   return r;
 }
 
-static Reg new_stack_load(Env* env, unsigned s) {
+static Reg new_stack_load(Env* env, unsigned s, unsigned size) {
   Reg r        = new_reg(env);
   IRInst* i    = new_inst_(env, IR_STACK_LOAD);
   i->stack_idx = s;
   i->rd        = r;
+  i->data_size = size;
   add_inst(env, i);
   return r;
 }
 
-static Reg new_stack_store(Env* env, unsigned s, Reg r) {
+static Reg new_stack_store(Env* env, unsigned s, Reg r, unsigned size) {
   IRInst* i    = new_inst_(env, IR_STACK_STORE);
   i->stack_idx = s;
   push_RegVec(i->ras, r);
+  i->data_size = size;
   add_inst(env, i);
   return r;
 }
@@ -233,19 +236,21 @@ static Reg new_stack_addr(Env* env, unsigned s) {
   return r;
 }
 
-static Reg new_load(Env* env, Reg s) {
+static Reg new_load(Env* env, Reg s, unsigned size) {
   Reg r     = new_reg(env);
   IRInst* i = new_inst_(env, IR_LOAD);
   push_RegVec(i->ras, s);
-  i->rd = r;
+  i->rd        = r;
+  i->data_size = size;
   add_inst(env, i);
   return r;
 }
 
-static void new_store(Env* env, Reg s, Reg r) {
+static void new_store(Env* env, Reg s, Reg r, unsigned size) {
   IRInst* i = new_inst_(env, IR_STORE);
   push_RegVec(i->ras, s);
   push_RegVec(i->ras, r);
+  i->data_size = size;
   add_inst(env, i);
 }
 
@@ -364,7 +369,7 @@ static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
       return gen_lhs(env, opr->expr);
     case UNAOP_DEREF: {
       Reg r = gen_expr(env, opr->expr);
-      return new_load(env, r);
+      return new_load(env, r, sizeof_ty(opr->type));
     }
     default:
       CCC_UNREACHABLE;
@@ -387,13 +392,14 @@ Reg gen_expr(Env* env, Expr* node) {
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);
-      new_store(env, addr, rhs);
+      assert(sizeof_ty(node->lhs->type) == sizeof_ty(node->rhs->type));
+      new_store(env, addr, rhs, sizeof_ty(node->type));
       return rhs;
     }
     case ND_VAR: {
       unsigned i;
       if (get_var(env, node->var, &i)) {
-        return new_stack_load(env, i);
+        return new_stack_load(env, i, sizeof_ty(node->type));
       } else {
         return new_global(env, node->var);
       }
@@ -565,7 +571,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator->name);
+  new_var(env, decl->declarator->name, sizeof_ty(decl->type));
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -588,21 +594,22 @@ void gen_block_item_list(Env* env, BlockItemList* ast) {
   gen_block_item_list(env, tail_BlockItemList(ast));
 }
 
-static void gen_params(Env* env, unsigned nth, ParamList* l) {
+static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
   if (is_nil_ParamList(l)) {
     return;
   }
 
   char* name = head_ParamList(l)->name;
-  new_var(env, name);
+  Type* ty   = get_TypeVec(f->type->params, nth);
+  new_var(env, name, sizeof_ty(ty));
 
   unsigned addr;
   get_var(env, name, &addr);
 
   Reg rhs = nth_arg(env, nth);
-  new_stack_store(env, addr, rhs);
+  new_stack_store(env, addr, rhs, sizeof_ty(ty));
 
-  gen_params(env, nth + 1, tail_ParamList(l));
+  gen_params(env, f, nth + 1, tail_ParamList(l));
 }
 
 static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
@@ -610,7 +617,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
-  gen_params(env, 0, ast->params);
+  gen_params(env, ast, 0, ast->params);
   gen_block_item_list(env, ast->items);
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
@@ -710,19 +717,19 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, " ");
       break;
     case IR_STACK_ADDR:
-      fprintf(p, "STACK_ADDR %d ", i->stack_idx);
+      fprintf(p, "STACK_ADDR %d %d ", i->stack_idx, i->data_size);
       break;
     case IR_STACK_LOAD:
-      fprintf(p, "STACK_LOAD %d", i->stack_idx);
+      fprintf(p, "STACK_LOAD %d %d ", i->stack_idx, i->data_size);
       break;
     case IR_STACK_STORE:
-      fprintf(p, "STACK_STORE %d ", i->stack_idx);
+      fprintf(p, "STACK_STORE %d %d ", i->stack_idx, i->data_size);
       break;
     case IR_LOAD:
-      fprintf(p, "LOAD ");
+      fprintf(p, "LOAD %d ", i->data_size);
       break;
     case IR_STORE:
-      fprintf(p, "STORE ");
+      fprintf(p, "STORE %d ", i->data_size);
       break;
     case IR_BR:
       fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);

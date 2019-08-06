@@ -67,7 +67,7 @@ static void emit_id_label(FILE* p, unsigned id) {
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
-  emit(p, "sub rsp, %d", 8 * f->stack_count + 8);
+  emit(p, "sub rsp, %d", f->stack_count + 8);
   for (unsigned i = 0; i < length_BitSet(f->used_regs); i++) {
     if (get_BitSet(f->used_regs, i)) {
       emit(p, "push %s", regs[i]);
@@ -118,13 +118,13 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       codegen_binop(p, h);
       break;
     case IR_STACK_ADDR:
-      emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
+      emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), h->stack_idx + 8);
       break;
     case IR_STACK_LOAD:
-      emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), 8 * h->stack_idx + 8);
+      emit(p, "mov %s, [rbp - %d]", reg_of(h->rd), h->stack_idx + 8);
       break;
     case IR_STACK_STORE:
-      emit(p, "mov [rbp - %d], %s", 8 * h->stack_idx + 8, nth_reg_of(0, h->ras));
+      emit(p, "mov [rbp - %d], %s", h->stack_idx + 8, nth_reg_of(0, h->ras));
       break;
     case IR_LOAD:
       emit(p, "mov %s, [%s]", reg_of(h->rd), nth_reg_of(0, h->ras));

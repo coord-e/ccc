@@ -72,6 +72,9 @@ Declarator* new_Declarator(DeclaratorKind);
 typedef struct {
   // TODO: Add declaration specifiers
   Declarator* declarator;  // owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 } Declaration;
 
 Declaration* new_declaration(Declarator* s);
@@ -131,6 +134,9 @@ typedef struct {
   ParamList* params;  // owned
 
   BlockItemList* items;  // owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 } FunctionDef;
 
 FunctionDef* new_function_def();
@@ -140,6 +146,9 @@ FunctionDef* new_function_def();
 typedef struct {
   Declarator* decl;   // owned
   ParamList* params;  // owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 } FunctionDecl;
 
 FunctionDecl* new_function_decl();

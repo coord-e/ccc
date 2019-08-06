@@ -37,6 +37,7 @@ static void release_declaration(Declaration* d) {
   }
 
   release_Declarator(d->declarator);
+  release_Type(d->type);
   free(d);
 }
 
@@ -70,6 +71,7 @@ static void release_FunctionDef(FunctionDef* def) {
   release_Declarator(def->decl);
   release_ParamList(def->params);
   release_BlockItemList(def->items);
+  release_Type(def->type);
   free(def);
 }
 static void release_FunctionDecl(FunctionDecl* decl) {
@@ -78,6 +80,7 @@ static void release_FunctionDecl(FunctionDecl* decl) {
   }
   release_Declarator(decl->decl);
   release_ParamList(decl->params);
+  release_Type(decl->type);
   free(decl);
 }
 static void release_ExternalDecl(ExternalDecl* edecl) {
@@ -353,6 +356,7 @@ Declarator* new_Declarator(DeclaratorKind kind) {
 Declaration* new_declaration(Declarator* s) {
   Declaration* d = calloc(1, sizeof(Declaration));
   d->declarator  = s;
+  d->type        = NULL;
   return d;
 }
 
@@ -376,6 +380,7 @@ FunctionDef* new_function_def() {
   def->decl        = NULL;
   def->params      = NULL;
   def->items       = NULL;
+  def->type        = NULL;
   return def;
 }
 
@@ -383,6 +388,7 @@ FunctionDecl* new_function_decl() {
   FunctionDecl* decl = calloc(1, sizeof(FunctionDecl));
   decl->decl         = NULL;
   decl->params       = NULL;
+  decl->type         = NULL;
   return decl;
 }
 

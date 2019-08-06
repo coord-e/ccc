@@ -314,6 +314,7 @@ Type* sema_expr(Env* env, Expr* expr) {
 static void sema_decl(Env* env, Declaration* decl) {
   Declarator* d = decl->declarator;
   Type* ty      = ptrify(int_ty(), d->num_ptrs);
+  decl->type    = copy_Type(ty);
   add_var(env, d->name, ty);
 }
 
@@ -410,8 +411,10 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
 
   Env* env        = init_Env(global, ret);
   TypeVec* params = param_types(env, f->params);
+  Type* ty        = func_ty(ret, params);
+  f->type         = copy_Type(ty);
 
-  add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
+  add_global(global, f->decl->name, ptr_to_ty(ty));
   sema_items(env, f->items);
 
   release_Env(env);
@@ -431,7 +434,9 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       FunctionDecl* f = d->func_decl;
       Type* ret       = ptrify(int_ty(), f->decl->num_ptrs);
       TypeVec* params = param_types(NULL, f->params);
-      add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
+      Type* ty        = func_ty(ret, params);
+      f->type         = copy_Type(ty);
+      add_global(global, f->decl->name, ptr_to_ty(ty));
       break;
     }
     default:

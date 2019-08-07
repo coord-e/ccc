@@ -378,13 +378,17 @@ static Reg gen_lhs(Env* env, Expr* node) {
   }
 }
 
+static DataSize datasize_of_node(Expr* e) {
+  return to_data_size(stored_size_ty(e->type));
+}
+
 static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
   switch (op) {
     case UNAOP_ADDR:
       return gen_lhs(env, opr->expr);
     case UNAOP_DEREF: {
       Reg r = gen_expr(env, opr->expr);
-      return new_load(env, r, sizeof_ty(opr->type));
+      return new_load(env, r, datasize_of_node(opr));
     }
     default:
       CCC_UNREACHABLE;
@@ -396,7 +400,7 @@ Reg gen_expr(Env* env, Expr* node) {
     case ND_CAST:
       return gen_expr(env, node->expr);
     case ND_NUM:
-      return new_imm(env, node->num);
+      return new_imm(env, node->num, datasize_of_node(node));
     case ND_BINOP: {
       Reg lhs = gen_expr(env, node->lhs);
       Reg rhs = gen_expr(env, node->rhs);
@@ -407,14 +411,14 @@ Reg gen_expr(Env* env, Expr* node) {
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);
-      assert(sizeof_ty(node->lhs->type) == sizeof_ty(node->rhs->type));
-      new_store(env, addr, rhs, sizeof_ty(node->type));
+      assert(stored_size_ty(node->lhs->type) == stored_size_ty(node->rhs->type));
+      new_store(env, addr, rhs, datasize_of_node(node));
       return rhs;
     }
     case ND_VAR: {
       unsigned i;
       if (get_var(env, node->var, &i)) {
-        return new_stack_load(env, i, sizeof_ty(node->type));
+        return new_stack_load(env, i, datasize_of_node(node));
       } else {
         return new_global(env, node->var);
       }
@@ -586,7 +590,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator->name, sizeof_ty(decl->type));
+  new_var(env, decl->declarator->name, stored_size_ty(decl->type));
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -614,15 +618,16 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
     return;
   }
 
-  char* name = head_ParamList(l)->name;
-  Type* ty   = get_TypeVec(f->type->params, nth);
-  new_var(env, name, sizeof_ty(ty));
+  char* name    = head_ParamList(l)->name;
+  Type* ty      = get_TypeVec(f->type->params, nth);
+  unsigned size = stored_size_ty(ty);
+  new_var(env, name, size);
 
   unsigned addr;
   get_var(env, name, &addr);
 
-  Reg rhs = nth_arg(env, nth);
-  new_stack_store(env, addr, rhs, sizeof_ty(ty));
+  Reg rhs = nth_arg(env, nth, to_data_size(size));
+  new_stack_store(env, addr, rhs, to_data_size(size));
 
   gen_params(env, f, nth + 1, tail_ParamList(l));
 }

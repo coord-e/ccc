@@ -202,6 +202,21 @@ unsigned sizeof_ty(const Type* t) {
   }
 }
 
+unsigned stored_size_ty(const Type* t) {
+  switch (t->kind) {
+    case TY_INT:
+      return 4;
+    case TY_PTR:
+      return 8;
+    case TY_FUNC:
+      error("attempt to obtain the size of function type");
+    case TY_ARRAY:
+      return t->length * stored_size_ty(t->element);
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 Type* int_of_size_ty(unsigned size) {
   switch (size) {
     case 8:

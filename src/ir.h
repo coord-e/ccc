@@ -66,7 +66,7 @@ typedef struct IRInst {
   int imm;                // for IR_IMM
   unsigned stack_idx;     // for IR_STACK_*
   unsigned argument_idx;  // for IR_ARG
-  unsigned data_size;     // for IR_{LOAD, STORE, STACK_LOAD, STACK_STORE}
+  DataSize data_size;     // for IR_{LOAD, STORE, STACK_LOAD, STACK_STORE}
 
   char* global_name;  // for IR_GLOBAL, owned
 

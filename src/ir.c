@@ -197,7 +197,9 @@ static void add_inst(Env* env, IRInst* inst) {
 }
 
 static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
-  Reg dest = new_reg(env);
+  assert(lhs.size == rhs.size);
+
+  Reg dest = new_reg(env, lhs.size);
 
   IRInst* i1 = new_inst_(env, IR_MOV);
   i1->rd     = dest;
@@ -214,8 +216,8 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
   return dest;
 }
 
-static Reg new_imm(Env* env, int num) {
-  Reg r     = new_reg(env);
+static Reg new_imm(Env* env, int num, DataSize size) {
+  Reg r     = new_reg(env, size);
   IRInst* i = new_inst_(env, IR_IMM);
   i->imm    = num;
   i->rd     = r;
@@ -223,8 +225,8 @@ static Reg new_imm(Env* env, int num) {
   return r;
 }
 
-static Reg new_stack_load(Env* env, unsigned s, unsigned size) {
-  Reg r        = new_reg(env);
+static Reg new_stack_load(Env* env, unsigned s, DataSize size) {
+  Reg r        = new_reg(env, size);
   IRInst* i    = new_inst_(env, IR_STACK_LOAD);
   i->stack_idx = s;
   i->rd        = r;
@@ -233,7 +235,9 @@ static Reg new_stack_load(Env* env, unsigned s, unsigned size) {
   return r;
 }
 
-static Reg new_stack_store(Env* env, unsigned s, Reg r, unsigned size) {
+static Reg new_stack_store(Env* env, unsigned s, Reg r, DataSize size) {
+  assert(r.size == size);
+
   IRInst* i    = new_inst_(env, IR_STACK_STORE);
   i->stack_idx = s;
   push_RegVec(i->ras, r);
@@ -243,7 +247,7 @@ static Reg new_stack_store(Env* env, unsigned s, Reg r, unsigned size) {
 }
 
 static Reg new_stack_addr(Env* env, unsigned s) {
-  Reg r        = new_reg(env);
+  Reg r        = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* i    = new_inst_(env, IR_STACK_ADDR);
   i->stack_idx = s;
   i->rd        = r;
@@ -251,8 +255,8 @@ static Reg new_stack_addr(Env* env, unsigned s) {
   return r;
 }
 
-static Reg new_load(Env* env, Reg s, unsigned size) {
-  Reg r     = new_reg(env);
+static Reg new_load(Env* env, Reg s, DataSize size) {
+  Reg r     = new_reg(env, size);
   IRInst* i = new_inst_(env, IR_LOAD);
   push_RegVec(i->ras, s);
   i->rd        = r;
@@ -261,7 +265,9 @@ static Reg new_load(Env* env, Reg s, unsigned size) {
   return r;
 }
 
-static void new_store(Env* env, Reg s, Reg r, unsigned size) {
+static void new_store(Env* env, Reg s, Reg r, DataSize size) {
+  assert(r.size == size);
+
   IRInst* i = new_inst_(env, IR_STORE);
   push_RegVec(i->ras, s);
   push_RegVec(i->ras, r);
@@ -269,8 +275,8 @@ static void new_store(Env* env, Reg s, Reg r, unsigned size) {
   add_inst(env, i);
 }
 
-static Reg nth_arg(Env* env, unsigned nth) {
-  Reg r           = new_reg(env);
+static Reg nth_arg(Env* env, unsigned nth, DataSize size) {
+  Reg r           = new_reg(env, size);
   IRInst* i       = new_inst_(env, IR_ARG);
   i->argument_idx = nth;
   i->rd           = r;
@@ -348,7 +354,7 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicB
 }
 
 static Reg new_global(Env* env, const char* name) {
-  Reg r             = new_reg(env);
+  Reg r             = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* inst      = new_inst_(env, IR_GLOBAL_ADDR);
   inst->rd          = r;
   inst->global_name = strdup(name);
@@ -433,7 +439,7 @@ Reg gen_expr(Env* env, Expr* node) {
         push_RegVec(inst->ras, gen_expr(env, e));
       }
 
-      Reg r    = new_reg(env);
+      Reg r    = new_reg(env, datasize_of_node(node));
       inst->rd = r;
 
       add_inst(env, inst);

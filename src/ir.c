@@ -4,6 +4,21 @@
 #include "map.h"
 #include "parser.h"
 
+DataSize to_data_size(unsigned i) {
+  switch (i) {
+    case 1:
+      return SIZE_BYTE;
+    case 2:
+      return SIZE_WORD;
+    case 4:
+      return SIZE_DWORD;
+    case 8:
+      return SIZE_QWORD;
+    default:
+      error("invalid data size %d", i);
+  }
+}
+
 // Unsigned Integer Map
 DECLARE_MAP(unsigned, UIMap)
 static void release_unsigned(unsigned i) {}
@@ -156,9 +171,9 @@ static void start_bb(Env* env, BasicBlock* bb) {
   env->inst_cur = env->cur->insts;
 }
 
-static Reg new_reg(Env* env) {
+static Reg new_reg(Env* env, DataSize size) {
   unsigned i = env->reg_count++;
-  Reg r      = {.kind = REG_VIRT, .virtual = i, .real = 0, .is_used = true};
+  Reg r      = {.kind = REG_VIRT, .virtual = i, .real = 0, .size = size, .is_used = true};
   return r;
 }
 

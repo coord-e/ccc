@@ -11,6 +11,15 @@
 #include "vector.h"
 
 typedef enum {
+  SIZE_BYTE  = 1,  // 1 byte, 8  bits
+  SIZE_WORD  = 2,  // 2 byte, 16 bits
+  SIZE_DWORD = 4,  // 4 byte, 32 bits
+  SIZE_QWORD = 8,  // 8 byte, 64 bits
+} DataSize;
+
+DataSize to_data_size(unsigned);
+
+typedef enum {
   IR_BIN,
   IR_IMM,
   IR_ARG,
@@ -37,6 +46,7 @@ typedef struct {
   RegKind kind;
   unsigned virtual;
   unsigned real;
+  DataSize size;
 
   bool is_used;  // TODO: Use better way to represent unsued register slot
 } Reg;

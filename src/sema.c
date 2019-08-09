@@ -149,6 +149,18 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   return new_node_binop(BINOP_DIV, new_expr, new_node_num(sizeof_ty(opr1->type->ptr_to)));
 }
 
+// e -> &e
+// `opr` is consumed and new node is returned
+static Expr* build_array_decay(Expr* opr) {
+  assert(is_array_ty(opr->type));
+
+  Type* ty  = ptr_to_ty(opr->type->element);
+  Expr* new = new_node_unaop(UNAOP_ADDR, opr);
+  new->type = ty;
+
+  return new;
+}
+
 static Type* sema_expr(Env* env, Expr* expr);
 
 static Type* sema_binop(Env* env, Expr* expr) {
@@ -230,20 +242,27 @@ static Type* sema_binop(Env* env, Expr* expr) {
   }
 }
 
-static Type* sema_unaop(UnaopKind op, Type* opr) {
-  switch (op) {
-    case UNAOP_ADDR:
-      return ptr_to_ty(copy_Type(opr));
-    case UNAOP_DEREF:
-      should_pointer(opr);
-      return copy_Type(opr->ptr_to);
+static Type* sema_expr_raw(Env* env, Expr* expr);
+
+static Type* sema_unaop(Env* env, Expr* e) {
+  Expr* opr = e->expr;
+  switch (e->unaop) {
+    case UNAOP_ADDR: {
+      Type* ty = sema_expr_raw(env, opr);
+      return ptr_to_ty(copy_Type(ty));
+    }
+    case UNAOP_DEREF: {
+      Type* ty = sema_expr(env, opr);
+      should_pointer(ty);
+      return copy_Type(ty->ptr_to);
+    }
     default:
       CCC_UNREACHABLE;
   }
 }
 
 // returned `Type*` is reference to a data is owned by `expr`
-Type* sema_expr(Env* env, Expr* expr) {
+Type* sema_expr_raw(Env* env, Expr* expr) {
   Type* t;
   switch (expr->kind) {
     case ND_CAST: {
@@ -259,8 +278,7 @@ Type* sema_expr(Env* env, Expr* expr) {
       break;
     }
     case ND_UNAOP: {
-      Type* opr_ty = sema_expr(env, expr->expr);
-      t            = sema_unaop(expr->unaop, opr_ty);
+      t = sema_unaop(env, expr);
       break;
     }
     case ND_ASSIGN: {
@@ -309,6 +327,19 @@ Type* sema_expr(Env* env, Expr* expr) {
   }
   expr->type = t;
   return t;
+}
+
+static Type* sema_expr(Env* env, Expr* e) {
+  Type* ty = sema_expr_raw(env, e);
+  switch (ty->kind) {
+    case TY_ARRAY: {
+      // TODO: shallow release of rhs of this assignment
+      *e = *build_array_decay(e);
+      return e->type;
+    }
+    default:
+      return ty;
+  }
 }
 
 static int eval_constant(Expr* e) {

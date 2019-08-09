@@ -196,6 +196,10 @@ bool is_pointer_ty(const Type* t) {
   return t->kind == TY_PTR;
 }
 
+bool is_array_ty(const Type* t) {
+  return t->kind == TY_ARRAY;
+}
+
 bool is_scalar_ty(const Type* ty) {
   return is_arithmetic_ty(ty) || is_pointer_ty(ty);
 }

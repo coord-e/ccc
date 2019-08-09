@@ -58,6 +58,9 @@ void print_Type(FILE* p, Type* ty) {
     case TY_INT:
       fprintf(p, "int");
       break;
+    case TY_LONG:
+      fprintf(p, "long");
+      break;
     case TY_PTR:
       fprintf(p, "*");
       print_Type(p, ty->ptr_to);
@@ -86,6 +89,8 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
   switch (a->kind) {
     case TY_INT:
+      return true;
+    case TY_LONG:
       return true;
     case TY_PTR:
       return equal_to_Type(a->ptr_to, b->ptr_to);
@@ -121,6 +126,10 @@ Type* int_ty() {
   return new_Type(TY_INT);
 }
 
+Type* long_ty() {
+  return new_Type(TY_LONG);
+}
+
 Type* ptr_to_ty(Type* ty) {
   Type* t   = new_Type(TY_PTR);
   t->ptr_to = ty;
@@ -145,6 +154,8 @@ bool is_arithmetic_ty(const Type* ty) {
   switch (ty->kind) {
     case TY_INT:
       return true;
+    case TY_LONG:
+      return true;
     case TY_PTR:
       return false;
     case TY_FUNC:
@@ -159,6 +170,8 @@ bool is_arithmetic_ty(const Type* ty) {
 bool is_integer_ty(const Type* ty) {
   switch (ty->kind) {
     case TY_INT:
+      return true;
+    case TY_LONG:
       return true;
     case TY_PTR:
       return false;
@@ -191,6 +204,8 @@ unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
     case TY_INT:
       return 4;
+    case TY_LONG:
+      return 8;
     case TY_PTR:
       return 8;
     case TY_FUNC:
@@ -206,6 +221,8 @@ unsigned stored_size_ty(const Type* t) {
   switch (t->kind) {
     case TY_INT:
       return 4;
+    case TY_LONG:
+      return 8;
     case TY_PTR:
       return 8;
     case TY_FUNC:
@@ -220,8 +237,7 @@ unsigned stored_size_ty(const Type* t) {
 Type* int_of_size_ty(unsigned size) {
   switch (size) {
     case 8:
-      // TODO: this must be long
-      return int_ty();
+      return long_ty();
     case 4:
       return int_ty();
     default:

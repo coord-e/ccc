@@ -8,6 +8,7 @@
 
 typedef enum {
   TY_INT,
+  TY_LONG,
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
@@ -19,6 +20,8 @@ DECLARE_VECTOR(Type*, TypeVec)
 
 struct Type {
   TypeKind kind;
+
+  // for TY_PTR
   Type* ptr_to;
 
   // for TY_FUNC

@@ -146,7 +146,9 @@ static void expire_old_intervals(Env* env, unsigned target_virt) {
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
-  set_UIVec(env->locations, virt, env->stack_count++);
+  set_UIVec(env->locations, virt, env->stack_count);
+  // TODO: Store the size of spilled registers and use that here
+  env->stack_count += 8;
   set_UIVec(env->result, virt, -2);  // mark as spilled
 }
 
@@ -235,6 +237,7 @@ static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
   IRInst* inst    = new_inst_(env, IR_STACK_LOAD);
   inst->rd        = r;
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
+  inst->data_size = r.size;
   insert_IRInstList(inst, l);
 
   IRInstList* t = tail_IRInstList(l);
@@ -246,6 +249,7 @@ static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
   IRInst* inst = new_inst_(env, IR_STACK_STORE);
   push_RegVec(inst->ras, r);
   inst->stack_idx = get_UIVec(env->locations, r.virtual);
+  inst->data_size = r.size;
 
   IRInstList* t = tail_IRInstList(l);
   insert_IRInstList(inst, t);

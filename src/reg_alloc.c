@@ -146,9 +146,9 @@ static void expire_old_intervals(Env* env, unsigned target_virt) {
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
-  set_UIVec(env->locations, virt, env->stack_count);
   // TODO: Store the size of spilled registers and use that here
   env->stack_count += 8;
+  set_UIVec(env->locations, virt, env->stack_count);
   set_UIVec(env->result, virt, -2);  // mark as spilled
 }
 

@@ -124,7 +124,7 @@ static void emit_id_label(FILE* p, unsigned id) {
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
-  emit(p, "sub rsp, %d", f->stack_count + 8);
+  emit(p, "sub rsp, %d", f->stack_count);
   for (unsigned i = 0; i < length_BitSet(f->used_regs); i++) {
     if (get_BitSet(f->used_regs, i)) {
       emit(p, "push %s", regs64[i]);

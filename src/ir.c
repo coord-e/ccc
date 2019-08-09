@@ -182,8 +182,8 @@ static unsigned new_var(Env* env, char* name, unsigned size) {
     error("redeclaration of \"%s\"", name);
   }
 
-  unsigned i = env->stack_count;
   env->stack_count += size;
+  unsigned i = env->stack_count;
   insert_UIMap(env->vars, name, i);
   return i;
 }

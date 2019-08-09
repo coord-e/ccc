@@ -21,6 +21,7 @@ void print_binop(FILE*, BinopKind);
 typedef enum {
   UNAOP_ADDR,
   UNAOP_DEREF,
+  UNAOP_ADDR_ARY,
 } UnaopKind;
 
 void print_unaop(FILE*, UnaopKind);

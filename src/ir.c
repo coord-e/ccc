@@ -391,6 +391,7 @@ static DataSize datasize_of_node(Expr* e) {
 static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
   switch (op) {
     case UNAOP_ADDR:
+    case UNAOP_ADDR_ARY:
       return gen_lhs(env, opr->expr);
     case UNAOP_DEREF: {
       Reg r = gen_expr(env, opr->expr);

@@ -149,21 +149,18 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   return new_node_binop(BINOP_DIV, new_expr, new_node_num(sizeof_ty(opr1->type->ptr_to)));
 }
 
-// e -> &*e (if e has array type)
-// e -> &e  (if e has function type)
+// convert array/function to pointer
 // `opr` is consumed and new untyped node is returned
-static Expr* build_ptr_conv(Expr* opr) {
+static Expr* build_decay(Expr* opr) {
   assert(is_array_ty(opr->type) || is_function_ty(opr->type));
 
-  Type* desig_ty;
   switch (opr->type->kind) {
-    case TY_ARRAY: {
-      Expr* deref = new_node_unaop(UNAOP_DEREF, opr);
-      return new_node_unaop(UNAOP_ADDR, deref);
-    }
-    case TY_FUNC: {
+    case TY_ARRAY:
+      return new_node_unaop(UNAOP_ADDR_ARY, opr);
+    case TY_FUNC:
       return new_node_unaop(UNAOP_ADDR, opr);
-    }
+    default:
+      CCC_UNREACHABLE;
   }
 }
 
@@ -182,10 +179,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
+        Type* ty = copy_Type(lhs);
         sema_expr(env, expr);
-        assert(equal_to_Type(expr->type, lhs));
+        assert(equal_to_Type(expr->type, ty));
 
-        return copy_Type(lhs);
+        return ty;
       }
       if (is_pointer_ty(rhs)) {
         should_integer(lhs);
@@ -193,10 +191,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_arith(op, expr->rhs, expr->lhs);
 
+        Type* ty = copy_Type(rhs);
         sema_expr(env, expr);
-        assert(equal_to_Type(expr->type, rhs));
+        assert(equal_to_Type(expr->type, ty));
 
-        return copy_Type(rhs);
+        return ty;
       }
       should_arithmetic(lhs);
       should_arithmetic(rhs);
@@ -226,10 +225,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
       // TODO: shallow release of rhs of this assignment
       *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
+      Type* ty = copy_Type(lhs);
       sema_expr(env, expr);
-      assert(equal_to_Type(expr->type, lhs));
+      assert(equal_to_Type(expr->type, ty));
 
-      return copy_Type(lhs);
+      return ty;
     case BINOP_MUL:
     case BINOP_DIV:
       should_arithmetic(lhs);
@@ -269,6 +269,11 @@ static Type* sema_unaop(Env* env, Expr* e) {
     case UNAOP_ADDR: {
       Type* ty = sema_expr_raw(env, opr);
       return ptr_to_ty(copy_Type(ty));
+    }
+    case UNAOP_ADDR_ARY: {
+      Type* ty = sema_expr_raw(env, opr);
+      assert(is_array_ty(ty));
+      return ptr_to_ty(copy_Type(ty->element));
     }
     case UNAOP_DEREF: {
       Type* ty = sema_expr(env, opr);
@@ -359,7 +364,7 @@ static Type* sema_expr(Env* env, Expr* e) {
     case TY_ARRAY: {
       Expr* copy = shallow_copy_node(e);
       // TODO: shallow release of rhs of this assignment
-      *e = *build_ptr_conv(copy);
+      *e = *build_decay(copy);
       return sema_expr(env, e);
     }
     default:

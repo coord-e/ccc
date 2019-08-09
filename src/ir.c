@@ -275,6 +275,30 @@ static void new_store(Env* env, Reg s, Reg r, DataSize size) {
   add_inst(env, i);
 }
 
+static Reg new_sext(Env* env, Reg t, DataSize to) {
+  assert(t.size < to);
+
+  Reg r     = new_reg(env, to);
+  IRInst* i = new_inst_(env, IR_SEXT);
+  push_RegVec(i->ras, t);
+  i->rd        = r;
+  i->data_size = to;
+  add_inst(env, i);
+  return r;
+}
+
+static Reg new_trunc(Env* env, Reg t, DataSize to) {
+  assert(t.size > to);
+
+  Reg r     = new_reg(env, to);
+  IRInst* i = new_inst_(env, IR_TRUNC);
+  push_RegVec(i->ras, t);
+  i->rd        = r;
+  i->data_size = to;
+  add_inst(env, i);
+  return r;
+}
+
 static Reg nth_arg(Env* env, unsigned nth, DataSize size) {
   Reg r           = new_reg(env, size);
   IRInst* i       = new_inst_(env, IR_ARG);
@@ -404,10 +428,19 @@ static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
 
 Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
-    case ND_CAST:
-      // TODO: trunc and extend
-      assert(stored_size_ty(node->cast_to) == stored_size_ty(node->expr->type));
-      return gen_expr(env, node->expr);
+    case ND_CAST: {
+      // TODO: signedness?
+      unsigned cast_size = stored_size_ty(node->cast_to);
+      unsigned expr_size = stored_size_ty(node->expr->type);
+      Reg r              = gen_expr(env, node->expr);
+      if (cast_size > expr_size) {
+        return new_sext(env, r, cast_size);
+      } else if (cast_size < expr_size) {
+        return new_trunc(env, r, cast_size);
+      } else {
+        return r;
+      }
+    }
     case ND_NUM:
       return new_imm(env, node->num, datasize_of_node(node));
     case ND_BINOP: {
@@ -736,6 +769,12 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_MOV:
       fprintf(p, "MOV ");
+      break;
+    case IR_SEXT:
+      fprintf(p, "SEXT ");
+      break;
+    case IR_TRUNC:
+      fprintf(p, "TRUNC ");
       break;
     case IR_CALL:
       fprintf(p, "CALL ");

@@ -163,6 +163,12 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
     case IR_MOV:
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
+    case IR_TRUNC:
+      emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
+      break;
+    case IR_SEXT:
+      emit(p, "movsx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
+      break;
     case IR_RET:
       if (length_RegVec(h->ras) != 0) {
         assert(length_RegVec(h->ras) == 1);

@@ -151,10 +151,22 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
 
 // e -> &e
 // `opr` is consumed and new node is returned
-static Expr* build_array_decay(Expr* opr) {
-  assert(is_array_ty(opr->type));
+static Expr* build_ptr_conv(Expr* opr) {
+  assert(is_array_ty(opr->type) || is_function_ty(opr->type));
 
-  Type* ty  = ptr_to_ty(opr->type->element);
+  Type* desig_ty;
+  switch (opr->type->kind) {
+    case TY_ARRAY:
+      desig_ty = opr->type->element;
+      break;
+    case TY_FUNC:
+      desig_ty = opr->type;
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+
+  Type* ty  = ptr_to_ty(copy_Type(desig_ty));
   Expr* new = new_node_unaop(UNAOP_ADDR, opr);
   new->type = ty;
 
@@ -332,9 +344,10 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
 static Type* sema_expr(Env* env, Expr* e) {
   Type* ty = sema_expr_raw(env, e);
   switch (ty->kind) {
+    case TY_FUNC:
     case TY_ARRAY: {
       // TODO: shallow release of rhs of this assignment
-      *e = *build_array_decay(e);
+      *e = *build_ptr_conv(e);
       return e->type;
     }
     default:
@@ -482,7 +495,7 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
   Type* ty        = func_ty(ret, params);
   f->type         = copy_Type(ty);
 
-  add_global(global, name, ptr_to_ty(ty));
+  add_global(global, name, ty);
   sema_items(env, f->items);
 
   release_Env(env);
@@ -506,7 +519,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       TypeVec* params = param_types(NULL, f->params);
       Type* ty        = func_ty(ret, params);
       f->type         = copy_Type(ty);
-      add_global(global, name, ptr_to_ty(ty));
+      add_global(global, name, ty);
       break;
     }
     default:

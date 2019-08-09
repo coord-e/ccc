@@ -371,7 +371,7 @@ static Reg gen_lhs(Env* env, Expr* node) {
       if (get_var(env, node->var, &i)) {
         return new_stack_addr(env, i);
       } else {
-        error("undeclared name \"%s\"", node->var);
+        return new_global(env, node->var);
       }
     }
     case ND_UNAOP:
@@ -424,12 +424,12 @@ Reg gen_expr(Env* env, Expr* node) {
       return rhs;
     }
     case ND_VAR: {
-      unsigned i;
-      if (get_var(env, node->var, &i)) {
-        return new_stack_load(env, i, datasize_of_node(node));
-      } else {
-        return new_global(env, node->var);
+      // lvalue conversion is performed here
+      if (is_array_ty(node->type)) {
+        error("attempt to perform lvalue conversion on array value");
       }
+      Reg r = gen_lhs(env, node);
+      return new_load(env, r, datasize_of_node(node));
     }
     case ND_CALL: {
       IRInst* inst = new_inst_(env, IR_CALL);

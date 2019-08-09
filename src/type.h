@@ -51,6 +51,7 @@ bool is_compatible_ty(const Type*, const Type*);
 bool is_pointer_ty(const Type*);
 bool is_scalar_ty(const Type*);
 bool is_array_ty(const Type*);
+bool is_function_ty(const Type*);
 
 unsigned sizeof_ty(const Type*);
 unsigned stored_size_ty(const Type*);

@@ -49,6 +49,7 @@ Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
 Expr* new_node_unaop(UnaopKind kind, Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_cast(Type* ty, Expr* opr);
+Expr* shallow_copy_node(Expr*);
 
 typedef enum {
   DE_DIRECT,

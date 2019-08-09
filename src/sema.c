@@ -346,8 +346,9 @@ static Type* sema_expr(Env* env, Expr* e) {
   switch (ty->kind) {
     case TY_FUNC:
     case TY_ARRAY: {
+      Expr* copy = shallow_copy_node(e);
       // TODO: shallow release of rhs of this assignment
-      *e = *build_ptr_conv(e);
+      *e = *build_ptr_conv(copy);
       return e->type;
     }
     default:

@@ -343,6 +343,12 @@ Expr* new_node_cast(Type* ty, Expr* opr) {
   return node;
 }
 
+Expr* shallow_copy_node(Expr* e) {
+  Expr* node = new_node(0, NULL, NULL);
+  *node      = *e;
+  return node;
+}
+
 Declarator* new_Declarator(DeclaratorKind kind) {
   Declarator* d = calloc(1, sizeof(Declarator));
   d->kind       = kind;

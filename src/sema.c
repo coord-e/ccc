@@ -155,6 +155,7 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
 static Expr* build_ptr_conv(Expr* opr) {
   assert(is_array_ty(opr->type) || is_function_ty(opr->type));
 
+  Type* desig_ty;
   switch (opr->type->kind) {
     case TY_ARRAY: {
       Expr* deref = new_node_unaop(UNAOP_DEREF, opr);
@@ -163,8 +164,6 @@ static Expr* build_ptr_conv(Expr* opr) {
     case TY_FUNC: {
       return new_node_unaop(UNAOP_ADDR, opr);
     }
-    default:
-      CCC_UNREACHABLE;
   }
 }
 

@@ -404,6 +404,8 @@ static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
 Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST:
+      // TODO: trunc and extend
+      assert(stored_size_ty(node->cast_to) == stored_size_ty(node->expr->type));
       return gen_expr(env, node->expr);
     case ND_NUM:
       return new_imm(env, node->num, datasize_of_node(node));

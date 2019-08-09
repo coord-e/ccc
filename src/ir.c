@@ -598,7 +598,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator->name, stored_size_ty(decl->type));
+  new_var(env, decl->declarator->name_ref, stored_size_ty(decl->type));
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -626,7 +626,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
     return;
   }
 
-  char* name    = head_ParamList(l)->name;
+  char* name    = head_ParamList(l)->name_ref;
   Type* ty      = get_TypeVec(f->type->params, nth);
   unsigned size = stored_size_ty(ty);
   new_var(env, name, size);
@@ -651,7 +651,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   new_exit_ret(env);
 
   Function* ir      = calloc(1, sizeof(Function));
-  ir->name          = strdup(ast->decl->name);
+  ir->name          = strdup(ast->decl->name_ref);
   ir->entry         = entry;
   ir->exit          = env->cur;
   ir->bb_count      = env->bb_count;

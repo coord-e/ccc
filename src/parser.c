@@ -232,6 +232,7 @@ static Declarator* try_declarator(TokenList** t) {
   Declarator* base = new_Declarator(DE_DIRECT);
   base->num_ptrs   = num_ptrs;
   base->name       = strdup(expect(t, TK_IDENT).ident);
+  base->name_ref   = base->name;
 
   Declarator* d = base;
 
@@ -240,6 +241,7 @@ static Declarator* try_declarator(TokenList** t) {
     Declarator* ary = new_Declarator(DE_ARRAY);
     ary->decl       = d;
     ary->length     = assign(t);
+    ary->name_ref   = base->name;
     expect(t, TK_RBRACKET);
 
     d = ary;

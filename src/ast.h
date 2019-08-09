@@ -60,6 +60,7 @@ typedef struct Declarator Declarator;
 
 struct Declarator {
   DeclaratorKind kind;
+  char* name_ref;  // not owned
 
   char* name;         // for DE_DIRECT, owned
   unsigned num_ptrs;  // for DE_DIRECT

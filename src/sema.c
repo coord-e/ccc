@@ -149,28 +149,29 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   return new_node_binop(BINOP_DIV, new_expr, new_node_num(sizeof_ty(opr1->type->ptr_to)));
 }
 
-// e -> &e
+// e -> &*e (if e has array type)
+// e -> &e  (if e has function type)
 // `opr` is consumed and new node is returned
 static Expr* build_ptr_conv(Expr* opr) {
   assert(is_array_ty(opr->type) || is_function_ty(opr->type));
 
-  Type* desig_ty;
   switch (opr->type->kind) {
-    case TY_ARRAY:
-      desig_ty = opr->type->element;
-      break;
-    case TY_FUNC:
-      desig_ty = opr->type;
-      break;
+    case TY_ARRAY: {
+      Type* ty    = ptr_to_ty(copy_Type(opr->type->element));
+      Expr* deref = new_node_unaop(UNAOP_DEREF, opr);
+      Expr* addr  = new_node_unaop(UNAOP_ADDR, deref);
+      addr->type  = ty;
+      return addr;
+    }
+    case TY_FUNC: {
+      Type* ty   = ptr_to_ty(copy_Type(opr->type));
+      Expr* addr = new_node_unaop(UNAOP_ADDR, opr);
+      addr->type = ty;
+      return addr;
+    }
     default:
       CCC_UNREACHABLE;
   }
-
-  Type* ty  = ptr_to_ty(copy_Type(desig_ty));
-  Expr* new = new_node_unaop(UNAOP_ADDR, opr);
-  new->type = ty;
-
-  return new;
 }
 
 static Type* sema_expr(Env* env, Expr* expr);

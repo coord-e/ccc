@@ -117,7 +117,7 @@ static void should_scalar(Type* ty) {
 }
 
 // p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
-// both `int_opr` and `ptr_opr` are consumed and new node is returned
+// both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
 static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   assert(is_pointer_ty(ptr_opr->type));
   assert(is_integer_ty(int_opr->type));
@@ -134,7 +134,7 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
 }
 
 // p1 - p2 (p1, p2: t*, s: sizeof(t)) -> ((uint64_t)p1 - (uint64_t)p2) / s
-// both `opr1` and `opr2` are consumed and new node is returned
+// both `opr1` and `opr2` are consumed and new untyped node is returned
 static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   assert(is_pointer_ty(opr1->type));
   assert(is_pointer_ty(opr2->type));
@@ -151,23 +151,17 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
 
 // e -> &*e (if e has array type)
 // e -> &e  (if e has function type)
-// `opr` is consumed and new node is returned
+// `opr` is consumed and new untyped node is returned
 static Expr* build_ptr_conv(Expr* opr) {
   assert(is_array_ty(opr->type) || is_function_ty(opr->type));
 
   switch (opr->type->kind) {
     case TY_ARRAY: {
-      Type* ty    = ptr_to_ty(copy_Type(opr->type->element));
       Expr* deref = new_node_unaop(UNAOP_DEREF, opr);
-      Expr* addr  = new_node_unaop(UNAOP_ADDR, deref);
-      addr->type  = ty;
-      return addr;
+      return new_node_unaop(UNAOP_ADDR, deref);
     }
     case TY_FUNC: {
-      Type* ty   = ptr_to_ty(copy_Type(opr->type));
-      Expr* addr = new_node_unaop(UNAOP_ADDR, opr);
-      addr->type = ty;
-      return addr;
+      return new_node_unaop(UNAOP_ADDR, opr);
     }
     default:
       CCC_UNREACHABLE;
@@ -189,6 +183,9 @@ static Type* sema_binop(Env* env, Expr* expr) {
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, lhs));
+
         return copy_Type(lhs);
       }
       if (is_pointer_ty(rhs)) {
@@ -196,6 +193,9 @@ static Type* sema_binop(Env* env, Expr* expr) {
 
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_arith(op, expr->rhs, expr->lhs);
+
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, rhs));
 
         return copy_Type(rhs);
       }
@@ -215,13 +215,20 @@ static Type* sema_binop(Env* env, Expr* expr) {
         *expr = *build_pointer_diff(expr->lhs, expr->rhs);
 
         // TODO: how to handle `ptrdiff_t`
-        return int_ty();
+        Type* ty = int_ty();
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, ty));
+
+        return ty;
       }
       should_pointer(lhs);
       should_integer(rhs);
 
       // TODO: shallow release of rhs of this assignment
       *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
+
+      sema_expr(env, expr);
+      assert(equal_to_Type(expr->type, lhs));
 
       return copy_Type(lhs);
     case BINOP_MUL:
@@ -338,6 +345,10 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     default:
       CCC_UNREACHABLE;
   }
+
+  if (expr->type != NULL) {
+    release_Type(expr->type);
+  }
   expr->type = t;
   return t;
 }
@@ -350,7 +361,7 @@ static Type* sema_expr(Env* env, Expr* e) {
       Expr* copy = shallow_copy_node(e);
       // TODO: shallow release of rhs of this assignment
       *e = *build_ptr_conv(copy);
-      return e->type;
+      return sema_expr(env, e);
     }
     default:
       return ty;

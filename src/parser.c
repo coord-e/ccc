@@ -78,21 +78,34 @@ static ExprVec* argument_list(TokenList** t) {
   return args;
 }
 
-static Expr* call(TokenList** t) {
+static Expr* postfix(TokenList** t) {
   Expr* node = term(t);
 
-  if (head_of(t) == TK_LPAREN) {
-    // function call
-    consume(t);
-    ExprVec* args = argument_list(t);
-    expect(t, TK_RPAREN);
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_LPAREN:
+        // function call
+        consume(t);
+        ExprVec* args = argument_list(t);
+        expect(t, TK_RPAREN);
 
-    Expr* call = new_node(ND_CALL, NULL, NULL);
-    call->lhs  = node;
-    call->args = args;
-    return call;
-  } else {
-    return node;
+        Expr* call = new_node(ND_CALL, NULL, NULL);
+        call->lhs  = node;
+        call->args = args;
+        node       = call;
+        break;
+      case TK_LBRACKET:
+        // array subscript
+        // e[i] -> *(e + i)
+        consume(t);
+        Expr* idx = expr(t);
+        Expr* n   = new_node_unaop(UNAOP_DEREF, new_node_binop(BINOP_ADD, node, idx));
+        expect(t, TK_RBRACKET);
+        node = n;
+        break;
+      default:
+        return node;
+    }
   }
 }
 
@@ -101,19 +114,19 @@ static Expr* unary(TokenList** t) {
     case TK_PLUS:
       consume(t);
       // parse `+n` as `n`
-      return call(t);
+      return postfix(t);
     case TK_MINUS:
       consume(t);
       // parse `-n` as `0 - n`
-      return new_node_binop(BINOP_SUB, new_node_num(0), call(t));
+      return new_node_binop(BINOP_SUB, new_node_num(0), postfix(t));
     case TK_STAR:
       consume(t);
-      return new_node_unaop(UNAOP_DEREF, call(t));
+      return new_node_unaop(UNAOP_DEREF, postfix(t));
     case TK_AND:
       consume(t);
-      return new_node_unaop(UNAOP_ADDR, call(t));
+      return new_node_unaop(UNAOP_ADDR, postfix(t));
     default:
-      return call(t);
+      return postfix(t);
   }
 }
 

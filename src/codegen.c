@@ -182,13 +182,13 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       codegen_binop(p, h);
       break;
     case IR_STACK_ADDR:
-      emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), h->stack_idx + 8);
+      emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), h->stack_idx);
       break;
     case IR_STACK_LOAD:
-      emit(p, "mov %s, %s [rbp - %d]", reg_of(h->rd), size_spec(h->data_size), h->stack_idx + 8);
+      emit(p, "mov %s, %s [rbp - %d]", reg_of(h->rd), size_spec(h->data_size), h->stack_idx);
       break;
     case IR_STACK_STORE:
-      emit(p, "mov %s [rbp - %d], %s", size_spec(h->data_size), h->stack_idx + 8,
+      emit(p, "mov %s [rbp - %d], %s", size_spec(h->data_size), h->stack_idx,
            nth_reg_of(0, h->ras));
       break;
     case IR_LOAD:

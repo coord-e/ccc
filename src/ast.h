@@ -49,17 +49,34 @@ Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
 Expr* new_node_unaop(UnaopKind kind, Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_cast(Type* ty, Expr* opr);
+Expr* shallow_copy_node(Expr*);
 
-typedef struct {
-  unsigned num_ptrs;
-  char* name;  // owned
-} Declarator;
+typedef enum {
+  DE_DIRECT,
+  DE_ARRAY,
+} DeclaratorKind;
 
-Declarator* new_Declarator();
+typedef struct Declarator Declarator;
+
+struct Declarator {
+  DeclaratorKind kind;
+  char* name_ref;  // not owned
+
+  char* name;         // for DE_DIRECT, owned
+  unsigned num_ptrs;  // for DE_DIRECT
+
+  Declarator* decl;  // for DE_ARRAY, owned
+  Expr* length;      // for DE_ARRAY, owned
+};
+
+Declarator* new_Declarator(DeclaratorKind);
 
 typedef struct {
   // TODO: Add declaration specifiers
   Declarator* declarator;  // owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 } Declaration;
 
 Declaration* new_declaration(Declarator* s);
@@ -119,6 +136,9 @@ typedef struct {
   ParamList* params;  // owned
 
   BlockItemList* items;  // owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 } FunctionDef;
 
 FunctionDef* new_function_def();
@@ -128,6 +148,9 @@ FunctionDef* new_function_def();
 typedef struct {
   Declarator* decl;   // owned
   ParamList* params;  // owned
+
+  // will filled in `sema`
+  Type* type;  // owned
 } FunctionDecl;
 
 FunctionDecl* new_function_decl();

@@ -117,7 +117,7 @@ static void should_scalar(Type* ty) {
 }
 
 // p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
-// both `int_opr` and `ptr_opr` are consumed and new node is returned
+// both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
 static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   assert(is_pointer_ty(ptr_opr->type));
   assert(is_integer_ty(int_opr->type));
@@ -127,14 +127,16 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
   Expr* ptr_opr_c = new_node_cast(int_ty, ptr_opr);
-  Expr* int_opr_c = new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size));
-  Expr* new_expr  = new_node_binop(op, ptr_opr_c, int_opr_c);
+  // TODO: Remove this explicit cast by arithmetic conversion
+  Expr* int_opr_c =
+      new_node_cast(copy_Type(int_ty), new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
+  Expr* new_expr = new_node_binop(op, ptr_opr_c, int_opr_c);
 
   return new_node_cast(copy_Type(ptr_opr->type), new_expr);
 }
 
 // p1 - p2 (p1, p2: t*, s: sizeof(t)) -> ((uint64_t)p1 - (uint64_t)p2) / s
-// both `opr1` and `opr2` are consumed and new node is returned
+// both `opr1` and `opr2` are consumed and new untyped node is returned
 static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   assert(is_pointer_ty(opr1->type));
   assert(is_pointer_ty(opr2->type));
@@ -145,8 +147,25 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   Expr* opr1_c   = new_node_cast(int_ty, opr1);
   Expr* opr2_c   = new_node_cast(copy_Type(int_ty), opr2);
   Expr* new_expr = new_node_binop(BINOP_SUB, opr1_c, opr2_c);
+  // TODO: Remove this explicit cast by arithmetic conversion
+  Expr* num_c = new_node_cast(copy_Type(int_ty), new_node_num(sizeof_ty(opr1->type->ptr_to)));
 
-  return new_node_binop(BINOP_DIV, new_expr, new_node_num(sizeof_ty(opr1->type->ptr_to)));
+  return new_node_binop(BINOP_DIV, new_expr, num_c);
+}
+
+// convert array/function to pointer
+// `opr` is consumed and new untyped node is returned
+static Expr* build_decay(Expr* opr) {
+  assert(is_array_ty(opr->type) || is_function_ty(opr->type));
+
+  switch (opr->type->kind) {
+    case TY_ARRAY:
+      return new_node_unaop(UNAOP_ADDR_ARY, opr);
+    case TY_FUNC:
+      return new_node_unaop(UNAOP_ADDR, opr);
+    default:
+      CCC_UNREACHABLE;
+  }
 }
 
 static Type* sema_expr(Env* env, Expr* expr);
@@ -164,7 +183,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
-        return copy_Type(lhs);
+        Type* ty = copy_Type(lhs);
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, ty));
+
+        return ty;
       }
       if (is_pointer_ty(rhs)) {
         should_integer(lhs);
@@ -172,7 +195,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_arith(op, expr->rhs, expr->lhs);
 
-        return copy_Type(rhs);
+        Type* ty = copy_Type(rhs);
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, ty));
+
+        return ty;
       }
       should_arithmetic(lhs);
       should_arithmetic(rhs);
@@ -190,7 +217,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
         *expr = *build_pointer_diff(expr->lhs, expr->rhs);
 
         // TODO: how to handle `ptrdiff_t`
-        return int_ty();
+        Type* ty = int_ty();
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, ty));
+
+        return ty;
       }
       should_pointer(lhs);
       should_integer(rhs);
@@ -198,7 +229,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
       // TODO: shallow release of rhs of this assignment
       *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
-      return copy_Type(lhs);
+      Type* ty = copy_Type(lhs);
+      sema_expr(env, expr);
+      assert(equal_to_Type(expr->type, ty));
+
+      return ty;
     case BINOP_MUL:
     case BINOP_DIV:
       should_arithmetic(lhs);
@@ -230,20 +265,32 @@ static Type* sema_binop(Env* env, Expr* expr) {
   }
 }
 
-static Type* sema_unaop(UnaopKind op, Type* opr) {
-  switch (op) {
-    case UNAOP_ADDR:
-      return ptr_to_ty(copy_Type(opr));
-    case UNAOP_DEREF:
-      should_pointer(opr);
-      return copy_Type(opr->ptr_to);
+static Type* sema_expr_raw(Env* env, Expr* expr);
+
+static Type* sema_unaop(Env* env, Expr* e) {
+  Expr* opr = e->expr;
+  switch (e->unaop) {
+    case UNAOP_ADDR: {
+      Type* ty = sema_expr_raw(env, opr);
+      return ptr_to_ty(copy_Type(ty));
+    }
+    case UNAOP_ADDR_ARY: {
+      Type* ty = sema_expr_raw(env, opr);
+      assert(is_array_ty(ty));
+      return ptr_to_ty(copy_Type(ty->element));
+    }
+    case UNAOP_DEREF: {
+      Type* ty = sema_expr(env, opr);
+      should_pointer(ty);
+      return copy_Type(ty->ptr_to);
+    }
     default:
       CCC_UNREACHABLE;
   }
 }
 
 // returned `Type*` is reference to a data is owned by `expr`
-Type* sema_expr(Env* env, Expr* expr) {
+Type* sema_expr_raw(Env* env, Expr* expr) {
   Type* t;
   switch (expr->kind) {
     case ND_CAST: {
@@ -259,8 +306,7 @@ Type* sema_expr(Env* env, Expr* expr) {
       break;
     }
     case ND_UNAOP: {
-      Type* opr_ty = sema_expr(env, expr->expr);
-      t            = sema_unaop(expr->unaop, opr_ty);
+      t = sema_unaop(env, expr);
       break;
     }
     case ND_ASSIGN: {
@@ -307,14 +353,67 @@ Type* sema_expr(Env* env, Expr* expr) {
     default:
       CCC_UNREACHABLE;
   }
+
+  if (expr->type != NULL) {
+    release_Type(expr->type);
+  }
   expr->type = t;
   return t;
 }
 
+static Type* sema_expr(Env* env, Expr* e) {
+  Type* ty = sema_expr_raw(env, e);
+  switch (ty->kind) {
+    case TY_FUNC:
+    case TY_ARRAY: {
+      Expr* copy = shallow_copy_node(e);
+      // TODO: shallow release of rhs of this assignment
+      *e = *build_decay(copy);
+      return sema_expr(env, e);
+    }
+    default:
+      return ty;
+  }
+}
+
+static int eval_constant(Expr* e) {
+  // TODO: Support more nodes
+  switch (e->kind) {
+    case ND_NUM:
+      return e->num;
+    default:
+      error("invalid constant expression");
+  }
+}
+
+static void extract_declarator(Declarator* decl, char** name, Type** type) {
+  switch (decl->kind) {
+    case DE_DIRECT:
+      *type = ptrify(int_ty(), decl->num_ptrs);
+      *name = decl->name;
+      return;
+    case DE_ARRAY: {
+      Type* ty;
+      extract_declarator(decl->decl, name, &ty);
+      int length = eval_constant(decl->length);
+      if (length <= 0) {
+        error("invalid size of array: %d", length);
+      }
+
+      *type = array_ty(ty, length);
+      return;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void sema_decl(Env* env, Declaration* decl) {
-  Declarator* d = decl->declarator;
-  Type* ty      = ptrify(int_ty(), d->num_ptrs);
-  add_var(env, d->name, ty);
+  char* name;
+  Type* ty;
+  extract_declarator(decl->declarator, &name, &ty);
+  decl->type = copy_Type(ty);
+  add_var(env, name, ty);
 }
 
 static void sema_items(Env* env, BlockItemList* l);
@@ -395,10 +494,12 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
     Declarator* d = head_ParamList(cur);
-    Type* t       = ptrify(int_ty(), d->num_ptrs);
-    push_TypeVec(params, t);
+    Type* type;
+    char* name;
+    extract_declarator(d, &name, &type);
+    push_TypeVec(params, type);
     if (env != NULL) {
-      add_var(env, d->name, copy_Type(t));
+      add_var(env, name, copy_Type(type));
     }
     cur = tail_ParamList(cur);
   }
@@ -406,12 +507,16 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 }
 
 static void sema_function(GlobalEnv* global, FunctionDef* f) {
-  Type* ret = ptrify(int_ty(), f->decl->num_ptrs);
+  Type* ret;
+  char* name;
+  extract_declarator(f->decl, &name, &ret);
 
   Env* env        = init_Env(global, ret);
   TypeVec* params = param_types(env, f->params);
+  Type* ty        = func_ty(ret, params);
+  f->type         = copy_Type(ty);
 
-  add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
+  add_global(global, name, ty);
   sema_items(env, f->items);
 
   release_Env(env);
@@ -429,9 +534,13 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       break;
     case EX_FUNC_DECL: {
       FunctionDecl* f = d->func_decl;
-      Type* ret       = ptrify(int_ty(), f->decl->num_ptrs);
+      Type* ret;
+      char* name;
+      extract_declarator(f->decl, &name, &ret);
       TypeVec* params = param_types(NULL, f->params);
-      add_global(global, f->decl->name, ptr_to_ty(func_ty(ret, params)));
+      Type* ty        = func_ty(ret, params);
+      f->type         = copy_Type(ty);
+      add_global(global, name, ty);
       break;
     }
     default:

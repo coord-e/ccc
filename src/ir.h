@@ -11,6 +11,15 @@
 #include "vector.h"
 
 typedef enum {
+  SIZE_BYTE  = 1,  // 1 byte, 8  bits
+  SIZE_WORD  = 2,  // 2 byte, 16 bits
+  SIZE_DWORD = 4,  // 4 byte, 32 bits
+  SIZE_QWORD = 8,  // 8 byte, 64 bits
+} DataSize;
+
+DataSize to_data_size(unsigned);
+
+typedef enum {
   IR_BIN,
   IR_IMM,
   IR_ARG,
@@ -25,6 +34,8 @@ typedef enum {
   IR_JUMP,  // unconditional branch
   IR_LABEL,
   IR_CALL,
+  IR_SEXT,
+  IR_TRUNC,
   IR_GLOBAL_ADDR,
 } IRInstKind;
 
@@ -37,6 +48,7 @@ typedef struct {
   RegKind kind;
   unsigned virtual;
   unsigned real;
+  DataSize size;
 
   bool is_used;  // TODO: Use better way to represent unsued register slot
 } Reg;
@@ -56,6 +68,7 @@ typedef struct IRInst {
   int imm;                // for IR_IMM
   unsigned stack_idx;     // for IR_STACK_*
   unsigned argument_idx;  // for IR_ARG
+  DataSize data_size;     // for IR_{LOAD, STORE, STACK_LOAD, STACK_STORE}
 
   char* global_name;  // for IR_GLOBAL, owned
 

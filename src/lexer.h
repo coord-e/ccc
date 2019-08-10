@@ -14,6 +14,8 @@ typedef enum {
   TK_RPAREN,
   TK_LBRACE,  // {}
   TK_RBRACE,
+  TK_LBRACKET,  // []
+  TK_RBRACKET,
   TK_EQUAL,  // =
   TK_EQ,     // ==
   TK_NE,

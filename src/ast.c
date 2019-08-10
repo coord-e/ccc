@@ -26,6 +26,8 @@ static void release_Declarator(Declarator* d) {
   }
 
   free(d->name);
+  release_Declarator(d->decl);
+  release_expr(d->length);
   free(d);
 }
 
@@ -35,6 +37,7 @@ static void release_declaration(Declaration* d) {
   }
 
   release_Declarator(d->declarator);
+  release_Type(d->type);
   free(d);
 }
 
@@ -68,6 +71,7 @@ static void release_FunctionDef(FunctionDef* def) {
   release_Declarator(def->decl);
   release_ParamList(def->params);
   release_BlockItemList(def->items);
+  release_Type(def->type);
   free(def);
 }
 static void release_FunctionDecl(FunctionDecl* decl) {
@@ -76,6 +80,7 @@ static void release_FunctionDecl(FunctionDecl* decl) {
   }
   release_Declarator(decl->decl);
   release_ParamList(decl->params);
+  release_Type(decl->type);
   free(decl);
 }
 static void release_ExternalDecl(ExternalDecl* edecl) {
@@ -143,10 +148,22 @@ static void print_expr(FILE* p, Expr* expr) {
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
 static void print_Declarator(FILE* p, Declarator* d) {
-  for (unsigned i = 0; i < d->num_ptrs; i++) {
-    fprintf(p, "*");
+  switch (d->kind) {
+    case DE_DIRECT:
+      for (unsigned i = 0; i < d->num_ptrs; i++) {
+        fprintf(p, "*");
+      }
+      fprintf(p, "%s", d->name);
+      break;
+    case DE_ARRAY:
+      print_Declarator(p, d->decl);
+      fputs("[", p);
+      print_expr(p, d->length);
+      fputs("]", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
   }
-  fprintf(p, "%s", d->name);
 }
 
 static void print_declaration(FILE* p, Declaration* d) {
@@ -326,16 +343,26 @@ Expr* new_node_cast(Type* ty, Expr* opr) {
   return node;
 }
 
-Declarator* new_Declarator() {
+Expr* shallow_copy_node(Expr* e) {
+  Expr* node = new_node(0, NULL, NULL);
+  *node      = *e;
+  return node;
+}
+
+Declarator* new_Declarator(DeclaratorKind kind) {
   Declarator* d = calloc(1, sizeof(Declarator));
-  d->name       = NULL;
+  d->kind       = kind;
   d->num_ptrs   = 0;
+  d->name       = NULL;
+  d->decl       = NULL;
+  d->length     = NULL;
   return d;
 }
 
 Declaration* new_declaration(Declarator* s) {
   Declaration* d = calloc(1, sizeof(Declaration));
   d->declarator  = s;
+  d->type        = NULL;
   return d;
 }
 
@@ -359,6 +386,7 @@ FunctionDef* new_function_def() {
   def->decl        = NULL;
   def->params      = NULL;
   def->items       = NULL;
+  def->type        = NULL;
   return def;
 }
 
@@ -366,6 +394,7 @@ FunctionDecl* new_function_decl() {
   FunctionDecl* decl = calloc(1, sizeof(FunctionDecl));
   decl->decl         = NULL;
   decl->params       = NULL;
+  decl->type         = NULL;
   return decl;
 }
 

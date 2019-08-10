@@ -4,11 +4,13 @@
 #include <stdlib.h>
 
 Type* new_Type(TypeKind kind) {
-  Type* ty   = calloc(1, sizeof(Type));
-  ty->kind   = kind;
-  ty->ptr_to = NULL;
-  ty->ret    = NULL;
-  ty->params = NULL;
+  Type* ty    = calloc(1, sizeof(Type));
+  ty->kind    = kind;
+  ty->ptr_to  = NULL;
+  ty->ret     = NULL;
+  ty->params  = NULL;
+  ty->element = NULL;
+  ty->length  = 0;
   return ty;
 }
 
@@ -20,6 +22,7 @@ void release_Type(Type* ty) {
   release_Type(ty->ptr_to);
   release_Type(ty->ret);
   release_TypeVec(ty->params);
+  release_Type(ty->element);
   free(ty);
 }
 
@@ -39,6 +42,10 @@ Type* copy_Type(const Type* ty) {
       push_TypeVec(new->params, copy_Type(t));
     }
   }
+  if (ty->element != NULL) {
+    new->element = copy_Type(ty->element);
+  }
+  new->length = ty->length;
 
   return new;
 }
@@ -51,6 +58,9 @@ void print_Type(FILE* p, Type* ty) {
     case TY_INT:
       fprintf(p, "int");
       break;
+    case TY_LONG:
+      fprintf(p, "long");
+      break;
     case TY_PTR:
       fprintf(p, "*");
       print_Type(p, ty->ptr_to);
@@ -60,6 +70,10 @@ void print_Type(FILE* p, Type* ty) {
       print_TypeVec(p, ty->params);
       fprintf(p, ") ");
       print_Type(p, ty->ret);
+      break;
+    case TY_ARRAY:
+      print_Type(p, ty->element);
+      fprintf(p, "[%d]", ty->length);
       break;
     default:
       CCC_UNREACHABLE;
@@ -75,6 +89,8 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
   switch (a->kind) {
     case TY_INT:
+      return true;
+    case TY_LONG:
       return true;
     case TY_PTR:
       return equal_to_Type(a->ptr_to, b->ptr_to);
@@ -96,6 +112,11 @@ bool equal_to_Type(const Type* a, const Type* b) {
       }
 
       return true;
+    case TY_ARRAY:
+      if (a->length != b->length) {
+        return false;
+      }
+      return equal_to_Type(a->element, b->element);
     default:
       CCC_UNREACHABLE;
   }
@@ -103,6 +124,10 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
 Type* int_ty() {
   return new_Type(TY_INT);
+}
+
+Type* long_ty() {
+  return new_Type(TY_LONG);
 }
 
 Type* ptr_to_ty(Type* ty) {
@@ -118,13 +143,24 @@ Type* func_ty(Type* ret, TypeVec* params) {
   return t;
 }
 
+Type* array_ty(Type* element, unsigned length) {
+  Type* t    = new_Type(TY_ARRAY);
+  t->element = element;
+  t->length  = length;
+  return t;
+}
+
 bool is_arithmetic_ty(const Type* ty) {
   switch (ty->kind) {
     case TY_INT:
       return true;
+    case TY_LONG:
+      return true;
     case TY_PTR:
       return false;
     case TY_FUNC:
+      return false;
+    case TY_ARRAY:
       return false;
     default:
       CCC_UNREACHABLE;
@@ -135,9 +171,13 @@ bool is_integer_ty(const Type* ty) {
   switch (ty->kind) {
     case TY_INT:
       return true;
+    case TY_LONG:
+      return true;
     case TY_PTR:
       return false;
     case TY_FUNC:
+      return false;
+    case TY_ARRAY:
       return false;
     default:
       CCC_UNREACHABLE;
@@ -156,6 +196,14 @@ bool is_pointer_ty(const Type* t) {
   return t->kind == TY_PTR;
 }
 
+bool is_array_ty(const Type* t) {
+  return t->kind == TY_ARRAY;
+}
+
+bool is_function_ty(const Type* t) {
+  return t->kind == TY_FUNC;
+}
+
 bool is_scalar_ty(const Type* ty) {
   return is_arithmetic_ty(ty) || is_pointer_ty(ty);
 }
@@ -164,10 +212,31 @@ unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
     case TY_INT:
       return 4;
+    case TY_LONG:
+      return 8;
     case TY_PTR:
       return 8;
     case TY_FUNC:
       error("attempt to obtain the size of function type");
+    case TY_ARRAY:
+      return t->length;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+unsigned stored_size_ty(const Type* t) {
+  switch (t->kind) {
+    case TY_INT:
+      return 4;
+    case TY_LONG:
+      return 8;
+    case TY_PTR:
+      return 8;
+    case TY_FUNC:
+      error("attempt to obtain the size of function type");
+    case TY_ARRAY:
+      return t->length * stored_size_ty(t->element);
     default:
       CCC_UNREACHABLE;
   }
@@ -176,8 +245,7 @@ unsigned sizeof_ty(const Type* t) {
 Type* int_of_size_ty(unsigned size) {
   switch (size) {
     case 8:
-      // TODO: this must be long
-      return int_ty();
+      return long_ty();
     case 4:
       return int_ty();
     default:

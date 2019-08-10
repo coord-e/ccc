@@ -20,7 +20,8 @@ static char args_doc[] =
 
 static struct argp_option options[] = {
     {"emit-tokens", 't', "FILE", 0, "Dump tokens to the file"},
-    {"emit-ast", 'a', "FILE", 0, "Dump parsed ast to the file"},
+    {"emit-ast1", 'a', "FILE", 0, "Dump parsed ast to the file"},
+    {"emit-ast2", 's', "FILE", 0, "Dump analyzed ast to the file"},
     {"emit-ir1", 'c', "FILE", 0, "Dump the initial IR to the file"},
     {"emit-ir2", 'i', "FILE", 0, "Dump the final IR to the file"},
     {"output", 'o', "FILE", 0, "Output to FILE"},
@@ -28,7 +29,8 @@ static struct argp_option options[] = {
 
 typedef struct {
   char* emit_tokens;
-  char* emit_ast;
+  char* emit_ast1;
+  char* emit_ast2;
   char* emit_ir1;
   char* emit_ir2;
 
@@ -44,7 +46,10 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
       opts->emit_tokens = arg;
       break;
     case 'a':
-      opts->emit_ast = arg;
+      opts->emit_ast1 = arg;
+      break;
+    case 's':
+      opts->emit_ast2 = arg;
       break;
     case 'c':
       opts->emit_ir1 = arg;
@@ -130,13 +135,18 @@ int main(int argc, char** argv) {
 
   AST* tree = parse(tokens);
   release_TokenList(tokens);
-  if (opts.emit_ast != NULL) {
-    FILE* f = open_file(opts.emit_ast, "w");
+  if (opts.emit_ast1 != NULL) {
+    FILE* f = open_file(opts.emit_ast1, "w");
     print_AST(f, tree);
     close_file(f);
   }
 
   sema(tree);
+  if (opts.emit_ast2 != NULL) {
+    FILE* f = open_file(opts.emit_ast2, "w");
+    print_AST(f, tree);
+    close_file(f);
+  }
 
   IR* ir = generate_IR(tree);
   release_AST(tree);

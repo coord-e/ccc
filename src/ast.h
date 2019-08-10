@@ -52,6 +52,28 @@ Expr* new_node_cast(Type* ty, Expr* opr);
 Expr* shallow_copy_node(Expr*);
 
 typedef enum {
+  /* SIGNED   = 1, */
+  /* UNSIGNED = 1 << 2, */
+  /* VOID     = 1 << 4, */
+  /* BOOL     = 1 << 6, */
+  CHAR = 1 << 8,
+  /* SHORT    = 1 << 10, */
+  INT  = 1 << 12,
+  LONG = 1 << 14,
+} BaseType;
+
+typedef struct {
+  BaseType base_type;
+  /* char* user_type;  // owned */
+  /* bool is_typedef; */
+  /* bool is_extern; */
+  /* bool is_static; */
+  /* bool is_const; */
+} DeclarationSpecifiers;
+
+DeclarationSpecifiers* new_DeclarationSpecifiers();
+
+typedef enum {
   DE_DIRECT,
   DE_ARRAY,
 } DeclaratorKind;
@@ -72,14 +94,14 @@ struct Declarator {
 Declarator* new_Declarator(DeclaratorKind);
 
 typedef struct {
-  // TODO: Add declaration specifiers
-  Declarator* declarator;  // owned
+  DeclarationSpecifiers* spec;  // owned
+  Declarator* declarator;       // owned
 
   // will filled in `sema`
   Type* type;  // owned
 } Declaration;
 
-Declaration* new_declaration(Declarator* s);
+Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s);
 
 typedef struct Statement Statement;
 
@@ -129,11 +151,19 @@ struct Statement {
 
 Statement* new_statement(StmtKind kind, Expr* expr);
 
-DECLARE_LIST(Declarator*, ParamList)
+typedef struct {
+  DeclarationSpecifiers* spec;
+  Declarator* decl;
+} ParameterDecl;
+
+ParameterDecl* new_ParameterDecl(DeclarationSpecifiers*, Declarator*);
+
+DECLARE_LIST(ParameterDecl*, ParamList)
 
 typedef struct {
-  Declarator* decl;   // owned
-  ParamList* params;  // owned
+  DeclarationSpecifiers* spec;  // owned
+  Declarator* decl;             // owned
+  ParamList* params;            // owned
 
   BlockItemList* items;  // owned
 
@@ -146,8 +176,9 @@ FunctionDef* new_function_def();
 // Separate function declaration and other declarations to simplify implementation,
 // while function declaration is expressed as a normal declaration in C spec.
 typedef struct {
-  Declarator* decl;   // owned
-  ParamList* params;  // owned
+  DeclarationSpecifiers* spec;  // owned
+  Declarator* decl;             // owned
+  ParamList* params;            // owned
 
   // will filled in `sema`
   Type* type;  // owned

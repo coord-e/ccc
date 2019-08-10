@@ -55,6 +55,9 @@ DECLARE_VECTOR_PRINTER(TypeVec)
 
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
+    case TY_CHAR:
+      fprintf(p, "char");
+      break;
     case TY_INT:
       fprintf(p, "int");
       break;
@@ -88,8 +91,8 @@ bool equal_to_Type(const Type* a, const Type* b) {
   }
 
   switch (a->kind) {
+    case TY_CHAR:
     case TY_INT:
-      return true;
     case TY_LONG:
       return true;
     case TY_PTR:
@@ -122,6 +125,10 @@ bool equal_to_Type(const Type* a, const Type* b) {
   }
 }
 
+Type* char_ty() {
+  return new_Type(TY_CHAR);
+}
+
 Type* int_ty() {
   return new_Type(TY_INT);
 }
@@ -152,6 +159,8 @@ Type* array_ty(Type* element, unsigned length) {
 
 bool is_arithmetic_ty(const Type* ty) {
   switch (ty->kind) {
+    case TY_CHAR:
+      return true;
     case TY_INT:
       return true;
     case TY_LONG:
@@ -169,6 +178,8 @@ bool is_arithmetic_ty(const Type* ty) {
 
 bool is_integer_ty(const Type* ty) {
   switch (ty->kind) {
+    case TY_CHAR:
+      return true;
     case TY_INT:
       return true;
     case TY_LONG:
@@ -210,6 +221,8 @@ bool is_scalar_ty(const Type* ty) {
 
 unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
+    case TY_CHAR:
+      return 1;
     case TY_INT:
       return 4;
     case TY_LONG:
@@ -227,6 +240,8 @@ unsigned sizeof_ty(const Type* t) {
 
 unsigned stored_size_ty(const Type* t) {
   switch (t->kind) {
+    case TY_CHAR:
+      return 1;
     case TY_INT:
       return 4;
     case TY_LONG:
@@ -244,6 +259,8 @@ unsigned stored_size_ty(const Type* t) {
 
 Type* int_of_size_ty(unsigned size) {
   switch (size) {
+    case 1:
+      return char_ty();
     case 8:
       return long_ty();
     case 4:

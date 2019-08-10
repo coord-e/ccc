@@ -7,6 +7,7 @@
 #include "vector.h"
 
 typedef enum {
+  TY_CHAR,
   TY_INT,
   TY_LONG,
   TY_PTR,
@@ -39,7 +40,9 @@ void print_Type(FILE*, Type*);
 bool equal_to_Type(const Type*, const Type*);
 Type* copy_Type(const Type*);
 
+Type* char_ty();
 Type* int_ty();
+Type* long_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, unsigned);

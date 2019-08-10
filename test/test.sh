@@ -13,8 +13,20 @@ function try() {
     local tmp_asm="$(mktemp --suffix .s)"
     local tmp_exe="$(mktemp)"
 
+    local tmp_tks="$(mktemp)"
+    local tmp_ast1="$(mktemp)"
+    local tmp_ast2="$(mktemp)"
+    local tmp_ir1="$(mktemp --suffix .gv)"
+    local tmp_ir2="$(mktemp --suffix .gv)"
+
     echo "$input" > "$tmp_in"
-    "$CCC" "$tmp_in" -o "$tmp_asm"
+    "$CCC" "$tmp_in" \
+      -o "$tmp_asm" \
+      --emit-tokens "$tmp_tks" \
+      --emit-ast1 "$tmp_ast1" \
+      --emit-ast2 "$tmp_ast2" \
+      --emit-ir1 "$tmp_ir1" \
+      --emit-ir2 "$tmp_ir2"
     gcc -o "$tmp_exe" "$tmp_asm"
     "$tmp_exe"
     local actual="$?"
@@ -23,6 +35,14 @@ function try() {
         echo "$input => $actual"
     else
         echo "$input => $expected expected, but got $actual"
+        echo "input: $tmp_in"
+        echo "tokens: $tmp_tks"
+        echo "ast1: $tmp_ast1"
+        echo "ast2: $tmp_ast2"
+        echo "ir1: $tmp_ir1"
+        echo "ir2: $tmp_ir2"
+        echo "output: $tmp_asm"
+        echo "executable: $tmp_exe"
         exit 1
     fi
 }

@@ -290,11 +290,13 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
         s->base_type += BT_LONG;
         break;
       default:
-        return NULL;
+        if (s->base_type == 0) {
+          return NULL;
+        } else {
+          return s;
+        }
     }
   }
-
-  return s;
 }
 
 static DeclarationSpecifiers* declaration_specifiers(TokenList** t) {
@@ -473,7 +475,7 @@ static ParamList* parameter_list(TokenList** t) {
   ParamList* cur  = nil_ParamList();
   ParamList* list = cur;
 
-  if (head_of(t) != TK_IDENT) {
+  if (head_of(t) == TK_RPAREN) {
     return list;
   }
 
@@ -487,14 +489,15 @@ static ParamList* parameter_list(TokenList** t) {
 }
 
 static ExternalDecl* external_declaration(TokenList** t) {
-  declaration_specifiers(t);
-  Declarator* d = declarator(t);
+  DeclarationSpecifiers* spec = declaration_specifiers(t);
+  Declarator* d               = declarator(t);
   expect(t, TK_LPAREN);
   ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);
   if (head_of(t) == TK_LBRACE) {
     consume(t);
     FunctionDef* def = new_function_def();
+    def->spec        = spec;
     def->decl        = d;
     def->params      = params;
     def->items       = block_item_list(t);
@@ -507,6 +510,7 @@ static ExternalDecl* external_declaration(TokenList** t) {
     expect(t, TK_SEMICOLON);
 
     FunctionDecl* decl = new_function_decl();
+    decl->spec         = spec;
     decl->decl         = d;
     decl->params       = params;
 

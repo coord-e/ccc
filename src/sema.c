@@ -493,7 +493,7 @@ void sema_items(Env* env, BlockItemList* l) {
 static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
-    Declarator* d = head_ParamList(cur);
+    Declarator* d = head_ParamList(cur)->decl;
     Type* type;
     char* name;
     extract_declarator(d, &name, &type);

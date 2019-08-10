@@ -214,8 +214,9 @@ static void print_Declarator(FILE* p, Declarator* d) {
 
 static void print_declaration(FILE* p, Declaration* d) {
   print_DeclarationSpecifiers(p, d->spec);
+  fputs(" ", p);
   print_Declarator(p, d->declarator);
-  fprintf(p, ";");
+  fputs(";", p);
 }
 
 static void print_statement(FILE* p, Statement* stmt);
@@ -235,6 +236,7 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
 
 static void print_ParameterDecl(FILE* p, ParameterDecl* d) {
   print_DeclarationSpecifiers(p, d->spec);
+  fputs(" ", p);
   print_Declarator(p, d->decl);
 }
 
@@ -247,6 +249,7 @@ DEFINE_LIST_PRINTER(print_ParameterDecl, ",", "", ParamList)
 DECLARE_LIST_PRINTER(TranslationUnit)
 static void print_FunctionDef(FILE* p, FunctionDef* def) {
   print_DeclarationSpecifiers(p, def->spec);
+  fputs(" ", p);
   print_Declarator(p, def->decl);
   fprintf(p, " (");
   print_ParamList(p, def->params);
@@ -256,6 +259,7 @@ static void print_FunctionDef(FILE* p, FunctionDef* def) {
 }
 static void print_FunctionDecl(FILE* p, FunctionDecl* decl) {
   print_DeclarationSpecifiers(p, decl->spec);
+  fputs(" ", p);
   print_Declarator(p, decl->decl);
   fprintf(p, " (");
   print_ParamList(p, decl->params);

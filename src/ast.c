@@ -71,7 +71,7 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
-DeclarationSpecifier* new_DeclarationSpecifiers() {
+DeclarationSpecifiers* new_DeclarationSpecifiers() {
   return calloc(1, sizeof(DeclarationSpecifiers));
 }
 
@@ -179,6 +179,20 @@ static void print_expr(FILE* p, Expr* expr) {
 }
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
+  switch (s->base_type) {
+    case BT_INT:
+      fputs("int", p);
+      break;
+    case BT_LONG:
+      fputs("long", p);
+      break;
+    case BT_CHAR:
+      fputs("char", p);
+      break;
+  }
+}
+
 static void print_Declarator(FILE* p, Declarator* d) {
   switch (d->kind) {
     case DE_DIRECT:
@@ -219,11 +233,16 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
   }
 }
 
+static void print_ParameterDecl(FILE* p, ParameterDecl* d) {
+  print_DeclarationSpecifiers(p, d->spec);
+  print_Declarator(p, d->decl);
+}
+
 DECLARE_LIST_PRINTER(BlockItemList)
 DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
 
 DECLARE_LIST_PRINTER(ParamList)
-DEFINE_LIST_PRINTER(print_DeclarationSpecifiers, ",", "", ParamList)
+DEFINE_LIST_PRINTER(print_ParameterDecl, ",", "", ParamList)
 
 DECLARE_LIST_PRINTER(TranslationUnit)
 static void print_FunctionDef(FILE* p, FunctionDef* def) {

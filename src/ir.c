@@ -660,7 +660,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
     return;
   }
 
-  char* name    = head_ParamList(l)->name_ref;
+  char* name    = head_ParamList(l)->decl->name_ref;
   Type* ty      = get_TypeVec(f->type->params, nth);
   unsigned size = stored_size_ty(ty);
   new_var(env, name, size);

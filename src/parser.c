@@ -272,31 +272,42 @@ static Declarator* declarator(TokenList** t) {
   return d;
 }
 
-static bool try_declaration_specifiers(TokenList** t) {
-  Token t1 = head_TokenList(*t);
+static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
+  DeclarationSpecifiers* s = new_DeclarationSpecifiers();
 
-  if (t1.kind != TK_IDENT) {
-    return false;
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_INT:
+        consume(t);
+        s->base_type += BT_INT;
+        break;
+      case TK_CHAR:
+        consume(t);
+        s->base_type += BT_CHAR;
+        break;
+      case TK_LONG:
+        consume(t);
+        s->base_type += BT_LONG;
+        break;
+      default:
+        return NULL;
+    }
   }
 
-  // TODO: Parse type specifier
-  if (strcmp(t1.ident, "int") != 0) {
-    return false;
-  }
-
-  consume(t);
-
-  return true;
+  return s;
 }
 
-static void declaration_specifiers(TokenList** t) {
-  if (!try_declaration_specifiers(t)) {
+static DeclarationSpecifiers* declaration_specifiers(TokenList** t) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
     error("could not parse declaration specifiers.");
   }
+  return s;
 }
 
 static Declaration* try_declaration(TokenList** t) {
-  if (!try_declaration_specifiers(t)) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
     return NULL;
   }
 
@@ -305,7 +316,7 @@ static Declaration* try_declaration(TokenList** t) {
     return NULL;
   }
 
-  Declaration* d = new_declaration(dor);
+  Declaration* d = new_declaration(s, dor);
 
   if (consuming(t).kind != TK_SEMICOLON) {
     return NULL;
@@ -467,9 +478,9 @@ static ParamList* parameter_list(TokenList** t) {
   }
 
   do {
-    declaration_specifiers(t);
-    Declarator* d = declarator(t);
-    cur           = snoc_ParamList(d, cur);
+    DeclarationSpecifiers* s = declaration_specifiers(t);
+    Declarator* d            = declarator(t);
+    cur                      = snoc_ParamList(new_ParameterDecl(s, d), cur);
   } while (try (t, TK_COMMA));
 
   return list;

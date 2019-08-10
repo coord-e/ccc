@@ -217,6 +217,12 @@ static void print_token(FILE* p, Token t) {
     case TK_RBRACE:
       fprintf(p, "(})");
       break;
+    case TK_LBRACKET:
+      fprintf(p, "([)");
+      break;
+    case TK_RBRACKET:
+      fprintf(p, "(])");
+      break;
     case TK_EQUAL:
       fprintf(p, "(=)");
       break;

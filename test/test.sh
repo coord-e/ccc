@@ -205,4 +205,32 @@ int main() {
 }
 EOF
 
+# arrays
+items 8 "int a[2]; a[0] = 3; a[1] = 5; return a[0] + a[1];"
+items 3 "int a[2]; a[0] = 1; a[1] = 2; int *p; p = a; return *p + *(p + 1);"
+items 8 "int a[2][5]; a[0][2] = 3; a[1][4] = 5; return a[0][2] + a[1][4];"
+items 16 "int a[2]; int b[2]; int c; c = 10; b[1] = 5; a[1] = 1; return c + b[1] + a[1];"
+try_ 12 << EOF
+int nth_of(int* a, int i) {
+  return a[i];
+}
+
+int main() {
+  int ary[5];
+  int i;
+
+  for (i = 0; i < 5; i = i + 1) {
+    ary[i] = i * 2;
+  }
+
+  int v0;
+  int v1;
+  int v2;
+  v0 = nth_of(ary, 0);
+  v1 = nth_of(ary, 2);
+  v2 = nth_of(ary, 4);
+  return v0 + v1 + v2;
+}
+EOF
+
 echo OK

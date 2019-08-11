@@ -64,9 +64,6 @@ void print_unaop(FILE* p, UnaopKind kind) {
     case UNAOP_BITWISE_NEG:
       fprintf(p, "~");
       return;
-    case UNAOP_LOGICAL_NEG:
-      fprintf(p, "!");
-      return;
     default:
       CCC_UNREACHABLE;
   }

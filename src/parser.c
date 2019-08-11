@@ -246,7 +246,8 @@ static Expr* unary(TokenList** t) {
       return new_node_unaop(UNAOP_BITWISE_NEG, postfix(t));
     case TK_EXCL:
       consume(t);
-      return new_node_unaop(UNAOP_LOGICAL_NEG, postfix(t));
+      // `!e` is equivalent to `(0 == e)` (section 6.5.3.3)
+      return new_node_binop(BINOP_EQ, new_node_num(0), postfix(t));
     case TK_STAR:
       consume(t);
       return new_node_deref(postfix(t));

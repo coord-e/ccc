@@ -278,11 +278,6 @@ static void codegen_unaop(FILE* p, IRInst* inst) {
     case UNAOP_INTEGER_NEG:
       emit(p, "neg %s", reg_of(rd));
       return;
-    case UNAOP_LOGICAL_NEG:
-      emit(p, "cmp %s, 0", reg_of(rd));
-      emit(p, "sete %s", regs8[rd.real]);
-      emit(p, "movzb %s, %s", reg_of(rd), regs8[rd.real]);
-      return;
     case UNAOP_BITWISE_NEG:
       emit(p, "not %s", reg_of(rd));
       return;

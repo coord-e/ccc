@@ -382,10 +382,6 @@ static Type* sema_unaop(Env* env, Expr* e) {
       // TODO: integral promotion
       return copy_Type(ty);
     }
-    case UNAOP_LOGICAL_NEG: {
-      should_scalar(ty);
-      return int_ty();
-    }
     default:
       CCC_UNREACHABLE;
   }

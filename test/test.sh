@@ -253,4 +253,8 @@ int main() {
 }
 EOF
 
+# cast
+items 10 "char a; a = (char)10; return (int)a;"
+items 5 "int* p; int a[3]; unsigned long addr; addr = (unsigned long)a + (unsigned long)4; a[1] = 5; p = (int*)addr; return *p;"
+
 echo OK

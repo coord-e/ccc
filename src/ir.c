@@ -415,7 +415,7 @@ Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST: {
       // TODO: signedness?
-      unsigned cast_size = stored_size_ty(node->cast_to);
+      unsigned cast_size = stored_size_ty(node->cast_type);
       unsigned expr_size = stored_size_ty(node->expr->type);
       Reg r              = gen_expr(env, node->expr);
       if (cast_size > expr_size) {

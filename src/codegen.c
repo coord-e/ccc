@@ -73,19 +73,23 @@ static void emit(FILE* p, char* fmt, ...) {
   fprintf(p, "\n");
 }
 
-static const char* reg_of(Reg r) {
-  switch (r.size) {
+static const char* reg_name(unsigned id, DataSize size) {
+  switch (size) {
     case SIZE_BYTE:
-      return regs8[r.real];
+      return regs8[id];
     case SIZE_WORD:
-      return regs16[r.real];
+      return regs16[id];
     case SIZE_DWORD:
-      return regs32[r.real];
+      return regs32[id];
     case SIZE_QWORD:
-      return regs64[r.real];
+      return regs64[id];
     default:
       CCC_UNREACHABLE;
   }
+}
+
+static const char* reg_of(Reg r) {
+  return reg_name(r.real, r.size);
 }
 
 static const char* nth_reg_of(unsigned i, RegVec* rs) {
@@ -163,9 +167,11 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
     case IR_MOV:
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
-    case IR_TRUNC:
-      emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
+    case IR_TRUNC: {
+      Reg opr = get_RegVec(h->ras, 0);
+      emit(p, "mov %s, %s", reg_of(h->rd), reg_name(opr.real, h->rd.size));
       break;
+    }
     case IR_SEXT:
       emit(p, "movsx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;

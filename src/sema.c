@@ -348,6 +348,19 @@ static Type* sema_binop(Env* env, Expr* expr) {
       should_pointer(rhs);
       should_compatible(lhs->ptr_to, rhs->ptr_to);
       return int_ty();
+    case BINOP_SHIFT_RIGHT:
+    case BINOP_SHIFT_LEFT:
+      should_integer(lhs);
+      should_integer(rhs);
+      // TODO: integer promotion
+      return copy_Type(lhs);
+    case BINOP_AND:
+    case BINOP_XOR:
+    case BINOP_OR:
+      should_integer(lhs);
+      should_integer(rhs);
+      // TODO: arithmetic conversion
+      return copy_Type(lhs);
     default:
       CCC_UNREACHABLE;
   }

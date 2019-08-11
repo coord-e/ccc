@@ -315,26 +315,45 @@ static Expr* add(TokenList** t) {
   }
 }
 
-static Expr* relational(TokenList** t) {
+static Expr* shift(TokenList** t) {
   Expr* node = add(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_RIGHT:
+        consume(t);
+        node = new_node_binop(BINOP_SHIFT_RIGHT, node, add(t));
+        break;
+      case TK_LEFT:
+        consume(t);
+        node = new_node_binop(BINOP_SHIFT_LEFT, node, add(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* relational(TokenList** t) {
+  Expr* node = shift(t);
 
   for (;;) {
     switch (head_of(t)) {
       case TK_GT:
         consume(t);
-        node = new_node_binop(BINOP_GT, node, add(t));
+        node = new_node_binop(BINOP_GT, node, shift(t));
         break;
       case TK_GE:
         consume(t);
-        node = new_node_binop(BINOP_GE, node, add(t));
+        node = new_node_binop(BINOP_GE, node, shift(t));
         break;
       case TK_LT:
         consume(t);
-        node = new_node_binop(BINOP_LT, node, add(t));
+        node = new_node_binop(BINOP_LT, node, shift(t));
         break;
       case TK_LE:
         consume(t);
-        node = new_node_binop(BINOP_LE, node, add(t));
+        node = new_node_binop(BINOP_LE, node, shift(t));
         break;
       default:
         return node;
@@ -361,8 +380,53 @@ static Expr* equality(TokenList** t) {
   }
 }
 
-static Expr* assign(TokenList** t) {
+static Expr* bit_and(TokenList** t) {
   Expr* node = equality(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_AND:
+        consume(t);
+        node = new_node_binop(BINOP_AND, node, equality(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* bit_xor(TokenList** t) {
+  Expr* node = bit_and(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_HAT:
+        consume(t);
+        node = new_node_binop(BINOP_XOR, node, bit_and(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* bit_or(TokenList** t) {
+  Expr* node = bit_xor(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_VERTICAL:
+        consume(t);
+        node = new_node_binop(BINOP_OR, node, bit_xor(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* assign(TokenList** t) {
+  Expr* node = bit_or(t);
 
   // `=` has right associativity
   switch (head_of(t)) {

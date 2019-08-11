@@ -33,6 +33,21 @@ void print_binop(FILE* p, BinopKind kind) {
     case BINOP_LE:
       fprintf(p, "<=");
       return;
+    case BINOP_OR:
+      fprintf(p, "|");
+      return;
+    case BINOP_XOR:
+      fprintf(p, "^");
+      return;
+    case BINOP_AND:
+      fprintf(p, "&");
+      return;
+    case BINOP_SHIFT_RIGHT:
+      fprintf(p, ">>");
+      return;
+    case BINOP_SHIFT_LEFT:
+      fprintf(p, "<<");
+      return;
     default:
       CCC_UNREACHABLE;
   }

@@ -14,6 +14,11 @@ typedef enum {
   BINOP_GE,
   BINOP_LT,
   BINOP_LE,
+  BINOP_OR,
+  BINOP_XOR,
+  BINOP_AND,
+  BINOP_SHIFT_RIGHT,
+  BINOP_SHIFT_LEFT,
 } BinopKind;
 
 void print_binop(FILE*, BinopKind);

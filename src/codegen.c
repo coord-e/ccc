@@ -51,6 +51,21 @@ static const char* rax_of_size(DataSize s) {
   }
 }
 
+static const char* rcx_of_size(DataSize s) {
+  switch (s) {
+    case SIZE_BYTE:
+      return "cl";
+    case SIZE_WORD:
+      return "cx";
+    case SIZE_DWORD:
+      return "ecx";
+    case SIZE_QWORD:
+      return "rcx";
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void emit_label(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -321,6 +336,24 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       return;
     case BINOP_LE:
       codegen_cmp(p, "le", rd, rhs);
+      return;
+    case BINOP_SHIFT_RIGHT:
+      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      // TODO: Consider signedness
+      emit(p, "sar %s, cl", reg_of(rd));
+      return;
+    case BINOP_SHIFT_LEFT:
+      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      emit(p, "shl %s, cl", reg_of(rd));
+      return;
+    case BINOP_AND:
+      emit(p, "and %s, %s", reg_of(rd), reg_of(rhs));
+      return;
+    case BINOP_XOR:
+      emit(p, "xor %s, %s", reg_of(rd), reg_of(rhs));
+      return;
+    case BINOP_OR:
+      emit(p, "or %s, %s", reg_of(rd), reg_of(rhs));
       return;
     default:
       CCC_UNREACHABLE;

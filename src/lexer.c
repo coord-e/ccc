@@ -147,6 +147,14 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_COMMA, cur);
         p++;
         continue;
+      case '^':
+        cur = add_token(TK_HAT, cur);
+        p++;
+        continue;
+      case '|':
+        cur = add_token(TK_VERTICAL, cur);
+        p++;
+        continue;
       case '=':
         p++;
         switch (*p) {
@@ -176,6 +184,10 @@ TokenList* tokenize(char* p) {
             cur = add_token(TK_GE, cur);
             p++;
             continue;
+          case '>':
+            cur = add_token(TK_RIGHT, cur);
+            p++;
+            continue;
           default:
             cur = add_token(TK_GT, cur);
             continue;
@@ -185,6 +197,10 @@ TokenList* tokenize(char* p) {
         switch (*p) {
           case '=':
             cur = add_token(TK_LE, cur);
+            p++;
+            continue;
+          case '<':
+            cur = add_token(TK_LEFT, cur);
             p++;
             continue;
           default:
@@ -277,6 +293,18 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_AND:
       fprintf(p, "(&)");
+      break;
+    case TK_VERTICAL:
+      fprintf(p, "(|)");
+      break;
+    case TK_HAT:
+      fprintf(p, "(^)");
+      break;
+    case TK_LEFT:
+      fprintf(p, "(<<)");
+      break;
+    case TK_RIGHT:
+      fprintf(p, "(>>)");
       break;
     case TK_RETURN:
       fprintf(p, "(return)");

@@ -10,6 +10,10 @@ typedef enum {
   TK_STAR,
   TK_SLASH,
   TK_AND,
+  TK_VERTICAL,
+  TK_HAT,
+  TK_LEFT,    // <<
+  TK_RIGHT,   // >>
   TK_LPAREN,  // ()
   TK_RPAREN,
   TK_LBRACE,  // {}

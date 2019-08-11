@@ -126,7 +126,7 @@ static int eval_constant(Expr* e) {
   }
 }
 
-static Type* translate_type(BaseType t) {
+static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic ignored "-Wswitch"
   switch (t) {
     case BT_SIGNED + BT_CHAR:
@@ -193,7 +193,7 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
 }
 
 static Type* translate_type_name(TypeName* t) {
-  Type* base_ty = translate_type(t->spec->base_type);
+  Type* base_ty = translate_base_type(t->spec->base_type);
   Type* res;
   extract_declarator(t->declarator, base_ty, NULL, &res);
   return res;
@@ -469,7 +469,7 @@ static Type* sema_expr(Env* env, Expr* e) {
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
-  Type* base_ty = translate_type(decl->spec->base_type);
+  Type* base_ty = translate_base_type(decl->spec->base_type);
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
@@ -555,7 +555,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
-    Type* base_ty    = translate_type(d->spec->base_type);
+    Type* base_ty    = translate_base_type(d->spec->base_type);
     Type* type;
     char* name;
     extract_declarator(d->decl, base_ty, &name, &type);
@@ -569,7 +569,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 }
 
 static void sema_function(GlobalEnv* global, FunctionDef* f) {
-  Type* base_ty = translate_type(f->spec->base_type);
+  Type* base_ty = translate_base_type(f->spec->base_type);
   Type* ret;
   char* name;
   extract_declarator(f->decl, base_ty, &name, &ret);
@@ -597,7 +597,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       break;
     case EX_FUNC_DECL: {
       FunctionDecl* f = d->func_decl;
-      Type* base_ty   = translate_type(f->spec->base_type);
+      Type* base_ty   = translate_base_type(f->spec->base_type);
       Type* ret;
       char* name;
       extract_declarator(f->decl, base_ty, &name, &ret);

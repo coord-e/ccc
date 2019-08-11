@@ -11,6 +11,8 @@ typedef enum {
   TK_SLASH,
   TK_AND,
   TK_VERTICAL,
+  TK_DOUBLE_AND,
+  TK_DOUBLE_VERTICAL,
   TK_HAT,
   TK_LEFT,    // <<
   TK_RIGHT,   // >>

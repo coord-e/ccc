@@ -103,10 +103,6 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_STAR, cur);
         p++;
         continue;
-      case '&':
-        cur = add_token(TK_AND, cur);
-        p++;
-        continue;
       case '/':
         cur = add_token(TK_SLASH, cur);
         p++;
@@ -151,10 +147,28 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_HAT, cur);
         p++;
         continue;
-      case '|':
-        cur = add_token(TK_VERTICAL, cur);
+      case '&':
         p++;
-        continue;
+        switch (*p) {
+          case '&':
+            cur = add_token(TK_DOUBLE_AND, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_AND, cur);
+            continue;
+        }
+      case '|':
+        p++;
+        switch (*p) {
+          case '|':
+            cur = add_token(TK_DOUBLE_VERTICAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_VERTICAL, cur);
+            continue;
+        }
       case ':':
         cur = add_token(TK_COLON, cur);
         p++;
@@ -304,6 +318,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_VERTICAL:
       fprintf(p, "(|)");
+      break;
+    case TK_DOUBLE_AND:
+      fprintf(p, "(&&)");
+      break;
+    case TK_DOUBLE_VERTICAL:
+      fprintf(p, "(||)");
       break;
     case TK_HAT:
       fprintf(p, "(^)");

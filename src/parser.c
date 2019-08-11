@@ -426,8 +426,46 @@ static Expr* bit_or(TokenList** t) {
   }
 }
 
-static Expr* conditional(TokenList** t) {
+static Expr* logic_and(TokenList** t) {
   Expr* node = bit_or(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_DOUBLE_AND:
+        // e1 && e2
+        // is equivalent to
+        // e1 ? (e2 ? 1 : 0) : 0
+        consume(t);
+        node = new_node_cond(node, new_node_cond(bit_or(t), new_node_num(1), new_node_num(0)),
+                             new_node_num(0));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* logic_or(TokenList** t) {
+  Expr* node = logic_and(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_DOUBLE_VERTICAL:
+        // e1 || e2
+        // is equivalent to
+        // e1 ? 1 : (e2 ? 1 : 0)
+        consume(t);
+        node = new_node_cond(node, new_node_num(1),
+                             new_node_cond(logic_and(t), new_node_num(1), new_node_num(0)));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* conditional(TokenList** t) {
+  Expr* node = logic_or(t);
 
   switch (head_of(t)) {
     case TK_QUESTION:

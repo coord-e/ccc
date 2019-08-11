@@ -231,21 +231,23 @@ static Expr* expr(TokenList** t) {
   return assign(t);
 }
 
-static Declarator* try_declarator(TokenList** t) {
+static Declarator* try_declarator(TokenList** t, bool is_abstract) {
   unsigned num_ptrs = 0;
   while (head_of(t) == TK_STAR) {
     consume(t);
     num_ptrs++;
   }
 
-  if (head_of(t) != TK_IDENT) {
+  if (!is_abstract && head_of(t) != TK_IDENT) {
     return NULL;
   }
 
-  Declarator* base = new_Declarator(DE_DIRECT);
+  Declarator* base = new_Declarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
   base->num_ptrs   = num_ptrs;
-  base->name       = strdup(expect(t, TK_IDENT).ident);
-  base->name_ref   = base->name;
+  if (!is_abstract) {
+    base->name     = strdup(expect(t, TK_IDENT).ident);
+    base->name_ref = base->name;
+  }
 
   Declarator* d = base;
 
@@ -263,8 +265,8 @@ static Declarator* try_declarator(TokenList** t) {
   return d;
 }
 
-static Declarator* declarator(TokenList** t) {
-  Declarator* d = try_declarator(t);
+static Declarator* declarator(TokenList** t, bool is_abstract) {
+  Declarator* d = try_declarator(t, is_abstract);
   if (d == NULL) {
     error("could not parse the declarator.");
   }
@@ -325,7 +327,7 @@ static Declaration* try_declaration(TokenList** t) {
     return NULL;
   }
 
-  Declarator* dor = try_declarator(t);
+  Declarator* dor = try_declarator(t, false);
   if (dor == NULL) {
     return NULL;
   }
@@ -493,7 +495,7 @@ static ParamList* parameter_list(TokenList** t) {
 
   do {
     DeclarationSpecifiers* s = declaration_specifiers(t);
-    Declarator* d            = declarator(t);
+    Declarator* d            = declarator(t, false);
     cur                      = snoc_ParamList(new_ParameterDecl(s, d), cur);
   } while (try (t, TK_COMMA));
 
@@ -502,7 +504,7 @@ static ParamList* parameter_list(TokenList** t) {
 
 static ExternalDecl* external_declaration(TokenList** t) {
   DeclarationSpecifiers* spec = declaration_specifiers(t);
-  Declarator* d               = declarator(t);
+  Declarator* d               = declarator(t, false);
   expect(t, TK_LPAREN);
   ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);

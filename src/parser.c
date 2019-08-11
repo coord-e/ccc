@@ -297,6 +297,10 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
         consume(t);
         s->base_type += BT_LONG;
         break;
+      case TK_SHORT:
+        consume(t);
+        s->base_type += BT_SHORT;
+        break;
       default:
         if (s->base_type == 0) {
           return NULL;

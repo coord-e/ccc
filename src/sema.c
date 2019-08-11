@@ -408,6 +408,14 @@ static Type* translate_type(BaseType t) {
     case BT_UNSIGNED + BT_LONG:
     case BT_UNSIGNED + BT_LONG + BT_INT:
       return into_unsigned_ty(long_ty());
+    case BT_SHORT:
+    case BT_SHORT + BT_INT:
+    case BT_SIGNED + BT_SHORT:
+    case BT_SIGNED + BT_SHORT + BT_INT:
+      return short_ty();
+    case BT_UNSIGNED + BT_SHORT:
+    case BT_UNSIGNED + BT_SHORT + BT_INT:
+      return into_unsigned_ty(short_ty());
     default:
       error("invalid type");
   }

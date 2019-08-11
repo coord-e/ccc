@@ -56,6 +56,7 @@ Type* copy_Type(const Type*);
 Type* char_ty();
 Type* int_ty();
 Type* long_ty();
+Type* short_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, unsigned);

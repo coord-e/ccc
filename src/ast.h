@@ -56,10 +56,10 @@ typedef enum {
   BT_UNSIGNED = 1 << 2,
   /* VOID     = 1 << 4, */
   /* BOOL     = 1 << 6, */
-  BT_CHAR = 1 << 8,
-  /* SHORT    = 1 << 10, */
-  BT_INT  = 1 << 12,
-  BT_LONG = 1 << 14,
+  BT_CHAR  = 1 << 8,
+  BT_SHORT = 1 << 10,
+  BT_INT   = 1 << 12,
+  BT_LONG  = 1 << 14,
 } BaseType;
 
 typedef struct {

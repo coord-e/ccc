@@ -177,6 +177,10 @@ Type* long_ty() {
   return new_int_Type(SIZE_QWORD, true);
 }
 
+Type* short_ty() {
+  return new_int_Type(SIZE_WORD, true);
+}
+
 Type* ptr_to_ty(Type* ty) {
   Type* t   = new_Type(TY_PTR);
   t->ptr_to = ty;

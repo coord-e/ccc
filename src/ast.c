@@ -199,6 +199,9 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
     case BT_CHAR:
       fputs("char", p);
       break;
+    case BT_SHORT:
+      fputs("short", p);
+      break;
     default:
       CCC_UNREACHABLE;
   }

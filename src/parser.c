@@ -42,6 +42,130 @@ static bool try
   }
 
 static Expr* expr(TokenList** t);
+static Expr* assign(TokenList** t);
+
+static Declarator* try_declarator(TokenList** t, bool is_abstract) {
+  unsigned num_ptrs = 0;
+  while (head_of(t) == TK_STAR) {
+    consume(t);
+    num_ptrs++;
+  }
+
+  if (!is_abstract && head_of(t) != TK_IDENT) {
+    return NULL;
+  }
+
+  Declarator* base = new_Declarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
+  base->num_ptrs   = num_ptrs;
+  if (!is_abstract) {
+    base->name     = strdup(expect(t, TK_IDENT).ident);
+    base->name_ref = base->name;
+  }
+
+  Declarator* d = base;
+
+  while (head_of(t) == TK_LBRACKET) {
+    consume(t);
+    Declarator* ary = new_Declarator(DE_ARRAY);
+    ary->decl       = d;
+    ary->length     = assign(t);
+    ary->name_ref   = base->name;
+    expect(t, TK_RBRACKET);
+
+    d = ary;
+  }
+  return d;
+}
+
+static Declarator* declarator(TokenList** t, bool is_abstract) {
+  Declarator* d = try_declarator(t, is_abstract);
+  if (d == NULL) {
+    error("could not parse the declarator.");
+  }
+
+  return d;
+}
+
+static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
+  DeclarationSpecifiers* s = new_DeclarationSpecifiers();
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_SIGNED:
+        consume(t);
+        s->base_type |= BT_SIGNED;
+        break;
+      case TK_UNSIGNED:
+        consume(t);
+        s->base_type |= BT_UNSIGNED;
+        break;
+      case TK_INT:
+        consume(t);
+        s->base_type += BT_INT;
+        break;
+      case TK_CHAR:
+        consume(t);
+        s->base_type += BT_CHAR;
+        break;
+      case TK_LONG:
+        consume(t);
+        s->base_type += BT_LONG;
+        break;
+      case TK_SHORT:
+        consume(t);
+        s->base_type += BT_SHORT;
+        break;
+      default:
+        if (s->base_type == 0) {
+          return NULL;
+        } else {
+          return s;
+        }
+    }
+  }
+}
+
+static DeclarationSpecifiers* declaration_specifiers(TokenList** t) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
+    error("could not parse declaration specifiers.");
+  }
+  return s;
+}
+
+static TypeName* try_type_name(TokenList** t) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
+    return NULL;
+  }
+
+  Declarator* dor = try_declarator(t, true);
+  if (dor == NULL) {
+    return NULL;
+  }
+
+  return new_TypeName(s, dor);
+}
+
+static Declaration* try_declaration(TokenList** t) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
+    return NULL;
+  }
+
+  Declarator* dor = try_declarator(t, false);
+  if (dor == NULL) {
+    return NULL;
+  }
+
+  Declaration* d = new_declaration(s, dor);
+
+  if (consuming(t).kind != TK_SEMICOLON) {
+    return NULL;
+  }
+
+  return d;
+}
 
 static Expr* term(TokenList** t) {
   if (head_of(t) == TK_LPAREN) {
@@ -130,18 +254,37 @@ static Expr* unary(TokenList** t) {
   }
 }
 
+static Expr* cast(TokenList** t) {
+  if (head_of(t) != TK_LPAREN) {
+    return unary(t);
+  }
+
+  TokenList* save = *t;
+  consume(t);
+
+  TypeName* ty = try_type_name(t);
+  if (ty == NULL) {
+    *t = save;
+    return unary(t);
+  }
+
+  expect(t, TK_RPAREN);
+
+  return new_node_cast(ty, cast(t));
+}
+
 static Expr* mul(TokenList** t) {
-  Expr* node = unary(t);
+  Expr* node = cast(t);
 
   for (;;) {
     switch (head_of(t)) {
       case TK_STAR:
         consume(t);
-        node = new_node_binop(BINOP_MUL, node, unary(t));
+        node = new_node_binop(BINOP_MUL, node, cast(t));
         break;
       case TK_SLASH:
         consume(t);
-        node = new_node_binop(BINOP_DIV, node, unary(t));
+        node = new_node_binop(BINOP_DIV, node, cast(t));
         break;
       default:
         return node;
@@ -229,116 +372,6 @@ static Expr* assign(TokenList** t) {
 
 static Expr* expr(TokenList** t) {
   return assign(t);
-}
-
-static Declarator* try_declarator(TokenList** t, bool is_abstract) {
-  unsigned num_ptrs = 0;
-  while (head_of(t) == TK_STAR) {
-    consume(t);
-    num_ptrs++;
-  }
-
-  if (!is_abstract && head_of(t) != TK_IDENT) {
-    return NULL;
-  }
-
-  Declarator* base = new_Declarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
-  base->num_ptrs   = num_ptrs;
-  if (!is_abstract) {
-    base->name     = strdup(expect(t, TK_IDENT).ident);
-    base->name_ref = base->name;
-  }
-
-  Declarator* d = base;
-
-  while (head_of(t) == TK_LBRACKET) {
-    consume(t);
-    Declarator* ary = new_Declarator(DE_ARRAY);
-    ary->decl       = d;
-    ary->length     = assign(t);
-    ary->name_ref   = base->name;
-    expect(t, TK_RBRACKET);
-
-    d = ary;
-  }
-
-  return d;
-}
-
-static Declarator* declarator(TokenList** t, bool is_abstract) {
-  Declarator* d = try_declarator(t, is_abstract);
-  if (d == NULL) {
-    error("could not parse the declarator.");
-  }
-
-  return d;
-}
-
-static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
-  DeclarationSpecifiers* s = new_DeclarationSpecifiers();
-
-  for (;;) {
-    switch (head_of(t)) {
-      case TK_SIGNED:
-        consume(t);
-        s->base_type |= BT_SIGNED;
-        break;
-      case TK_UNSIGNED:
-        consume(t);
-        s->base_type |= BT_UNSIGNED;
-        break;
-      case TK_INT:
-        consume(t);
-        s->base_type += BT_INT;
-        break;
-      case TK_CHAR:
-        consume(t);
-        s->base_type += BT_CHAR;
-        break;
-      case TK_LONG:
-        consume(t);
-        s->base_type += BT_LONG;
-        break;
-      case TK_SHORT:
-        consume(t);
-        s->base_type += BT_SHORT;
-        break;
-      default:
-        if (s->base_type == 0) {
-          return NULL;
-        } else {
-          return s;
-        }
-    }
-  }
-}
-
-static DeclarationSpecifiers* declaration_specifiers(TokenList** t) {
-  DeclarationSpecifiers* s = try_declaration_specifiers(t);
-  if (s == NULL) {
-    error("could not parse declaration specifiers.");
-  }
-  return s;
-}
-
-static Declaration* try_declaration(TokenList** t) {
-  DeclarationSpecifiers* s = try_declaration_specifiers(t);
-  if (s == NULL) {
-    return NULL;
-  }
-
-  Declarator* dor = try_declarator(t, false);
-  if (dor == NULL) {
-    return NULL;
-  }
-
-  Declaration* d = new_declaration(s, dor);
-
-  if (consuming(t).kind != TK_SEMICOLON) {
-    return NULL;
-  }
-
-  return d;
 }
 
 static BlockItemList* block_item_list(TokenList** t);

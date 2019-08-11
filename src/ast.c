@@ -189,6 +189,9 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
     fputs("unsigned ", p);
     b &= ~BT_UNSIGNED;  // clear
   }
+  if (b == 0) {
+    return;
+  }
   switch (b) {
     case BT_INT:
       fputs("int", p);

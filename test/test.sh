@@ -95,6 +95,15 @@ expr 0 "5 >= 10"
 expr 1 "5 >= 5"
 expr 1 "30 != 20"
 
+expr 0 "!237"
+expr 18 "~237"
+
+expr 16 "2 << 3"
+expr 32 "256 >> 3"
+expr 239 "237 | 106"
+expr 135 "237 ^ 106"
+expr 104 "237 & 106"
+
 # return statements
 items 1 "return 1;";
 items 42 "return 2*21;";

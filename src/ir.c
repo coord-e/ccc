@@ -4,21 +4,6 @@
 #include "map.h"
 #include "parser.h"
 
-DataSize to_data_size(unsigned i) {
-  switch (i) {
-    case 1:
-      return SIZE_BYTE;
-    case 2:
-      return SIZE_WORD;
-    case 4:
-      return SIZE_DWORD;
-    case 8:
-      return SIZE_QWORD;
-    default:
-      error("invalid data size %d", i);
-  }
-}
-
 // Unsigned Integer Map
 DECLARE_MAP(unsigned, UIMap)
 static void release_unsigned(unsigned i) {}

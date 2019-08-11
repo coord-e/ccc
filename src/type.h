@@ -7,9 +7,17 @@
 #include "vector.h"
 
 typedef enum {
-  TY_CHAR,
-  TY_INT,
-  TY_LONG,
+  SIZE_BYTE  = 1,  // 1 byte, 8  bits
+  SIZE_WORD  = 2,  // 2 byte, 16 bits
+  SIZE_DWORD = 4,  // 4 byte, 32 bits
+  SIZE_QWORD = 8,  // 8 byte, 64 bits
+} DataSize;
+
+DataSize to_data_size(unsigned);
+unsigned from_data_size(DataSize);
+
+typedef enum {
+  TY_INT,  // not `int`, but all integer types
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
@@ -21,6 +29,9 @@ DECLARE_VECTOR(Type*, TypeVec)
 
 struct Type {
   TypeKind kind;
+
+  // for TY_INT
+  DataSize size;
 
   // for TY_PTR
   Type* ptr_to;
@@ -35,6 +46,7 @@ struct Type {
 };
 
 Type* new_Type(TypeKind);
+Type* new_int_Type(DataSize);
 void release_Type(Type*);
 void print_Type(FILE*, Type*);
 bool equal_to_Type(const Type*, const Type*);

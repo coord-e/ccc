@@ -20,6 +20,14 @@ static void release_expr(Expr* e) {
 
 DEFINE_VECTOR(release_expr, Expr*, ExprVec)
 
+static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
+  if (spec == NULL) {
+    return;
+  }
+
+  free(spec);
+}
+
 static void release_Declarator(Declarator* d) {
   if (d == NULL) {
     return;
@@ -36,6 +44,7 @@ static void release_declaration(Declaration* d) {
     return;
   }
 
+  release_DeclarationSpecifiers(d->spec);
   release_Declarator(d->declarator);
   release_Type(d->type);
   free(d);
@@ -62,12 +71,34 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
-DEFINE_LIST(release_Declarator, Declarator*, ParamList)
+DeclarationSpecifiers* new_DeclarationSpecifiers() {
+  return calloc(1, sizeof(DeclarationSpecifiers));
+}
+
+ParameterDecl* new_ParameterDecl(DeclarationSpecifiers* spec, Declarator* decl) {
+  ParameterDecl* d = calloc(1, sizeof(ParameterDecl));
+  d->spec          = spec;
+  d->decl          = decl;
+  return d;
+}
+
+static void release_ParameterDecl(ParameterDecl* d) {
+  if (d == NULL) {
+    return;
+  }
+
+  release_DeclarationSpecifiers(d->spec);
+  release_Declarator(d->decl);
+  free(d);
+}
+
+DEFINE_LIST(release_ParameterDecl, ParameterDecl*, ParamList)
 
 static void release_FunctionDef(FunctionDef* def) {
   if (def == NULL) {
     return;
   }
+  release_DeclarationSpecifiers(def->spec);
   release_Declarator(def->decl);
   release_ParamList(def->params);
   release_BlockItemList(def->items);
@@ -78,6 +109,7 @@ static void release_FunctionDecl(FunctionDecl* decl) {
   if (decl == NULL) {
     return;
   }
+  release_DeclarationSpecifiers(decl->spec);
   release_Declarator(decl->decl);
   release_ParamList(decl->params);
   release_Type(decl->type);
@@ -147,6 +179,37 @@ static void print_expr(FILE* p, Expr* expr) {
 }
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
+  BaseType b = s->base_type;
+  if (b & BT_SIGNED) {
+    fputs("signed ", p);
+    b &= ~BT_SIGNED;  // clear
+  }
+  if (b & BT_UNSIGNED) {
+    fputs("unsigned ", p);
+    b &= ~BT_UNSIGNED;  // clear
+  }
+  if (b == 0) {
+    return;
+  }
+  switch (b) {
+    case BT_INT:
+      fputs("int", p);
+      break;
+    case BT_LONG:
+      fputs("long", p);
+      break;
+    case BT_CHAR:
+      fputs("char", p);
+      break;
+    case BT_SHORT:
+      fputs("short", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void print_Declarator(FILE* p, Declarator* d) {
   switch (d->kind) {
     case DE_DIRECT:
@@ -167,9 +230,10 @@ static void print_Declarator(FILE* p, Declarator* d) {
 }
 
 static void print_declaration(FILE* p, Declaration* d) {
-  fprintf(p, "int ");
+  print_DeclarationSpecifiers(p, d->spec);
+  fputs(" ", p);
   print_Declarator(p, d->declarator);
-  fprintf(p, ";");
+  fputs(";", p);
 }
 
 static void print_statement(FILE* p, Statement* stmt);
@@ -187,14 +251,22 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
   }
 }
 
+static void print_ParameterDecl(FILE* p, ParameterDecl* d) {
+  print_DeclarationSpecifiers(p, d->spec);
+  fputs(" ", p);
+  print_Declarator(p, d->decl);
+}
+
 DECLARE_LIST_PRINTER(BlockItemList)
 DEFINE_LIST_PRINTER(print_BlockItem, "\n", "\n", BlockItemList)
 
 DECLARE_LIST_PRINTER(ParamList)
-DEFINE_LIST_PRINTER(print_Declarator, ",", "", ParamList)
+DEFINE_LIST_PRINTER(print_ParameterDecl, ",", "", ParamList)
 
 DECLARE_LIST_PRINTER(TranslationUnit)
 static void print_FunctionDef(FILE* p, FunctionDef* def) {
+  print_DeclarationSpecifiers(p, def->spec);
+  fputs(" ", p);
   print_Declarator(p, def->decl);
   fprintf(p, " (");
   print_ParamList(p, def->params);
@@ -203,6 +275,8 @@ static void print_FunctionDef(FILE* p, FunctionDef* def) {
   fprintf(p, "}\n");
 }
 static void print_FunctionDecl(FILE* p, FunctionDecl* decl) {
+  print_DeclarationSpecifiers(p, decl->spec);
+  fputs(" ", p);
   print_Declarator(p, decl->decl);
   fprintf(p, " (");
   print_ParamList(p, decl->params);
@@ -359,8 +433,9 @@ Declarator* new_Declarator(DeclaratorKind kind) {
   return d;
 }
 
-Declaration* new_declaration(Declarator* s) {
+Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s) {
   Declaration* d = calloc(1, sizeof(Declaration));
+  d->spec        = spec;
   d->declarator  = s;
   d->type        = NULL;
   return d;
@@ -383,6 +458,7 @@ BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl
 
 FunctionDef* new_function_def() {
   FunctionDef* def = calloc(1, sizeof(FunctionDef));
+  def->spec        = NULL;
   def->decl        = NULL;
   def->params      = NULL;
   def->items       = NULL;
@@ -392,6 +468,7 @@ FunctionDef* new_function_def() {
 
 FunctionDecl* new_function_decl() {
   FunctionDecl* decl = calloc(1, sizeof(FunctionDecl));
+  decl->spec         = NULL;
   decl->decl         = NULL;
   decl->params       = NULL;
   decl->type         = NULL;

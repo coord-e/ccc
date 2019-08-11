@@ -3,14 +3,35 @@
 
 #include <stdlib.h>
 
+DataSize to_data_size(unsigned i) {
+  switch (i) {
+    case 1:
+      return SIZE_BYTE;
+    case 2:
+      return SIZE_WORD;
+    case 4:
+      return SIZE_DWORD;
+    case 8:
+      return SIZE_QWORD;
+    default:
+      error("invalid data size %d", i);
+  }
+}
+
+unsigned from_data_size(DataSize i) {
+  return i;
+}
+
 Type* new_Type(TypeKind kind) {
-  Type* ty    = calloc(1, sizeof(Type));
-  ty->kind    = kind;
-  ty->ptr_to  = NULL;
-  ty->ret     = NULL;
-  ty->params  = NULL;
-  ty->element = NULL;
-  ty->length  = 0;
+  Type* ty      = calloc(1, sizeof(Type));
+  ty->kind      = kind;
+  ty->size      = 0;
+  ty->is_signed = false;
+  ty->ptr_to    = NULL;
+  ty->ret       = NULL;
+  ty->params    = NULL;
+  ty->element   = NULL;
+  ty->length    = 0;
   return ty;
 }
 
@@ -28,6 +49,7 @@ void release_Type(Type* ty) {
 
 Type* copy_Type(const Type* ty) {
   Type* new = new_Type(ty->kind);
+  *new      = *ty;
   if (ty->ptr_to != NULL) {
     new->ptr_to = copy_Type(ty->ptr_to);
   }
@@ -45,7 +67,6 @@ Type* copy_Type(const Type* ty) {
   if (ty->element != NULL) {
     new->element = copy_Type(ty->element);
   }
-  new->length = ty->length;
 
   return new;
 }
@@ -56,10 +77,27 @@ DECLARE_VECTOR_PRINTER(TypeVec)
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
     case TY_INT:
-      fprintf(p, "int");
-      break;
-    case TY_LONG:
-      fprintf(p, "long");
+      if (ty->is_signed) {
+        fprintf(p, "signed ");
+      } else {
+        fprintf(p, "unsigned ");
+      }
+      switch (ty->size) {
+        case SIZE_BYTE:
+          fprintf(p, "char");
+          break;
+        case SIZE_WORD:
+          fprintf(p, "short");
+          break;
+        case SIZE_DWORD:
+          fprintf(p, "int");
+          break;
+        case SIZE_QWORD:
+          fprintf(p, "long");
+          break;
+        default:
+          CCC_UNREACHABLE;
+      }
       break;
     case TY_PTR:
       fprintf(p, "*");
@@ -89,9 +127,7 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
   switch (a->kind) {
     case TY_INT:
-      return true;
-    case TY_LONG:
-      return true;
+      return a->size == b->size && a->is_signed == b->is_signed;
     case TY_PTR:
       return equal_to_Type(a->ptr_to, b->ptr_to);
     case TY_FUNC:
@@ -122,12 +158,27 @@ bool equal_to_Type(const Type* a, const Type* b) {
   }
 }
 
+Type* new_int_Type(DataSize size, bool is_signed) {
+  Type* ty      = new_Type(TY_INT);
+  ty->size      = size;
+  ty->is_signed = is_signed;
+  return ty;
+}
+
+Type* char_ty() {
+  return new_int_Type(SIZE_BYTE, false);
+}
+
 Type* int_ty() {
-  return new_Type(TY_INT);
+  return new_int_Type(SIZE_DWORD, true);
 }
 
 Type* long_ty() {
-  return new_Type(TY_LONG);
+  return new_int_Type(SIZE_QWORD, true);
+}
+
+Type* short_ty() {
+  return new_int_Type(SIZE_WORD, true);
 }
 
 Type* ptr_to_ty(Type* ty) {
@@ -150,28 +201,43 @@ Type* array_ty(Type* element, unsigned length) {
   return t;
 }
 
+void make_signed_ty(Type* t) {
+  assert(t->kind == TY_INT);
+  t->is_signed = true;
+}
+
+void make_unsigned_ty(Type* t) {
+  assert(t->kind == TY_INT);
+  t->is_signed = false;
+}
+
+Type* to_signed_ty(Type* t) {
+  Type* new = copy_Type(t);
+  make_signed_ty(new);
+  return new;
+}
+
+Type* to_unsigned_ty(Type* t) {
+  Type* new = copy_Type(t);
+  make_unsigned_ty(new);
+  return new;
+}
+
+Type* into_signed_ty(Type* t) {
+  Type* new = to_signed_ty(t);
+  release_Type(t);
+  return new;
+}
+
+Type* into_unsigned_ty(Type* t) {
+  Type* new = to_unsigned_ty(t);
+  release_Type(t);
+  return new;
+}
+
 bool is_arithmetic_ty(const Type* ty) {
   switch (ty->kind) {
     case TY_INT:
-      return true;
-    case TY_LONG:
-      return true;
-    case TY_PTR:
-      return false;
-    case TY_FUNC:
-      return false;
-    case TY_ARRAY:
-      return false;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-bool is_integer_ty(const Type* ty) {
-  switch (ty->kind) {
-    case TY_INT:
-      return true;
-    case TY_LONG:
       return true;
     case TY_PTR:
       return false;
@@ -190,6 +256,10 @@ bool is_real_ty(const Type* ty) {
 
 bool is_compatible_ty(const Type* t1, const Type* t2) {
   return equal_to_Type(t1, t2);
+}
+
+bool is_integer_ty(const Type* t) {
+  return t->kind == TY_INT;
 }
 
 bool is_pointer_ty(const Type* t) {
@@ -211,9 +281,7 @@ bool is_scalar_ty(const Type* ty) {
 unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
     case TY_INT:
-      return 4;
-    case TY_LONG:
-      return 8;
+      return from_data_size(t->size);
     case TY_PTR:
       return 8;
     case TY_FUNC:
@@ -228,9 +296,7 @@ unsigned sizeof_ty(const Type* t) {
 unsigned stored_size_ty(const Type* t) {
   switch (t->kind) {
     case TY_INT:
-      return 4;
-    case TY_LONG:
-      return 8;
+      return from_data_size(t->size);
     case TY_PTR:
       return 8;
     case TY_FUNC:
@@ -243,12 +309,5 @@ unsigned stored_size_ty(const Type* t) {
 }
 
 Type* int_of_size_ty(unsigned size) {
-  switch (size) {
-    case 8:
-      return long_ty();
-    case 4:
-      return int_ty();
-    default:
-      CCC_UNREACHABLE;
-  }
+  return new_int_Type(to_data_size(size), true);
 }

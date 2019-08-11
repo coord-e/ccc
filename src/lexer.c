@@ -55,6 +55,18 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_BREAK, cur);
   } else if (IS_SAME(init, "continue")) {
     return add_token(TK_CONTINUE, cur);
+  } else if (IS_SAME(init, "int")) {
+    return add_token(TK_INT, cur);
+  } else if (IS_SAME(init, "char")) {
+    return add_token(TK_CHAR, cur);
+  } else if (IS_SAME(init, "long")) {
+    return add_token(TK_LONG, cur);
+  } else if (IS_SAME(init, "short")) {
+    return add_token(TK_SHORT, cur);
+  } else if (IS_SAME(init, "signed")) {
+    return add_token(TK_SIGNED, cur);
+  } else if (IS_SAME(init, "unsigned")) {
+    return add_token(TK_UNSIGNED, cur);
   }
 #undef IS_SAME
 
@@ -276,6 +288,24 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_CONTINUE:
       fprintf(p, "(CONTINUE)");
+      break;
+    case TK_INT:
+      fprintf(p, "(INT)");
+      break;
+    case TK_CHAR:
+      fprintf(p, "(CHAR)");
+      break;
+    case TK_LONG:
+      fprintf(p, "(LONG)");
+      break;
+    case TK_SHORT:
+      fprintf(p, "(SHORT)");
+      break;
+    case TK_SIGNED:
+      fprintf(p, "(SIGNED)");
+      break;
+    case TK_UNSIGNED:
+      fprintf(p, "(UNSIGNED)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

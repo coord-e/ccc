@@ -272,31 +272,56 @@ static Declarator* declarator(TokenList** t) {
   return d;
 }
 
-static bool try_declaration_specifiers(TokenList** t) {
-  Token t1 = head_TokenList(*t);
+static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
+  DeclarationSpecifiers* s = new_DeclarationSpecifiers();
 
-  if (t1.kind != TK_IDENT) {
-    return false;
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_SIGNED:
+        consume(t);
+        s->base_type |= BT_SIGNED;
+        break;
+      case TK_UNSIGNED:
+        consume(t);
+        s->base_type |= BT_UNSIGNED;
+        break;
+      case TK_INT:
+        consume(t);
+        s->base_type += BT_INT;
+        break;
+      case TK_CHAR:
+        consume(t);
+        s->base_type += BT_CHAR;
+        break;
+      case TK_LONG:
+        consume(t);
+        s->base_type += BT_LONG;
+        break;
+      case TK_SHORT:
+        consume(t);
+        s->base_type += BT_SHORT;
+        break;
+      default:
+        if (s->base_type == 0) {
+          return NULL;
+        } else {
+          return s;
+        }
+    }
   }
-
-  // TODO: Parse type specifier
-  if (strcmp(t1.ident, "int") != 0) {
-    return false;
-  }
-
-  consume(t);
-
-  return true;
 }
 
-static void declaration_specifiers(TokenList** t) {
-  if (!try_declaration_specifiers(t)) {
+static DeclarationSpecifiers* declaration_specifiers(TokenList** t) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
     error("could not parse declaration specifiers.");
   }
+  return s;
 }
 
 static Declaration* try_declaration(TokenList** t) {
-  if (!try_declaration_specifiers(t)) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+  if (s == NULL) {
     return NULL;
   }
 
@@ -305,7 +330,7 @@ static Declaration* try_declaration(TokenList** t) {
     return NULL;
   }
 
-  Declaration* d = new_declaration(dor);
+  Declaration* d = new_declaration(s, dor);
 
   if (consuming(t).kind != TK_SEMICOLON) {
     return NULL;
@@ -462,28 +487,29 @@ static ParamList* parameter_list(TokenList** t) {
   ParamList* cur  = nil_ParamList();
   ParamList* list = cur;
 
-  if (head_of(t) != TK_IDENT) {
+  if (head_of(t) == TK_RPAREN) {
     return list;
   }
 
   do {
-    declaration_specifiers(t);
-    Declarator* d = declarator(t);
-    cur           = snoc_ParamList(d, cur);
+    DeclarationSpecifiers* s = declaration_specifiers(t);
+    Declarator* d            = declarator(t);
+    cur                      = snoc_ParamList(new_ParameterDecl(s, d), cur);
   } while (try (t, TK_COMMA));
 
   return list;
 }
 
 static ExternalDecl* external_declaration(TokenList** t) {
-  declaration_specifiers(t);
-  Declarator* d = declarator(t);
+  DeclarationSpecifiers* spec = declaration_specifiers(t);
+  Declarator* d               = declarator(t);
   expect(t, TK_LPAREN);
   ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);
   if (head_of(t) == TK_LBRACE) {
     consume(t);
     FunctionDef* def = new_function_def();
+    def->spec        = spec;
     def->decl        = d;
     def->params      = params;
     def->items       = block_item_list(t);
@@ -496,6 +522,7 @@ static ExternalDecl* external_declaration(TokenList** t) {
     expect(t, TK_SEMICOLON);
 
     FunctionDecl* decl = new_function_decl();
+    decl->spec         = spec;
     decl->decl         = d;
     decl->params       = params;
 

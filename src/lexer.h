@@ -33,6 +33,12 @@ typedef enum {
   TK_DO,
   TK_BREAK,
   TK_CONTINUE,
+  TK_INT,
+  TK_CHAR,
+  TK_LONG,
+  TK_SHORT,
+  TK_SIGNED,
+  TK_UNSIGNED,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens

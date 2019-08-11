@@ -4,21 +4,6 @@
 #include "map.h"
 #include "parser.h"
 
-DataSize to_data_size(unsigned i) {
-  switch (i) {
-    case 1:
-      return SIZE_BYTE;
-    case 2:
-      return SIZE_WORD;
-    case 4:
-      return SIZE_DWORD;
-    case 8:
-      return SIZE_QWORD;
-    default:
-      error("invalid data size %d", i);
-  }
-}
-
 // Unsigned Integer Map
 DECLARE_MAP(unsigned, UIMap)
 static void release_unsigned(unsigned i) {}
@@ -660,7 +645,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
     return;
   }
 
-  char* name    = head_ParamList(l)->name_ref;
+  char* name    = head_ParamList(l)->decl->name_ref;
   Type* ty      = get_TypeVec(f->type->params, nth);
   unsigned size = stored_size_ty(ty);
   new_var(env, name, size);

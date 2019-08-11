@@ -202,10 +202,12 @@ Type* array_ty(Type* element, unsigned length) {
 }
 
 void make_signed_ty(Type* t) {
+  assert(t->kind == TY_INT);
   t->is_signed = true;
 }
 
 void make_unsigned_ty(Type* t) {
+  assert(t->kind == TY_INT);
   t->is_signed = false;
 }
 

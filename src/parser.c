@@ -426,8 +426,22 @@ static Expr* bit_or(TokenList** t) {
   }
 }
 
-static Expr* assign(TokenList** t) {
+static Expr* conditional(TokenList** t) {
   Expr* node = bit_or(t);
+
+  switch (head_of(t)) {
+    case TK_QUESTION:
+      consume(t);
+      Expr* then_ = expr(t);
+      expect(t, TK_COLON);
+      return new_node_cond(node, then_, conditional(t));
+    default:
+      return node;
+  }
+}
+
+static Expr* assign(TokenList** t) {
+  Expr* node = conditional(t);
 
   // `=` has right associativity
   switch (head_of(t)) {

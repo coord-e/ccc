@@ -20,6 +20,8 @@ typedef enum {
   TK_RBRACE,
   TK_LBRACKET,  // []
   TK_RBRACKET,
+  TK_QUESTION,
+  TK_COLON,
   TK_EQUAL,  // =
   TK_EQ,     // ==
   TK_NE,

@@ -155,6 +155,14 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_VERTICAL, cur);
         p++;
         continue;
+      case ':':
+        cur = add_token(TK_COLON, cur);
+        p++;
+        continue;
+      case '?':
+        cur = add_token(TK_QUESTION, cur);
+        p++;
+        continue;
       case '=':
         p++;
         switch (*p) {
@@ -305,6 +313,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_RIGHT:
       fprintf(p, "(>>)");
+      break;
+    case TK_COLON:
+      fprintf(p, "(:)");
+      break;
+    case TK_QUESTION:
+      fprintf(p, "(?)");
       break;
     case TK_RETURN:
       fprintf(p, "(return)");

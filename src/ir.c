@@ -312,6 +312,13 @@ static Reg nth_arg(Env* env, unsigned nth, DataSize size) {
   return r;
 }
 
+static void new_move(Env* env, Reg d, Reg s) {
+  IRInst* i = new_inst_(env, IR_MOV);
+  push_RegVec(i->ras, s);
+  i->rd = d;
+  add_inst(env, i);
+}
+
 static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next);
 
 static bool is_exit(IRInstKind k) {
@@ -475,6 +482,28 @@ Reg gen_expr(Env* env, Expr* node) {
       inst->rd = r;
 
       add_inst(env, inst);
+      return r;
+    }
+    case ND_COND: {
+      Reg r = new_reg(env, datasize_of_node(node));
+
+      BasicBlock* then_bb = new_bb(env);
+      BasicBlock* else_bb = new_bb(env);
+      BasicBlock* next_bb = new_bb(env);
+
+      Reg cond = gen_expr(env, node->cond);
+      new_br(env, cond, then_bb, else_bb, then_bb);
+
+      // then
+      Reg then_ = gen_expr(env, node->then_);
+      new_move(env, r, then_);
+      new_jump(env, next_bb, else_bb);
+
+      // else
+      Reg else_ = gen_expr(env, node->else_);
+      new_move(env, r, else_);
+      new_jump(env, next_bb, next_bb);
+
       return r;
     }
     default:

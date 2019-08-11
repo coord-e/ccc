@@ -52,6 +52,9 @@ static void release_expr(Expr* e) {
   release_TypeName(e->cast_to);
   release_Type(e->cast_type);
   release_Type(e->type);
+  release_expr(e->cond);
+  release_expr(e->then_);
+  release_expr(e->else_);
 
   free(e);
 }
@@ -270,6 +273,15 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->expr);
       fprintf(p, ")");
       return;
+    case ND_COND:
+      fputs("(", p);
+      print_expr(p, expr->cond);
+      fputs("?", p);
+      print_expr(p, expr->then_);
+      fputs(":", p);
+      print_expr(p, expr->else_);
+      fputs(")", p);
+      return;
     default:
       CCC_UNREACHABLE;
   }
@@ -419,6 +431,9 @@ Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->cast_to   = NULL;
   node->cast_type = NULL;
   node->type      = NULL;
+  node->cond      = NULL;
+  node->then_     = NULL;
+  node->else_     = NULL;
   return node;
 }
 
@@ -473,6 +488,14 @@ Expr* new_node_cast(TypeName* ty, Expr* opr) {
   Expr* node    = new_node(ND_CAST, NULL, NULL);
   node->cast_to = ty;
   node->expr    = opr;
+  return node;
+}
+
+Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_) {
+  Expr* node  = new_node(ND_COND, NULL, NULL);
+  node->then_ = then_;
+  node->cond  = cond;
+  node->else_ = else_;
   return node;
 }
 

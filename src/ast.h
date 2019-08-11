@@ -83,6 +83,7 @@ typedef enum {
   ND_NUM,
   ND_CALL,
   ND_CAST,
+  ND_COND,
 } ExprKind;
 
 DECLARE_VECTOR(Expr*, ExprVec)
@@ -103,6 +104,10 @@ struct Expr {
   int num;          // for ND_NUM
   ExprVec* args;    // for ND_CALL, owned
 
+  Expr* cond;   // for ND_COND, owned
+  Expr* then_;  // for ND_COND, owned
+  Expr* else_;  // for ND_COND, owned
+
   // will filled in `sema`
   Type* type;       // owned
   Type* cast_type;  // for ND_CAST, owned
@@ -118,6 +123,7 @@ Expr* new_node_addr_ary(Expr* expr);
 Expr* new_node_deref(Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_cast(TypeName* ty, Expr* opr);
+Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);
 Expr* shallow_copy_node(Expr*);
 
 typedef struct Statement Statement;

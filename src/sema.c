@@ -74,6 +74,12 @@ static noreturn void type_error(Type* expected, Type* got) {
   error("type mismatch");
 }
 
+static void should_same(Type* expected, Type* ty) {
+  if (!equal_to_Type(expected, ty)) {
+    type_error(expected, ty);
+  }
+}
+
 static void should_compatible(Type* expected, Type* ty) {
   if (!is_compatible_ty(expected, ty)) {
     type_error(expected, ty);
@@ -433,6 +439,29 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       Type* ty = sema_expr(env, expr->expr);
       should_pointer(ty);
       t = copy_Type(ty->ptr_to);
+      break;
+    }
+    case ND_COND: {
+      Type* cond_ty = sema_expr(env, expr->cond);
+      Type* then_ty = sema_expr(env, expr->then_);
+      Type* else_ty = sema_expr(env, expr->else_);
+      should_scalar(cond_ty);
+      if (is_arithmetic_ty(then_ty) && is_arithmetic_ty(else_ty)) {
+        // TODO: arithmetic conversion
+        t = copy_Type(then_ty);
+        break;
+      }
+      if (is_pointer_ty(then_ty) && is_pointer_ty(else_ty)) {
+        should_compatible(then_ty, else_ty);
+        // TODO: handle null pointer constant
+        // TODO: composite type
+        t = copy_Type(then_ty);
+        break;
+      }
+      // TODO: handle void
+      // TODO: check that operands has structure or union type
+      should_same(then_ty, else_ty);
+      t = copy_Type(then_ty);
       break;
     }
     case ND_VAR:

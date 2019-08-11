@@ -205,15 +205,27 @@ void make_unsigned_ty(Type* t) {
   t->is_signed = false;
 }
 
-Type* signed_ty(Type* t) {
+Type* to_signed_ty(Type* t) {
   Type* new = copy_Type(t);
   make_signed_ty(new);
   return new;
 }
 
-Type* unsigned_ty(Type* t) {
+Type* to_unsigned_ty(Type* t) {
   Type* new = copy_Type(t);
   make_unsigned_ty(new);
+  return new;
+}
+
+Type* into_signed_ty(Type* t) {
+  Type* new = to_signed_ty(t);
+  release_Type(t);
+  return new;
+}
+
+Type* into_unsigned_ty(Type* t) {
+  Type* new = to_unsigned_ty(t);
+  release_Type(t);
   return new;
 }
 

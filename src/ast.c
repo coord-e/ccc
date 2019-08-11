@@ -180,7 +180,16 @@ static void print_expr(FILE* p, Expr* expr) {
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
 static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
-  switch (s->base_type) {
+  BaseType b = s->base_type;
+  if (b & BT_SIGNED) {
+    fputs("signed ", p);
+    b &= ~BT_SIGNED;  // clear
+  }
+  if (b & BT_UNSIGNED) {
+    fputs("unsigned ", p);
+    b &= ~BT_UNSIGNED;  // clear
+  }
+  switch (b) {
     case BT_INT:
       fputs("int", p);
       break;
@@ -190,6 +199,8 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
     case BT_CHAR:
       fputs("char", p);
       break;
+    default:
+      CCC_UNREACHABLE;
   }
 }
 

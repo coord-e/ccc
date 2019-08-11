@@ -52,8 +52,8 @@ Expr* new_node_cast(Type* ty, Expr* opr);
 Expr* shallow_copy_node(Expr*);
 
 typedef enum {
-  /* SIGNED   = 1, */
-  /* UNSIGNED = 1 << 2, */
+  BT_SIGNED   = 1,
+  BT_UNSIGNED = 1 << 2,
   /* VOID     = 1 << 4, */
   /* BOOL     = 1 << 6, */
   BT_CHAR = 1 << 8,

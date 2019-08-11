@@ -62,8 +62,10 @@ Type* array_ty(Type*, unsigned);
 
 void make_signed_ty(Type*);
 void make_unsigned_ty(Type*);
-Type* signed_ty(Type*);
-Type* unsigned_ty(Type*);
+Type* to_signed_ty(Type*);
+Type* to_unsigned_ty(Type*);
+Type* into_signed_ty(Type*);
+Type* into_unsigned_ty(Type*);
 
 bool is_arithmetic_ty(const Type*);
 bool is_integer_ty(const Type*);

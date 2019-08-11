@@ -388,12 +388,26 @@ static int eval_constant(Expr* e) {
 
 static Type* translate_type(BaseType t) {
   switch (t) {
-    case BT_INT:
-      return int_ty();
+    case BT_SIGNED + BT_CHAR:
+      return into_signed_ty(char_ty());
     case BT_CHAR:
+    case BT_UNSIGNED + BT_CHAR:
       return char_ty();
+    case BT_INT:
+    case BT_SIGNED:
+    case BT_SIGNED + BT_INT:
+      return int_ty();
+    case BT_UNSIGNED:
+    case BT_UNSIGNED + BT_INT:
+      return into_unsigned_ty(int_ty());
     case BT_LONG:
+    case BT_LONG + BT_INT:
+    case BT_SIGNED + BT_LONG:
+    case BT_SIGNED + BT_LONG + BT_INT:
       return long_ty();
+    case BT_UNSIGNED + BT_LONG:
+    case BT_UNSIGNED + BT_LONG + BT_INT:
+      return into_unsigned_ty(long_ty());
     default:
       error("invalid type");
   }

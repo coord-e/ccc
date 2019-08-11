@@ -164,7 +164,7 @@ static Type* translate_base_type(BaseType t) {
 }
 
 // extract `Decalrator` and store the result to `name` and `type`
-// if `name` is NULL, this expects abstract declarator
+// if `name` is NULL, this accepts abstract declarator
 static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
   switch (decl->kind) {
     case DE_DIRECT_ABSTRACT:
@@ -172,7 +172,6 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
       *type = ptrify(base, decl->num_ptrs);
       return;
     case DE_DIRECT:
-      assert(name != NULL);
       *type = ptrify(base, decl->num_ptrs);
       *name = decl->name;
       return;
@@ -551,16 +550,25 @@ void sema_items(Env* env, BlockItemList* l) {
   sema_items(env, tail_BlockItemList(l));
 }
 
+// if `env` is NULL, this accepts abstract declarator
 static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
     Type* base_ty    = translate_base_type(d->spec->base_type);
-    Type* type;
-    char* name;
-    extract_declarator(d->decl, base_ty, &name, &type);
-    push_TypeVec(params, type);
-    if (env != NULL) {
+    if (env == NULL) {
+      Type* type;
+      extract_declarator(d->decl, base_ty, NULL, &type);
+      push_TypeVec(params, type);
+    } else {
+      // must be declarator
+      if (is_abstract_declarator(d->decl)) {
+        error("parameter name omitted");
+      }
+      Type* type;
+      char* name;
+      extract_declarator(d->decl, base_ty, &name, &type);
+      push_TypeVec(params, type);
       add_var(env, name, copy_Type(type));
     }
     cur = tail_ParamList(cur);

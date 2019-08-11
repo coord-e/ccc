@@ -528,8 +528,11 @@ static ParamList* parameter_list(TokenList** t) {
 
   do {
     DeclarationSpecifiers* s = declaration_specifiers(t);
-    Declarator* d            = declarator(t, false);
-    cur                      = snoc_ParamList(new_ParameterDecl(s, d), cur);
+    Declarator* d            = try_declarator(t, false);
+    if (d == NULL) {
+      d = declarator(t, true);
+    }
+    cur = snoc_ParamList(new_ParameterDecl(s, d), cur);
   } while (try (t, TK_COMMA));
 
   return list;

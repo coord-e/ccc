@@ -162,7 +162,7 @@ int main() {
 EOF
 
 try_ 1 << EOF
-int is_odd(int x);
+int is_odd(int);
 
 int is_even(int x) {
   if (x == 0) {

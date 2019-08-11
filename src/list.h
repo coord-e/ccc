@@ -44,7 +44,7 @@
     return l;                                                                                      \
   }                                                                                                \
   Name* cons_##Name(T value, const Name* list) {                                                   \
-    Name* l   = init_##Name(value);                                                                \
+    Name* l   = init_##Name();                                                                     \
     l->is_nil = false;                                                                             \
     l->head   = value;                                                                             \
     l->tail   = (Name*)list;                                                                       \

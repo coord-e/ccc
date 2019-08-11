@@ -23,14 +23,15 @@ unsigned from_data_size(DataSize i) {
 }
 
 Type* new_Type(TypeKind kind) {
-  Type* ty    = calloc(1, sizeof(Type));
-  ty->kind    = kind;
-  ty->size    = 0;
-  ty->ptr_to  = NULL;
-  ty->ret     = NULL;
-  ty->params  = NULL;
-  ty->element = NULL;
-  ty->length  = 0;
+  Type* ty      = calloc(1, sizeof(Type));
+  ty->kind      = kind;
+  ty->size      = 0;
+  ty->is_signed = false;
+  ty->ptr_to    = NULL;
+  ty->ret       = NULL;
+  ty->params    = NULL;
+  ty->element   = NULL;
+  ty->length    = 0;
   return ty;
 }
 
@@ -48,7 +49,7 @@ void release_Type(Type* ty) {
 
 Type* copy_Type(const Type* ty) {
   Type* new = new_Type(ty->kind);
-  new->size = ty->size;
+  *new      = *ty;
   if (ty->ptr_to != NULL) {
     new->ptr_to = copy_Type(ty->ptr_to);
   }
@@ -66,7 +67,6 @@ Type* copy_Type(const Type* ty) {
   if (ty->element != NULL) {
     new->element = copy_Type(ty->element);
   }
-  new->length = ty->length;
 
   return new;
 }
@@ -77,6 +77,11 @@ DECLARE_VECTOR_PRINTER(TypeVec)
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
     case TY_INT:
+      if (ty->is_signed) {
+        fprintf(p, "signed ");
+      } else {
+        fprintf(p, "unsigned ");
+      }
       switch (ty->size) {
         case SIZE_BYTE:
           fprintf(p, "char");
@@ -122,7 +127,7 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
   switch (a->kind) {
     case TY_INT:
-      return true;
+      return a->size == b->size && a->is_signed == b->is_signed;
     case TY_PTR:
       return equal_to_Type(a->ptr_to, b->ptr_to);
     case TY_FUNC:
@@ -153,22 +158,23 @@ bool equal_to_Type(const Type* a, const Type* b) {
   }
 }
 
-Type* new_int_Type(DataSize size) {
-  Type* ty = new_Type(TY_INT);
-  ty->size = size;
+Type* new_int_Type(DataSize size, bool is_signed) {
+  Type* ty      = new_Type(TY_INT);
+  ty->size      = size;
+  ty->is_signed = is_signed;
   return ty;
 }
 
 Type* char_ty() {
-  return new_int_Type(SIZE_BYTE);
+  return new_int_Type(SIZE_BYTE, false);
 }
 
 Type* int_ty() {
-  return new_int_Type(SIZE_DWORD);
+  return new_int_Type(SIZE_DWORD, true);
 }
 
 Type* long_ty() {
-  return new_int_Type(SIZE_QWORD);
+  return new_int_Type(SIZE_QWORD, true);
 }
 
 Type* ptr_to_ty(Type* ty) {
@@ -189,6 +195,26 @@ Type* array_ty(Type* element, unsigned length) {
   t->element = element;
   t->length  = length;
   return t;
+}
+
+void make_signed_ty(Type* t) {
+  t->is_signed = true;
+}
+
+void make_unsigned_ty(Type* t) {
+  t->is_signed = false;
+}
+
+Type* signed_ty(Type* t) {
+  Type* new = copy_Type(t);
+  make_signed_ty(new);
+  return new;
+}
+
+Type* unsigned_ty(Type* t) {
+  Type* new = copy_Type(t);
+  make_unsigned_ty(new);
+  return new;
 }
 
 bool is_arithmetic_ty(const Type* ty) {
@@ -265,5 +291,5 @@ unsigned stored_size_ty(const Type* t) {
 }
 
 Type* int_of_size_ty(unsigned size) {
-  return new_int_Type(to_data_size(size));
+  return new_int_Type(to_data_size(size), true);
 }

@@ -32,6 +32,7 @@ struct Type {
 
   // for TY_INT
   DataSize size;
+  bool is_signed;
 
   // for TY_PTR
   Type* ptr_to;
@@ -46,7 +47,7 @@ struct Type {
 };
 
 Type* new_Type(TypeKind);
-Type* new_int_Type(DataSize);
+Type* new_int_Type(DataSize size, bool is_signed);
 void release_Type(Type*);
 void print_Type(FILE*, Type*);
 bool equal_to_Type(const Type*, const Type*);
@@ -58,6 +59,11 @@ Type* long_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, unsigned);
+
+void make_signed_ty(Type*);
+void make_unsigned_ty(Type*);
+Type* signed_ty(Type*);
+Type* unsigned_ty(Type*);
 
 bool is_arithmetic_ty(const Type*);
 bool is_integer_ty(const Type*);

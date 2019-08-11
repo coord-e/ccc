@@ -402,11 +402,8 @@ static Reg gen_lhs(Env* env, Expr* node) {
         return new_global(env, node->var);
       }
     }
-    case ND_UNAOP:
-      if (node->unaop == UNAOP_DEREF) {
-        return gen_expr(env, node->expr);
-      }
-      // fallthrough
+    case ND_DEREF:
+      return gen_expr(env, node->expr);
     default:
       error("invaild lhs");
   }
@@ -414,22 +411,6 @@ static Reg gen_lhs(Env* env, Expr* node) {
 
 static DataSize datasize_of_node(Expr* e) {
   return to_data_size(stored_size_ty(e->type));
-}
-
-static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
-  switch (op) {
-    case UNAOP_ADDR:
-    case UNAOP_ADDR_ARY:
-      return gen_lhs(env, opr->expr);
-    case UNAOP_DEREF: {
-      Reg r = gen_expr(env, opr->expr);
-      return new_load(env, r, datasize_of_node(opr));
-    }
-    default: {
-      Reg r = gen_expr(env, opr->expr);
-      return new_unaop(env, op, r);
-    }
-  }
 }
 
 Reg gen_expr(Env* env, Expr* node) {
@@ -454,8 +435,17 @@ Reg gen_expr(Env* env, Expr* node) {
       Reg rhs = gen_expr(env, node->rhs);
       return new_binop(env, node->binop, lhs, rhs);
     }
-    case ND_UNAOP:
-      return gen_unaop(env, node->unaop, node);
+    case ND_UNAOP: {
+      Reg r = gen_expr(env, node->expr);
+      return new_unaop(env, node->unaop, r);
+    }
+    case ND_ADDR:
+    case ND_ADDR_ARY:
+      return gen_lhs(env, node->expr);
+    case ND_DEREF: {
+      Reg r = gen_expr(env, node->expr);
+      return new_load(env, r, datasize_of_node(node));
+    }
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);

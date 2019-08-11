@@ -223,7 +223,7 @@ static Expr* postfix(TokenList** t) {
         // e[i] -> *(e + i)
         consume(t);
         Expr* idx = expr(t);
-        Expr* n   = new_node_unaop(UNAOP_DEREF, new_node_binop(BINOP_ADD, node, idx));
+        Expr* n   = new_node_deref(new_node_binop(BINOP_ADD, node, idx));
         expect(t, TK_RBRACKET);
         node = n;
         break;
@@ -250,10 +250,10 @@ static Expr* unary(TokenList** t) {
       return new_node_unaop(UNAOP_LOGICAL_NEG, postfix(t));
     case TK_STAR:
       consume(t);
-      return new_node_unaop(UNAOP_DEREF, postfix(t));
+      return new_node_deref(postfix(t));
     case TK_AND:
       consume(t);
-      return new_node_unaop(UNAOP_ADDR, postfix(t));
+      return new_node_addr(postfix(t));
     default:
       return postfix(t);
   }

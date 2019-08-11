@@ -22,9 +22,6 @@ typedef enum {
   UNAOP_INTEGER_NEG,
   UNAOP_LOGICAL_NEG,
   UNAOP_BITWISE_NEG,
-  UNAOP_ADDR,
-  UNAOP_DEREF,
-  UNAOP_ADDR_ARY,
 } UnaopKind;
 
 void print_unaop(FILE*, UnaopKind);

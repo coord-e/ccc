@@ -255,6 +255,21 @@ static void print_expr(FILE* p, Expr* expr) {
       fprintf(p, ")");
       print_expr(p, expr->expr);
       return;
+    case ND_ADDR:
+      fprintf(p, "(& ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_ADDR_ARY:
+      fprintf(p, "(&ary ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_DEREF:
+      fprintf(p, "(* ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
     default:
       CCC_UNREACHABLE;
   }
@@ -429,6 +444,24 @@ Expr* new_node_unaop(UnaopKind kind, Expr* expr) {
   Expr* node  = new_node(ND_UNAOP, NULL, NULL);
   node->unaop = kind;
   node->expr  = expr;
+  return node;
+}
+
+Expr* new_node_addr(Expr* expr) {
+  Expr* node = new_node(ND_ADDR, NULL, NULL);
+  node->expr = expr;
+  return node;
+}
+
+Expr* new_node_addr_ary(Expr* expr) {
+  Expr* node = new_node(ND_ADDR_ARY, NULL, NULL);
+  node->expr = expr;
+  return node;
+}
+
+Expr* new_node_deref(Expr* expr) {
+  Expr* node = new_node(ND_DEREF, NULL, NULL);
+  node->expr = expr;
   return node;
 }
 

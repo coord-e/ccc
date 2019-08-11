@@ -75,6 +75,9 @@ TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s);
 typedef enum {
   ND_BINOP,
   ND_UNAOP,
+  ND_ADDR,
+  ND_DEREF,
+  ND_ADDR_ARY,
   ND_ASSIGN,
   ND_VAR,
   ND_NUM,
@@ -90,7 +93,7 @@ struct Expr {
   Expr* lhs;  // for ND_BINOP and ND_ASSIGN, owned
   Expr* rhs;  // ditto
 
-  Expr* expr;  // for ND_UNAOP and ND_CAST, owned
+  Expr* expr;  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP and ND_CAST, owned
 
   TypeName* cast_to;  // for ND_CAST, owned, nullable if `cast_type` is not NULL
 
@@ -110,6 +113,9 @@ Expr* new_node_num(int num);
 Expr* new_node_var(char* ident);
 Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
 Expr* new_node_unaop(UnaopKind kind, Expr* expr);
+Expr* new_node_addr(Expr* expr);
+Expr* new_node_addr_ary(Expr* expr);
+Expr* new_node_deref(Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_cast(TypeName* ty, Expr* opr);
 Expr* shallow_copy_node(Expr*);

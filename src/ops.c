@@ -49,15 +49,6 @@ void print_unaop(FILE* p, UnaopKind kind) {
     case UNAOP_LOGICAL_NEG:
       fprintf(p, "!");
       return;
-    case UNAOP_ADDR:
-      fprintf(p, "&");
-      return;
-    case UNAOP_ADDR_ARY:
-      fprintf(p, "&(array)");
-      return;
-    case UNAOP_DEREF:
-      fprintf(p, "*");
-      return;
     default:
       CCC_UNREACHABLE;
   }

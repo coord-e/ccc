@@ -248,9 +248,9 @@ static Expr* build_decay(Expr* opr) {
 
   switch (opr->type->kind) {
     case TY_ARRAY:
-      return new_node_unaop(UNAOP_ADDR_ARY, opr);
+      return new_node_addr_ary(opr);
     case TY_FUNC:
-      return new_node_unaop(UNAOP_ADDR, opr);
+      return new_node_addr(opr);
     default:
       CCC_UNREACHABLE;
   }
@@ -356,36 +356,19 @@ static Type* sema_binop(Env* env, Expr* expr) {
 static Type* sema_expr_raw(Env* env, Expr* expr);
 
 static Type* sema_unaop(Env* env, Expr* e) {
-  Expr* opr = e->expr;
+  Type* ty = sema_expr(env, e->expr);
   switch (e->unaop) {
-    case UNAOP_ADDR: {
-      Type* ty = sema_expr_raw(env, opr);
-      return ptr_to_ty(copy_Type(ty));
-    }
-    case UNAOP_ADDR_ARY: {
-      Type* ty = sema_expr_raw(env, opr);
-      assert(is_array_ty(ty));
-      return ptr_to_ty(copy_Type(ty->element));
-    }
-    case UNAOP_DEREF: {
-      Type* ty = sema_expr(env, opr);
-      should_pointer(ty);
-      return copy_Type(ty->ptr_to);
-    }
     case UNAOP_INTEGER_NEG: {
-      Type* ty = sema_expr(env, opr);
       should_arithmetic(ty);
       // TODO: integral promotion
       return copy_Type(ty);
     }
     case UNAOP_BITWISE_NEG: {
-      Type* ty = sema_expr(env, opr);
       should_integer(ty);
       // TODO: integral promotion
       return copy_Type(ty);
     }
     case UNAOP_LOGICAL_NEG: {
-      Type* ty = sema_expr(env, opr);
       should_scalar(ty);
       return int_ty();
     }
@@ -423,6 +406,23 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       // TODO: type conversion
       should_compatible(lhs_ty, rhs_ty);
       t = copy_Type(lhs_ty);
+      break;
+    }
+    case ND_ADDR: {
+      Type* ty = sema_expr_raw(env, expr->expr);
+      t        = ptr_to_ty(copy_Type(ty));
+      break;
+    }
+    case ND_ADDR_ARY: {
+      Type* ty = sema_expr_raw(env, expr->expr);
+      assert(is_array_ty(ty));
+      t = ptr_to_ty(copy_Type(ty->element));
+      break;
+    }
+    case ND_DEREF: {
+      Type* ty = sema_expr(env, expr->expr);
+      should_pointer(ty);
+      t = copy_Type(ty->ptr_to);
       break;
     }
     case ND_VAR:

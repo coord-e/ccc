@@ -15,6 +15,9 @@ void print_binop(FILE* p, BinopKind kind) {
     case BINOP_DIV:
       fprintf(p, "/");
       return;
+    case BINOP_REM:
+      fprintf(p, "%%");
+      return;
     case BINOP_EQ:
       fprintf(p, "==");
       return;

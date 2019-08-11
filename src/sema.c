@@ -367,6 +367,11 @@ static Type* sema_binop(Env* env, Expr* expr) {
       should_integer(rhs);
       // TODO: arithmetic conversion
       return copy_Type(lhs);
+    case BINOP_REM:
+      should_integer(lhs);
+      should_integer(rhs);
+      // TODO: arithmetic conversion
+      return copy_Type(lhs);
     default:
       CCC_UNREACHABLE;
   }

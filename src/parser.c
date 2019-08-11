@@ -291,6 +291,10 @@ static Expr* mul(TokenList** t) {
         consume(t);
         node = new_node_binop(BINOP_DIV, node, cast(t));
         break;
+      case TK_PERCENT:
+        consume(t);
+        node = new_node_binop(BINOP_REM, node, cast(t));
+        break;
       default:
         return node;
     }

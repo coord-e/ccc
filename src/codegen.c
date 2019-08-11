@@ -66,6 +66,21 @@ static const char* rcx_of_size(DataSize s) {
   }
 }
 
+static const char* rdx_of_size(DataSize s) {
+  switch (s) {
+    case SIZE_BYTE:
+      return "dl";
+    case SIZE_WORD:
+      return "dx";
+    case SIZE_DWORD:
+      return "edx";
+    case SIZE_QWORD:
+      return "rdx";
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void emit_label(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -313,6 +328,12 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
       emit(p, "mov %s, %s", reg_of(rd), rax_of_size(rd.size));
+      return;
+    case BINOP_REM:
+      emit(p, "mov %s, %s", rax_of_size(rd.size), reg_of(rd));
+      emit(p, "cqo");
+      emit(p, "idiv %s", reg_of(rhs));
+      emit(p, "mov %s, %s", reg_of(rd), rdx_of_size(rd.size));
       return;
     case BINOP_EQ:
       codegen_cmp(p, "e", rd, rhs);

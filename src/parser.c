@@ -237,8 +237,7 @@ static Expr* unary(TokenList** t) {
   switch (head_of(t)) {
     case TK_PLUS:
       consume(t);
-      // parse `+n` as `n`
-      return postfix(t);
+      return new_node_unaop(UNAOP_POSITIVE, postfix(t));
     case TK_MINUS:
       consume(t);
       return new_node_unaop(UNAOP_INTEGER_NEG, postfix(t));

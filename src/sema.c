@@ -358,6 +358,7 @@ static Type* sema_expr_raw(Env* env, Expr* expr);
 static Type* sema_unaop(Env* env, Expr* e) {
   Type* ty = sema_expr(env, e->expr);
   switch (e->unaop) {
+    case UNAOP_POSITIVE:
     case UNAOP_INTEGER_NEG: {
       should_arithmetic(ty);
       // TODO: integral promotion

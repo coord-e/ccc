@@ -19,6 +19,7 @@ typedef enum {
 void print_binop(FILE*, BinopKind);
 
 typedef enum {
+  UNAOP_POSITIVE,
   UNAOP_INTEGER_NEG,
   UNAOP_LOGICAL_NEG,
   UNAOP_BITWISE_NEG,

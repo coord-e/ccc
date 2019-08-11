@@ -40,6 +40,9 @@ void print_binop(FILE* p, BinopKind kind) {
 
 void print_unaop(FILE* p, UnaopKind kind) {
   switch (kind) {
+    case UNAOP_POSITIVE:
+      fprintf(p, "+");
+      return;
     case UNAOP_INTEGER_NEG:
       fprintf(p, "-");
       return;

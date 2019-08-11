@@ -258,6 +258,8 @@ static void codegen_unaop(FILE* p, IRInst* inst) {
   }
 
   switch (inst->unaop) {
+    case UNAOP_POSITIVE:
+      return;
     case UNAOP_INTEGER_NEG:
       emit(p, "neg %s", reg_of(rd));
       return;

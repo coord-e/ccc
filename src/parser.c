@@ -241,8 +241,13 @@ static Expr* unary(TokenList** t) {
       return postfix(t);
     case TK_MINUS:
       consume(t);
-      // parse `-n` as `0 - n`
-      return new_node_binop(BINOP_SUB, new_node_num(0), postfix(t));
+      return new_node_unaop(UNAOP_INTEGER_NEG, postfix(t));
+    case TK_TILDE:
+      consume(t);
+      return new_node_unaop(UNAOP_BITWISE_NEG, postfix(t));
+    case TK_EXCL:
+      consume(t);
+      return new_node_unaop(UNAOP_LOGICAL_NEG, postfix(t));
     case TK_STAR:
       consume(t);
       return new_node_unaop(UNAOP_DEREF, postfix(t));

@@ -13,6 +13,7 @@
 
 typedef enum {
   IR_BIN,
+  IR_UNA,
   IR_IMM,
   IR_ARG,
   IR_RET,
@@ -57,6 +58,7 @@ typedef struct IRInst {
   unsigned global_id;  // unique in `IR`
 
   BinopKind binop;        // for IR_BIN
+  UnaopKind unaop;        // for IR_UNA
   int imm;                // for IR_IMM
   unsigned stack_idx;     // for IR_STACK_*
   unsigned argument_idx;  // for IR_ARG

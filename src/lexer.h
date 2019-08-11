@@ -23,6 +23,8 @@ typedef enum {
   TK_LT,
   TK_GE,
   TK_LE,
+  TK_EXCL,
+  TK_TILDE,
   TK_SEMICOLON,
   TK_COMMA,
   TK_RETURN,

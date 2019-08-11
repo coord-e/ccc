@@ -372,6 +372,23 @@ static Type* sema_unaop(Env* env, Expr* e) {
       should_pointer(ty);
       return copy_Type(ty->ptr_to);
     }
+    case UNAOP_INTEGER_NEG: {
+      Type* ty = sema_expr(env, opr);
+      should_arithmetic(ty);
+      // TODO: integral promotion
+      return copy_Type(ty);
+    }
+    case UNAOP_BITWISE_NEG: {
+      Type* ty = sema_expr(env, opr);
+      should_integer(ty);
+      // TODO: integral promotion
+      return copy_Type(ty);
+    }
+    case UNAOP_LOGICAL_NEG: {
+      Type* ty = sema_expr(env, opr);
+      should_scalar(ty);
+      return int_ty();
+    }
     default:
       CCC_UNREACHABLE;
   }

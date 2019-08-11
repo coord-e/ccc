@@ -150,6 +150,7 @@ static void emit_epilogue(FILE* p, Function* f) {
 }
 
 static void codegen_binop(FILE* p, IRInst* inst);
+static void codegen_unaop(FILE* p, IRInst* inst);
 
 static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
@@ -186,6 +187,9 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_BIN:
       codegen_binop(p, h);
+      break;
+    case IR_UNA:
+      codegen_unaop(p, h);
       break;
     case IR_STACK_ADDR:
       emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), h->stack_idx);
@@ -245,12 +249,36 @@ static void codegen_cmp(FILE* p, const char* s, Reg rd, Reg rhs) {
   emit(p, "movzb %s, %s", reg_of(rd), regs8[rd.real]);
 }
 
+static void codegen_unaop(FILE* p, IRInst* inst) {
+  Reg rd  = inst->rd;
+  Reg opr = get_RegVec(inst->ras, 0);
+
+  if (rd.real != opr.real) {
+    emit(p, "mov %s, %s", reg_of(rd), reg_of(opr));
+  }
+
+  switch (inst->unaop) {
+    case UNAOP_INTEGER_NEG:
+      emit(p, "neg %s", reg_of(rd));
+      return;
+    case UNAOP_LOGICAL_NEG:
+      emit(p, "cmp %s, 0", reg_of(rd));
+      emit(p, "sete %s", regs8[rd.real]);
+      emit(p, "movzb %s, %s", reg_of(rd), regs8[rd.real]);
+      return;
+    case UNAOP_BITWISE_NEG:
+      emit(p, "not %s", reg_of(rd));
+      return;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void codegen_binop(FILE* p, IRInst* inst) {
   Reg rd  = inst->rd;
   Reg lhs = get_RegVec(inst->ras, 0);
   Reg rhs = get_RegVec(inst->ras, 1);
 
-  // extract ids for comparison
   // A = B op A instruction can't be emitted
   assert(rd.real != rhs.real);
 

@@ -111,6 +111,10 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_SLASH, cur);
         p++;
         continue;
+      case '~':
+        cur = add_token(TK_TILDE, cur);
+        p++;
+        continue;
       case '(':
         cur = add_token(TK_LPAREN, cur);
         p++;
@@ -160,6 +164,9 @@ TokenList* tokenize(char* p) {
           case '=':
             cur = add_token(TK_NE, cur);
             p++;
+            continue;
+          default:
+            cur = add_token(TK_EXCL, cur);
             continue;
         }
       case '>':
@@ -255,6 +262,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_LE:
       fprintf(p, "(<=)");
+      break;
+    case TK_EXCL:
+      fprintf(p, "(!)");
+      break;
+    case TK_TILDE:
+      fprintf(p, "(~)");
       break;
     case TK_SEMICOLON:
       fprintf(p, "(;)");

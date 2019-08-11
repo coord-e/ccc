@@ -186,6 +186,7 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
 
   Reg dest = new_reg(env, lhs.size);
 
+  // TODO: emit this move in `arch` pass
   IRInst* i1 = new_inst_(env, IR_MOV);
   i1->rd     = dest;
   push_RegVec(i1->ras, lhs);
@@ -196,6 +197,24 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
   i2->rd     = dest;
   push_RegVec(i2->ras, dest);
   push_RegVec(i2->ras, rhs);
+  add_inst(env, i2);
+
+  return dest;
+}
+
+static Reg new_unaop(Env* env, UnaopKind op, Reg opr) {
+  Reg dest = new_reg(env, opr.size);
+
+  // TODO: emit this move in `arch` pass
+  IRInst* i1 = new_inst_(env, IR_MOV);
+  i1->rd     = dest;
+  push_RegVec(i1->ras, opr);
+  add_inst(env, i1);
+
+  IRInst* i2 = new_inst_(env, IR_UNA);
+  i2->unaop  = op;
+  i2->rd     = dest;
+  push_RegVec(i2->ras, dest);
   add_inst(env, i2);
 
   return dest;
@@ -406,8 +425,10 @@ static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
       Reg r = gen_expr(env, opr->expr);
       return new_load(env, r, datasize_of_node(opr));
     }
-    default:
-      CCC_UNREACHABLE;
+    default: {
+      Reg r = gen_expr(env, opr->expr);
+      return new_unaop(env, op, r);
+    }
   }
 }
 
@@ -767,6 +788,11 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_BIN:
       fprintf(p, "BIN ");
       print_binop(p, i->binop);
+      fprintf(p, " ");
+      break;
+    case IR_UNA:
+      fprintf(p, "UNA ");
+      print_binop(p, i->unaop);
       fprintf(p, " ");
       break;
     case IR_STACK_ADDR:

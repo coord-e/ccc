@@ -116,6 +116,96 @@ static void should_scalar(Type* ty) {
   }
 }
 
+static int eval_constant(Expr* e) {
+  // TODO: Support more nodes
+  switch (e->kind) {
+    case ND_NUM:
+      return e->num;
+    default:
+      error("invalid constant expression");
+  }
+}
+
+static Type* translate_type(BaseType t) {
+#pragma GCC diagnostic ignored "-Wswitch"
+  switch (t) {
+    case BT_SIGNED + BT_CHAR:
+      return into_signed_ty(char_ty());
+    case BT_CHAR:
+    case BT_UNSIGNED + BT_CHAR:
+      return char_ty();
+    case BT_INT:
+    case BT_SIGNED:
+    case BT_SIGNED + BT_INT:
+      return int_ty();
+    case BT_UNSIGNED:
+    case BT_UNSIGNED + BT_INT:
+      return into_unsigned_ty(int_ty());
+    case BT_LONG:
+    case BT_LONG + BT_INT:
+    case BT_SIGNED + BT_LONG:
+    case BT_SIGNED + BT_LONG + BT_INT:
+      return long_ty();
+    case BT_UNSIGNED + BT_LONG:
+    case BT_UNSIGNED + BT_LONG + BT_INT:
+      return into_unsigned_ty(long_ty());
+    case BT_SHORT:
+    case BT_SHORT + BT_INT:
+    case BT_SIGNED + BT_SHORT:
+    case BT_SIGNED + BT_SHORT + BT_INT:
+      return short_ty();
+    case BT_UNSIGNED + BT_SHORT:
+    case BT_UNSIGNED + BT_SHORT + BT_INT:
+      return into_unsigned_ty(short_ty());
+    default:
+      error("invalid type");
+  }
+#pragma GCC diagnostic warning "-Wswitch"
+}
+
+// extract `Decalrator` and store the result to `name` and `type`
+// if `name` is NULL, this expects abstract declarator
+static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
+  switch (decl->kind) {
+    case DE_DIRECT_ABSTRACT:
+      assert(name == NULL);
+      *type = ptrify(base, decl->num_ptrs);
+      return;
+    case DE_DIRECT:
+      assert(name != NULL);
+      *type = ptrify(base, decl->num_ptrs);
+      *name = decl->name;
+      return;
+    case DE_ARRAY: {
+      Type* ty;
+      extract_declarator(decl->decl, base, name, &ty);
+      int length = eval_constant(decl->length);
+      if (length <= 0) {
+        error("invalid size of array: %d", length);
+      }
+
+      *type = array_ty(ty, length);
+      return;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static Type* translate_type_name(TypeName* t) {
+  Type* base_ty = translate_type(t->spec->base_type);
+  Type* res;
+  extract_declarator(t->declarator, base_ty, NULL, &res);
+  return res;
+}
+
+// `new_node_cast`, but supply targetted `Type*` directly
+static Expr* new_cast_direct(Type* ty, Expr* opr) {
+  Expr* e      = new_node_cast(NULL, opr);
+  e->cast_type = ty;
+  return e;
+}
+
 // p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
 // both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
 static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
@@ -125,13 +215,13 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   Type* int_ty       = into_unsigned_ty(int_of_size_ty(sizeof_ty(ptr_opr->type)));
   unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
-  Expr* ptr_opr_c = new_node_cast(int_ty, ptr_opr);
+  Expr* ptr_opr_c = new_cast_direct(int_ty, ptr_opr);
   // TODO: Remove this explicit cast by arithmetic conversion
-  Expr* int_opr_c =
-      new_node_cast(copy_Type(int_ty), new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
-  Expr* new_expr = new_node_binop(op, ptr_opr_c, int_opr_c);
+  Expr* int_opr_c = new_cast_direct(copy_Type(int_ty),
+                                    new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
+  Expr* new_expr  = new_node_binop(op, ptr_opr_c, int_opr_c);
 
-  return new_node_cast(copy_Type(ptr_opr->type), new_expr);
+  return new_cast_direct(copy_Type(ptr_opr->type), new_expr);
 }
 
 // p1 - p2 (p1, p2: t*, s: sizeof(t)) -> ((uint64_t)p1 - (uint64_t)p2) / s
@@ -143,11 +233,11 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
 
   Type* int_ty = int_of_size_ty(sizeof_ty(opr1->type));
 
-  Expr* opr1_c   = new_node_cast(int_ty, opr1);
-  Expr* opr2_c   = new_node_cast(copy_Type(int_ty), opr2);
+  Expr* opr1_c   = new_cast_direct(int_ty, opr1);
+  Expr* opr2_c   = new_cast_direct(copy_Type(int_ty), opr2);
   Expr* new_expr = new_node_binop(BINOP_SUB, opr1_c, opr2_c);
   // TODO: Remove this explicit cast by arithmetic conversion
-  Expr* num_c = new_node_cast(copy_Type(int_ty), new_node_num(sizeof_ty(opr1->type->ptr_to)));
+  Expr* num_c = new_cast_direct(copy_Type(int_ty), new_node_num(sizeof_ty(opr1->type->ptr_to)));
 
   return new_node_binop(BINOP_DIV, new_expr, num_c);
 }
@@ -294,10 +384,13 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
   switch (expr->kind) {
     case ND_CAST: {
       Type* ty = sema_expr(env, expr->expr);
+      if (expr->cast_type == NULL) {
+        expr->cast_type = translate_type_name(expr->cast_to);
+      }
       // TODO: Check floating type
       // TODO: arithmetic conversions
       should_scalar(ty);
-      t = copy_Type(expr->cast_to);
+      t = copy_Type(expr->cast_type);
       break;
     }
     case ND_BINOP: {
@@ -372,75 +465,6 @@ static Type* sema_expr(Env* env, Expr* e) {
     }
     default:
       return ty;
-  }
-}
-
-static int eval_constant(Expr* e) {
-  // TODO: Support more nodes
-  switch (e->kind) {
-    case ND_NUM:
-      return e->num;
-    default:
-      error("invalid constant expression");
-  }
-}
-
-static Type* translate_type(BaseType t) {
-#pragma GCC diagnostic ignored "-Wswitch"
-  switch (t) {
-    case BT_SIGNED + BT_CHAR:
-      return into_signed_ty(char_ty());
-    case BT_CHAR:
-    case BT_UNSIGNED + BT_CHAR:
-      return char_ty();
-    case BT_INT:
-    case BT_SIGNED:
-    case BT_SIGNED + BT_INT:
-      return int_ty();
-    case BT_UNSIGNED:
-    case BT_UNSIGNED + BT_INT:
-      return into_unsigned_ty(int_ty());
-    case BT_LONG:
-    case BT_LONG + BT_INT:
-    case BT_SIGNED + BT_LONG:
-    case BT_SIGNED + BT_LONG + BT_INT:
-      return long_ty();
-    case BT_UNSIGNED + BT_LONG:
-    case BT_UNSIGNED + BT_LONG + BT_INT:
-      return into_unsigned_ty(long_ty());
-    case BT_SHORT:
-    case BT_SHORT + BT_INT:
-    case BT_SIGNED + BT_SHORT:
-    case BT_SIGNED + BT_SHORT + BT_INT:
-      return short_ty();
-    case BT_UNSIGNED + BT_SHORT:
-    case BT_UNSIGNED + BT_SHORT + BT_INT:
-      return into_unsigned_ty(short_ty());
-    default:
-      error("invalid type");
-  }
-#pragma GCC diagnostic warning "-Wswitch"
-}
-
-static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
-  switch (decl->kind) {
-    case DE_DIRECT:
-      *type = ptrify(base, decl->num_ptrs);
-      *name = decl->name;
-      return;
-    case DE_ARRAY: {
-      Type* ty;
-      extract_declarator(decl->decl, base, name, &ty);
-      int length = eval_constant(decl->length);
-      if (length <= 0) {
-        error("invalid size of array: %d", length);
-      }
-
-      *type = array_ty(ty, length);
-      return;
-    }
-    default:
-      CCC_UNREACHABLE;
   }
 }
 

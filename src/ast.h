@@ -79,6 +79,7 @@ typedef enum {
   ND_DEREF,
   ND_ADDR_ARY,
   ND_ASSIGN,
+  ND_COMPOUND_ASSIGN,
   ND_VAR,
   ND_NUM,
   ND_CALL,
@@ -91,14 +92,14 @@ DECLARE_VECTOR(Expr*, ExprVec)
 struct Expr {
   ExprKind kind;
 
-  Expr* lhs;  // for ND_BINOP and ND_ASSIGN, owned
+  Expr* lhs;  // for ND_BINOP, ND_COMPOUND_ASSIGN and ND_ASSIGN, owned
   Expr* rhs;  // ditto
 
   Expr* expr;  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP and ND_CAST, owned
 
   TypeName* cast_to;  // for ND_CAST, owned, nullable if `cast_type` is not NULL
 
-  BinopKind binop;  // for ND_BINOP
+  BinopKind binop;  // for ND_BINOP, ND_COMPOUND_ASSIGN
   UnaopKind unaop;  // for ND_UNAOP
   char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
@@ -122,6 +123,7 @@ Expr* new_node_addr(Expr* expr);
 Expr* new_node_addr_ary(Expr* expr);
 Expr* new_node_deref(Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
+Expr* new_node_compound_assign(BinopKind, Expr* lhs, Expr* rhs);
 Expr* new_node_cast(TypeName* ty, Expr* opr);
 Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);
 Expr* shallow_copy_node(Expr*);

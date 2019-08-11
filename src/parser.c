@@ -490,6 +490,36 @@ static Expr* assign(TokenList** t) {
     case TK_EQUAL:
       consume(t);
       return new_node_assign(node, assign(t));
+    case TK_STAR_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_MUL, node, assign(t));
+    case TK_SLASH_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_DIV, node, assign(t));
+    case TK_PERCENT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_REM, node, assign(t));
+    case TK_PLUS_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_ADD, node, assign(t));
+    case TK_MINUS_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_SUB, node, assign(t));
+    case TK_LEFT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_SHIFT_LEFT, node, assign(t));
+    case TK_RIGHT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_SHIFT_RIGHT, node, assign(t));
+    case TK_AND_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_AND, node, assign(t));
+    case TK_HAT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_XOR, node, assign(t));
+    case TK_VERTICAL_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_OR, node, assign(t));
     default:
       return node;
   }

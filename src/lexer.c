@@ -92,21 +92,49 @@ TokenList* tokenize(char* p) {
 
     switch (*p) {
       case '+':
-        cur = add_token(TK_PLUS, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_PLUS_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_PLUS, cur);
+            continue;
+        }
       case '-':
-        cur = add_token(TK_MINUS, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_MINUS_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_MINUS, cur);
+            continue;
+        }
       case '*':
-        cur = add_token(TK_STAR, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_STAR_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_STAR, cur);
+            continue;
+        }
       case '/':
-        cur = add_token(TK_SLASH, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_SLASH_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_SLASH, cur);
+            continue;
+        }
       case '~':
         cur = add_token(TK_TILDE, cur);
         p++;
@@ -144,18 +172,36 @@ TokenList* tokenize(char* p) {
         p++;
         continue;
       case '^':
-        cur = add_token(TK_HAT, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_HAT_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_HAT, cur);
+            continue;
+        }
       case '%':
-        cur = add_token(TK_PERCENT, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_PERCENT_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_PERCENT, cur);
+            continue;
+        }
       case '&':
         p++;
         switch (*p) {
           case '&':
             cur = add_token(TK_DOUBLE_AND, cur);
+            p++;
+            continue;
+          case '=':
+            cur = add_token(TK_AND_EQUAL, cur);
             p++;
             continue;
           default:
@@ -167,6 +213,10 @@ TokenList* tokenize(char* p) {
         switch (*p) {
           case '|':
             cur = add_token(TK_DOUBLE_VERTICAL, cur);
+            p++;
+            continue;
+          case '=':
+            cur = add_token(TK_VERTICAL_EQUAL, cur);
             p++;
             continue;
           default:
@@ -211,9 +261,16 @@ TokenList* tokenize(char* p) {
             p++;
             continue;
           case '>':
-            cur = add_token(TK_RIGHT, cur);
             p++;
-            continue;
+            switch (*p) {
+              case '=':
+                cur = add_token(TK_RIGHT_EQUAL, cur);
+                p++;
+                continue;
+              default:
+                cur = add_token(TK_RIGHT, cur);
+                continue;
+            }
           default:
             cur = add_token(TK_GT, cur);
             continue;
@@ -226,9 +283,16 @@ TokenList* tokenize(char* p) {
             p++;
             continue;
           case '<':
-            cur = add_token(TK_LEFT, cur);
             p++;
-            continue;
+            switch (*p) {
+              case '=':
+                cur = add_token(TK_LEFT_EQUAL, cur);
+                p++;
+                continue;
+              default:
+                cur = add_token(TK_LEFT, cur);
+                continue;
+            }
           default:
             cur = add_token(TK_LT, cur);
             continue;
@@ -346,6 +410,36 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_PERCENT:
       fprintf(p, "(%%)");
+      break;
+    case TK_STAR_EQUAL:
+      fprintf(p, "(*=)");
+      break;
+    case TK_SLASH_EQUAL:
+      fprintf(p, "(/=)");
+      break;
+    case TK_PERCENT_EQUAL:
+      fprintf(p, "(%%=)");
+      break;
+    case TK_PLUS_EQUAL:
+      fprintf(p, "(+=)");
+      break;
+    case TK_MINUS_EQUAL:
+      fprintf(p, "(-=)");
+      break;
+    case TK_LEFT_EQUAL:
+      fprintf(p, "(<<=)");
+      break;
+    case TK_RIGHT_EQUAL:
+      fprintf(p, "(>>=)");
+      break;
+    case TK_AND_EQUAL:
+      fprintf(p, "(&=)");
+      break;
+    case TK_HAT_EQUAL:
+      fprintf(p, "(^=)");
+      break;
+    case TK_VERTICAL_EQUAL:
+      fprintf(p, "(|=)");
       break;
     case TK_RETURN:
       fprintf(p, "(return)");

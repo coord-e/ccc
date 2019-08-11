@@ -8,48 +8,7 @@
 #include "type.h"
 #include "vector.h"
 
-typedef enum {
-  ND_BINOP,
-  ND_UNAOP,
-  ND_ASSIGN,
-  ND_VAR,
-  ND_NUM,
-  ND_CALL,
-  ND_CAST,
-} ExprKind;
-
 typedef struct Expr Expr;
-
-DECLARE_VECTOR(Expr*, ExprVec)
-
-struct Expr {
-  ExprKind kind;
-
-  Expr* lhs;  // for ND_BINOP and ND_ASSIGN, owned
-  Expr* rhs;  // ditto
-
-  Expr* expr;  // for ND_UNAOP and ND_CAST, owned
-
-  Type* cast_to;  // for ND_CAST, owned
-
-  BinopKind binop;  // for ND_BINOP
-  UnaopKind unaop;  // for ND_UNAOP
-  char* var;        // for ND_VAR, owned
-  int num;          // for ND_NUM
-  ExprVec* args;    // for ND_CALL, owned
-
-  // will filled in `sema`
-  Type* type;  // owned
-};
-
-Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs);
-Expr* new_node_num(int num);
-Expr* new_node_var(char* ident);
-Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
-Expr* new_node_unaop(UnaopKind kind, Expr* expr);
-Expr* new_node_assign(Expr* lhs, Expr* rhs);
-Expr* new_node_cast(Type* ty, Expr* opr);
-Expr* shallow_copy_node(Expr*);
 
 // use bit flags to express the combination of names
 // this idea is from `cdecl.c` by Rui Ueyama
@@ -112,6 +71,48 @@ Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s);
 typedef Declaration TypeName;
 
 TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s);
+
+typedef enum {
+  ND_BINOP,
+  ND_UNAOP,
+  ND_ASSIGN,
+  ND_VAR,
+  ND_NUM,
+  ND_CALL,
+  ND_CAST,
+} ExprKind;
+
+DECLARE_VECTOR(Expr*, ExprVec)
+
+struct Expr {
+  ExprKind kind;
+
+  Expr* lhs;  // for ND_BINOP and ND_ASSIGN, owned
+  Expr* rhs;  // ditto
+
+  Expr* expr;  // for ND_UNAOP and ND_CAST, owned
+
+  TypeName* cast_to;  // for ND_CAST, owned, nullable if `cast_type` is not NULL
+
+  BinopKind binop;  // for ND_BINOP
+  UnaopKind unaop;  // for ND_UNAOP
+  char* var;        // for ND_VAR, owned
+  int num;          // for ND_NUM
+  ExprVec* args;    // for ND_CALL, owned
+
+  // will filled in `sema`
+  Type* type;       // owned
+  Type* cast_type;  // for ND_CAST, owned
+};
+
+Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs);
+Expr* new_node_num(int num);
+Expr* new_node_var(char* ident);
+Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
+Expr* new_node_unaop(UnaopKind kind, Expr* expr);
+Expr* new_node_assign(Expr* lhs, Expr* rhs);
+Expr* new_node_cast(TypeName* ty, Expr* opr);
+Expr* shallow_copy_node(Expr*);
 
 typedef struct Statement Statement;
 

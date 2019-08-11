@@ -2,23 +2,8 @@
 #include "util.h"
 
 // release functions
-static void release_expr(Expr* e) {
-  if (e == NULL) {
-    return;
-  }
 
-  release_expr(e->lhs);
-  release_expr(e->rhs);
-  release_expr(e->expr);
-  free(e->var);
-  release_ExprVec(e->args);
-  release_Type(e->cast_to);
-  release_Type(e->type);
-
-  free(e);
-}
-
-DEFINE_VECTOR(release_expr, Expr*, ExprVec)
+static void release_expr(Expr* e);
 
 static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
   if (spec == NULL) {
@@ -49,6 +34,29 @@ static void release_declaration(Declaration* d) {
   release_Type(d->type);
   free(d);
 }
+
+static void release_TypeName(TypeName* t) {
+  release_declaration(t);
+}
+
+static void release_expr(Expr* e) {
+  if (e == NULL) {
+    return;
+  }
+
+  release_expr(e->lhs);
+  release_expr(e->rhs);
+  release_expr(e->expr);
+  free(e->var);
+  release_ExprVec(e->args);
+  release_TypeName(e->cast_to);
+  release_Type(e->cast_type);
+  release_Type(e->type);
+
+  free(e);
+}
+
+DEFINE_VECTOR(release_expr, Expr*, ExprVec)
 
 static void release_statement(Statement* stmt) {
   if (stmt == NULL) {
@@ -128,6 +136,76 @@ void release_AST(AST* t) {
 }
 
 // printer functions
+static void print_expr(FILE* p, Expr* expr);
+
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
+  BaseType b = s->base_type;
+  if (b & BT_SIGNED) {
+    fputs("signed ", p);
+    b &= ~BT_SIGNED;  // clear
+  }
+  if (b & BT_UNSIGNED) {
+    fputs("unsigned ", p);
+    b &= ~BT_UNSIGNED;  // clear
+  }
+  if (b == 0) {
+    return;
+  }
+  switch (b) {
+    case BT_INT:
+      fputs("int", p);
+      break;
+    case BT_LONG:
+      fputs("long", p);
+      break;
+    case BT_CHAR:
+      fputs("char", p);
+      break;
+    case BT_SHORT:
+      fputs("short", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_Declarator(FILE* p, Declarator* d) {
+  switch (d->kind) {
+    case DE_DIRECT_ABSTRACT:
+      for (unsigned i = 0; i < d->num_ptrs; i++) {
+        fprintf(p, "*");
+      }
+      break;
+    case DE_DIRECT:
+      for (unsigned i = 0; i < d->num_ptrs; i++) {
+        fprintf(p, "*");
+      }
+      fprintf(p, "%s", d->name);
+      break;
+    case DE_ARRAY:
+      print_Declarator(p, d->decl);
+      fputs("[", p);
+      print_expr(p, d->length);
+      fputs("]", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_declaration(FILE* p, Declaration* d) {
+  print_DeclarationSpecifiers(p, d->spec);
+  fputs(" ", p);
+  print_Declarator(p, d->declarator);
+  fputs(";", p);
+}
+
+static void print_TypeName(FILE* p, TypeName* t) {
+  print_DeclarationSpecifiers(p, t->spec);
+  fputs(" ", p);
+  print_Declarator(p, t->declarator);
+}
+
 DECLARE_VECTOR_PRINTER(ExprVec)
 
 static void print_expr(FILE* p, Expr* expr) {
@@ -169,7 +247,11 @@ static void print_expr(FILE* p, Expr* expr) {
       return;
     case ND_CAST:
       fprintf(p, "(");
-      print_Type(p, expr->cast_to);
+      if (expr->cast_to == NULL) {
+        print_Type(p, expr->cast_type);
+      } else {
+        print_TypeName(p, expr->cast_to);
+      }
       fprintf(p, ")");
       print_expr(p, expr->expr);
       return;
@@ -178,63 +260,6 @@ static void print_expr(FILE* p, Expr* expr) {
   }
 }
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
-
-static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
-  BaseType b = s->base_type;
-  if (b & BT_SIGNED) {
-    fputs("signed ", p);
-    b &= ~BT_SIGNED;  // clear
-  }
-  if (b & BT_UNSIGNED) {
-    fputs("unsigned ", p);
-    b &= ~BT_UNSIGNED;  // clear
-  }
-  if (b == 0) {
-    return;
-  }
-  switch (b) {
-    case BT_INT:
-      fputs("int", p);
-      break;
-    case BT_LONG:
-      fputs("long", p);
-      break;
-    case BT_CHAR:
-      fputs("char", p);
-      break;
-    case BT_SHORT:
-      fputs("short", p);
-      break;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static void print_Declarator(FILE* p, Declarator* d) {
-  switch (d->kind) {
-    case DE_DIRECT:
-      for (unsigned i = 0; i < d->num_ptrs; i++) {
-        fprintf(p, "*");
-      }
-      fprintf(p, "%s", d->name);
-      break;
-    case DE_ARRAY:
-      print_Declarator(p, d->decl);
-      fputs("[", p);
-      print_expr(p, d->length);
-      fputs("]", p);
-      break;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static void print_declaration(FILE* p, Declaration* d) {
-  print_DeclarationSpecifiers(p, d->spec);
-  fputs(" ", p);
-  print_Declarator(p, d->declarator);
-  fputs(";", p);
-}
 
 static void print_statement(FILE* p, Statement* stmt);
 
@@ -369,15 +394,16 @@ void print_AST(FILE* p, AST* ast) {
 
 // constructors
 Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
-  Expr* node    = calloc(1, sizeof(Expr));
-  node->kind    = kind;
-  node->lhs     = lhs;
-  node->rhs     = rhs;
-  node->expr    = NULL;
-  node->var     = NULL;
-  node->args    = NULL;
-  node->cast_to = NULL;
-  node->type    = NULL;
+  Expr* node      = calloc(1, sizeof(Expr));
+  node->kind      = kind;
+  node->lhs       = lhs;
+  node->rhs       = rhs;
+  node->expr      = NULL;
+  node->var       = NULL;
+  node->args      = NULL;
+  node->cast_to   = NULL;
+  node->cast_type = NULL;
+  node->type      = NULL;
   return node;
 }
 
@@ -410,7 +436,7 @@ Expr* new_node_assign(Expr* lhs, Expr* rhs) {
   return new_node(ND_ASSIGN, lhs, rhs);
 }
 
-Expr* new_node_cast(Type* ty, Expr* opr) {
+Expr* new_node_cast(TypeName* ty, Expr* opr) {
   Expr* node    = new_node(ND_CAST, NULL, NULL);
   node->cast_to = ty;
   node->expr    = opr;

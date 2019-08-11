@@ -77,6 +77,7 @@ typedef struct {
 DeclarationSpecifiers* new_DeclarationSpecifiers();
 
 typedef enum {
+  DE_DIRECT_ABSTRACT,
   DE_DIRECT,
   DE_ARRAY,
 } DeclaratorKind;
@@ -85,16 +86,17 @@ typedef struct Declarator Declarator;
 
 struct Declarator {
   DeclaratorKind kind;
-  char* name_ref;  // not owned
+  char* name_ref;  // not owned, NULL if this is abstract declarator
 
   char* name;         // for DE_DIRECT, owned
-  unsigned num_ptrs;  // for DE_DIRECT
+  unsigned num_ptrs;  // for DE_DIRECT, DE_DIRECT_ABSTRACT
 
   Declarator* decl;  // for DE_ARRAY, owned
   Expr* length;      // for DE_ARRAY, owned
 };
 
 Declarator* new_Declarator(DeclaratorKind);
+bool is_abstract_declarator(Declarator*);
 
 typedef struct {
   DeclarationSpecifiers* spec;  // owned
@@ -105,6 +107,11 @@ typedef struct {
 } Declaration;
 
 Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s);
+
+// type-name is declaration whose declarator is an abstract declarator
+typedef Declaration TypeName;
+
+TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s);
 
 typedef struct Statement Statement;
 

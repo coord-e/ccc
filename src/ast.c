@@ -426,6 +426,7 @@ Expr* shallow_copy_node(Expr* e) {
 Declarator* new_Declarator(DeclaratorKind kind) {
   Declarator* d = calloc(1, sizeof(Declarator));
   d->kind       = kind;
+  d->name_ref   = NULL;
   d->num_ptrs   = 0;
   d->name       = NULL;
   d->decl       = NULL;
@@ -433,11 +434,25 @@ Declarator* new_Declarator(DeclaratorKind kind) {
   return d;
 }
 
+bool is_abstract_declarator(Declarator* d) {
+  return d->name_ref == NULL;
+}
+
 Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s) {
+  assert(!is_abstract_declarator(s));
   Declaration* d = calloc(1, sizeof(Declaration));
   d->spec        = spec;
   d->declarator  = s;
   d->type        = NULL;
+  return d;
+}
+
+TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s) {
+  assert(is_abstract_declarator(s));
+  TypeName* d   = calloc(1, sizeof(TypeName));
+  d->spec       = spec;
+  d->declarator = s;
+  d->type       = NULL;
   return d;
 }
 

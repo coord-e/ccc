@@ -386,15 +386,28 @@ static int eval_constant(Expr* e) {
   }
 }
 
-static void extract_declarator(Declarator* decl, char** name, Type** type) {
+static Type* translate_type(BaseType t) {
+  switch (t) {
+    case BT_INT:
+      return int_ty();
+    case BT_CHAR:
+      return char_ty();
+    case BT_LONG:
+      return long_ty();
+    default:
+      error("invalid type");
+  }
+}
+
+static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
   switch (decl->kind) {
     case DE_DIRECT:
-      *type = ptrify(int_ty(), decl->num_ptrs);
+      *type = ptrify(base, decl->num_ptrs);
       *name = decl->name;
       return;
     case DE_ARRAY: {
       Type* ty;
-      extract_declarator(decl->decl, name, &ty);
+      extract_declarator(decl->decl, base, name, &ty);
       int length = eval_constant(decl->length);
       if (length <= 0) {
         error("invalid size of array: %d", length);
@@ -409,9 +422,10 @@ static void extract_declarator(Declarator* decl, char** name, Type** type) {
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
+  Type* base_ty = translate_type(decl->spec->base_type);
   char* name;
   Type* ty;
-  extract_declarator(decl->declarator, &name, &ty);
+  extract_declarator(decl->declarator, base_ty, &name, &ty);
   decl->type = copy_Type(ty);
   add_var(env, name, ty);
 }
@@ -493,10 +507,11 @@ void sema_items(Env* env, BlockItemList* l) {
 static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
-    Declarator* d = head_ParamList(cur)->decl;
+    ParameterDecl* d = head_ParamList(cur);
+    Type* base_ty    = translate_type(d->spec->base_type);
     Type* type;
     char* name;
-    extract_declarator(d, &name, &type);
+    extract_declarator(d->decl, base_ty, &name, &type);
     push_TypeVec(params, type);
     if (env != NULL) {
       add_var(env, name, copy_Type(type));
@@ -507,9 +522,10 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 }
 
 static void sema_function(GlobalEnv* global, FunctionDef* f) {
+  Type* base_ty = translate_type(f->spec->base_type);
   Type* ret;
   char* name;
-  extract_declarator(f->decl, &name, &ret);
+  extract_declarator(f->decl, base_ty, &name, &ret);
 
   Env* env        = init_Env(global, ret);
   TypeVec* params = param_types(env, f->params);
@@ -534,9 +550,10 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       break;
     case EX_FUNC_DECL: {
       FunctionDecl* f = d->func_decl;
+      Type* base_ty   = translate_type(f->spec->base_type);
       Type* ret;
       char* name;
-      extract_declarator(f->decl, &name, &ret);
+      extract_declarator(f->decl, base_ty, &name, &ret);
       TypeVec* params = param_types(NULL, f->params);
       Type* ty        = func_ty(ret, params);
       f->type         = copy_Type(ty);

@@ -386,6 +386,7 @@ static int eval_constant(Expr* e) {
 }
 
 static Type* translate_type(BaseType t) {
+#pragma GCC diagnostic ignored "-Wswitch"
   switch (t) {
     case BT_SIGNED + BT_CHAR:
       return into_signed_ty(char_ty());
@@ -418,6 +419,7 @@ static Type* translate_type(BaseType t) {
     default:
       error("invalid type");
   }
+#pragma GCC diagnostic warning "-Wswitch"
 }
 
 static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {

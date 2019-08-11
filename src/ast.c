@@ -71,8 +71,14 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
+TypeSpecifier* new_TypeSpecifier() {
+  return calloc(1, sizeof(TypeSpecifier));
+}
+
 DeclarationSpecifiers* new_DeclarationSpecifiers() {
-  return calloc(1, sizeof(DeclarationSpecifiers));
+  DeclarationSpecifiers* s = calloc(1, sizeof(DeclarationSpecifiers));
+  s->type                  = new_TypeSpecifier();
+  return s;
 }
 
 ParameterDecl* new_ParameterDecl(DeclarationSpecifiers* spec, Declarator* decl) {
@@ -179,8 +185,8 @@ static void print_expr(FILE* p, Expr* expr) {
 }
 DEFINE_VECTOR_PRINTER(print_expr, ",", "", ExprVec)
 
-static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
-  BaseType b = s->base_type;
+static void print_TypeSpecifier(FILE* p, TypeSpecifier* s) {
+  BaseType b = s->base;
   if (b & BT_SIGNED) {
     fputs("signed ", p);
     b &= ~BT_SIGNED;  // clear
@@ -208,6 +214,10 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
     default:
       CCC_UNREACHABLE;
   }
+}
+
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
+  print_TypeSpecifier(p, s->type);
 }
 
 static void print_Declarator(FILE* p, Declarator* d) {

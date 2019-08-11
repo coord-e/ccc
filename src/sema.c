@@ -445,7 +445,7 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
-  Type* base_ty = translate_type(decl->spec->base_type);
+  Type* base_ty = translate_type(decl->spec->type->base);
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
@@ -531,7 +531,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
-    Type* base_ty    = translate_type(d->spec->base_type);
+    Type* base_ty    = translate_type(d->spec->type->base);
     Type* type;
     char* name;
     extract_declarator(d->decl, base_ty, &name, &type);
@@ -545,7 +545,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 }
 
 static void sema_function(GlobalEnv* global, FunctionDef* f) {
-  Type* base_ty = translate_type(f->spec->base_type);
+  Type* base_ty = translate_type(f->spec->type->base);
   Type* ret;
   char* name;
   extract_declarator(f->decl, base_ty, &name, &ret);
@@ -573,7 +573,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       break;
     case EX_FUNC_DECL: {
       FunctionDecl* f = d->func_decl;
-      Type* base_ty   = translate_type(f->spec->base_type);
+      Type* base_ty   = translate_type(f->spec->type->base);
       Type* ret;
       char* name;
       extract_declarator(f->decl, base_ty, &name, &ret);

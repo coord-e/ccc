@@ -279,30 +279,30 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
     switch (head_of(t)) {
       case TK_SIGNED:
         consume(t);
-        s->base_type |= BT_SIGNED;
+        s->type->base |= BT_SIGNED;
         break;
       case TK_UNSIGNED:
         consume(t);
-        s->base_type |= BT_UNSIGNED;
+        s->type->base |= BT_UNSIGNED;
         break;
       case TK_INT:
         consume(t);
-        s->base_type += BT_INT;
+        s->type->base += BT_INT;
         break;
       case TK_CHAR:
         consume(t);
-        s->base_type += BT_CHAR;
+        s->type->base += BT_CHAR;
         break;
       case TK_LONG:
         consume(t);
-        s->base_type += BT_LONG;
+        s->type->base += BT_LONG;
         break;
       case TK_SHORT:
         consume(t);
-        s->base_type += BT_SHORT;
+        s->type->base += BT_SHORT;
         break;
       default:
-        if (s->base_type == 0) {
+        if (s->type->base == 0) {
           return NULL;
         } else {
           return s;

@@ -66,9 +66,14 @@ typedef enum {
 } BaseType;
 
 typedef struct {
-  BaseType base_type;
-  /* char* user_type;  // owned */
-  /* bool is_typedef; */
+  BaseType base;
+  /* char* user;  // owned */
+} TypeSpecifier;
+
+TypeSpecifier* new_TypeSpecifier();
+
+typedef struct {
+  TypeSpecifier* type;
   /* bool is_extern; */
   /* bool is_static; */
   /* bool is_const; */

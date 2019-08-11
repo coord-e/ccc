@@ -277,6 +277,14 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
 
   for (;;) {
     switch (head_of(t)) {
+      case TK_SIGNED:
+        consume(t);
+        s->base_type |= BT_SIGNED;
+        break;
+      case TK_UNSIGNED:
+        consume(t);
+        s->base_type |= BT_UNSIGNED;
+        break;
       case TK_INT:
         consume(t);
         s->base_type += BT_INT;

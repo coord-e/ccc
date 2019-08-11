@@ -36,6 +36,8 @@ typedef enum {
   TK_INT,
   TK_CHAR,
   TK_LONG,
+  TK_SIGNED,
+  TK_UNSIGNED,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens

@@ -51,6 +51,9 @@ Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_cast(Type* ty, Expr* opr);
 Expr* shallow_copy_node(Expr*);
 
+// use bit flags to express the combination of names
+// this idea is from `cdecl.c` by Rui Ueyama
+// Copyright (C) 2019 Rui Ueyama
 typedef enum {
   BT_SIGNED   = 1,
   BT_UNSIGNED = 1 << 2,

@@ -122,8 +122,7 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   assert(is_pointer_ty(ptr_opr->type));
   assert(is_integer_ty(int_opr->type));
 
-  // TODO: wrap with unsigned
-  Type* int_ty       = int_of_size_ty(sizeof_ty(ptr_opr->type));
+  Type* int_ty       = into_unsigned_ty(int_of_size_ty(sizeof_ty(ptr_opr->type)));
   unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
   Expr* ptr_opr_c = new_node_cast(int_ty, ptr_opr);

@@ -344,4 +344,40 @@ int main(void) {
 }
 EOF
 
+# globals
+try_ 42 <<EOF
+int var;
+void modify() {
+  var++;
+}
+void modify2(int* p) {
+  *p+=40;
+}
+int main() {
+  var = 0;
+  modify();
+  modify();
+  modify2(&var);
+  return var;
+}
+EOF
+try_ 30 <<EOF
+long vs[5];
+void modify() {
+  vs[3] = (long)10;
+}
+long get() {
+  return vs[0] + vs[3] + vs[4];
+}
+int main() {
+  vs[0] = (long)5;
+  vs[4] = (long)15;
+  modify();
+  return (int)get();
+}
+EOF
+expr 5 "(int)sizeof(\"abcd\")"
+expr 97 "(int)\"gyaa\"[2]"
+expr 0 "(int)\"hello\"[5]"
+
 echo OK

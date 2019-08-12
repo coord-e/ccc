@@ -519,6 +519,9 @@ Reg gen_expr(Env* env, Expr* node) {
 
       return r;
     }
+    case ND_SIZEOF_TYPE:
+    case ND_SIZEOF_EXPR:
+    // `sizeof` must be processed `sema`
     default:
       CCC_UNREACHABLE;
   }

@@ -61,6 +61,8 @@ Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, unsigned);
 
+Type* size_t_ty();
+
 void make_signed_ty(Type*);
 void make_unsigned_ty(Type*);
 Type* to_signed_ty(Type*);

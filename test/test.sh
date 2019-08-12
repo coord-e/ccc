@@ -294,4 +294,8 @@ items 20 "int a[3]; a[0] = 5; a[1] = 10; a[2] = 15; int* p; p = a; int* b; b = p
 expr 3 "(1, 2, 3)"
 items 1 "int a; a = 0; return (a+=1, a);"
 
+# sizeof
+items 4 "int a; a = 10; return (int)sizeof(a);"
+items 10 "int a[10]; return (int)sizeof(a);"
+
 echo OK

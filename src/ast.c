@@ -55,6 +55,7 @@ static void release_expr(Expr* e) {
   release_expr(e->cond);
   release_expr(e->then_);
   release_expr(e->else_);
+  release_TypeName(e->sizeof_);
 
   free(e);
 }
@@ -297,6 +298,16 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->else_);
       fputs(")", p);
       return;
+    case ND_SIZEOF_EXPR:
+      fprintf(p, "(sizeof ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_SIZEOF_TYPE:
+      fprintf(p, "(sizeof ");
+      print_TypeName(p, expr->sizeof_);
+      fprintf(p, ")");
+      return;
     default:
       CCC_UNREACHABLE;
   }
@@ -449,6 +460,7 @@ Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->cond      = NULL;
   node->then_     = NULL;
   node->else_     = NULL;
+  node->sizeof_   = NULL;
   return node;
 }
 
@@ -521,6 +533,18 @@ Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_) {
   node->then_ = then_;
   node->cond  = cond;
   node->else_ = else_;
+  return node;
+}
+
+Expr* new_node_sizeof_type(TypeName* ty) {
+  Expr* node    = new_node(ND_SIZEOF_TYPE, NULL, NULL);
+  node->sizeof_ = ty;
+  return node;
+}
+
+Expr* new_node_sizeof_expr(Expr* e) {
+  Expr* node = new_node(ND_SIZEOF_EXPR, NULL, NULL);
+  node->expr = e;
   return node;
 }
 

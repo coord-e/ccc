@@ -276,6 +276,16 @@ static Expr* unary(TokenList** t) {
       consume(t);
       // `--e` is equivalent to `e-=1`
       return new_node_compound_assign(BINOP_SUB, postfix(t), new_node_num(1));
+    case TK_SIZEOF:
+      consume(t);
+      if (head_of(t) == TK_LPAREN) {
+        TypeName* ty = try_type_name(t);
+        if (ty != NULL) {
+          expect(t, TK_RPAREN);
+          return new_node_sizeof_type(ty);
+        }
+      }
+      return new_node_sizeof_expr(postfix(t));
     default:
       return postfix(t);
   }

@@ -546,6 +546,26 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       t = copy_Type(f->ret);
       break;
     }
+    case ND_SIZEOF_TYPE: {
+      Type* ty = translate_type_name(expr->sizeof_);
+
+      // TODO: shallow release of rhs of this assignment
+      *expr = *new_node_num(sizeof_ty(ty));
+      // TODO: release previous content of `expr`
+
+      t = size_t_ty();
+      break;
+    }
+    case ND_SIZEOF_EXPR: {
+      Type* ty = sema_expr_raw(env, expr->expr);
+
+      // TODO: shallow release of rhs of this assignment
+      *expr = *new_node_num(sizeof_ty(ty));
+      // TODO: release previous content of `expr`
+
+      t = size_t_ty();
+      break;
+    }
     default:
       CCC_UNREACHABLE;
   }

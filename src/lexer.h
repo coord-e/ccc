@@ -9,13 +9,34 @@ typedef enum {
   TK_MINUS,
   TK_STAR,
   TK_SLASH,
+  TK_DOUBLE_PLUS,
+  TK_DOUBLE_MINUS,
   TK_AND,
+  TK_VERTICAL,
+  TK_DOUBLE_AND,
+  TK_DOUBLE_VERTICAL,
+  TK_PERCENT,
+  TK_HAT,
+  TK_LEFT,    // <<
+  TK_RIGHT,   // >>
   TK_LPAREN,  // ()
   TK_RPAREN,
   TK_LBRACE,  // {}
   TK_RBRACE,
   TK_LBRACKET,  // []
   TK_RBRACKET,
+  TK_QUESTION,
+  TK_COLON,
+  TK_STAR_EQUAL,
+  TK_SLASH_EQUAL,
+  TK_PERCENT_EQUAL,
+  TK_PLUS_EQUAL,
+  TK_MINUS_EQUAL,
+  TK_LEFT_EQUAL,
+  TK_RIGHT_EQUAL,
+  TK_AND_EQUAL,
+  TK_HAT_EQUAL,
+  TK_VERTICAL_EQUAL,
   TK_EQUAL,  // =
   TK_EQ,     // ==
   TK_NE,
@@ -23,6 +44,8 @@ typedef enum {
   TK_LT,
   TK_GE,
   TK_LE,
+  TK_EXCL,
+  TK_TILDE,
   TK_SEMICOLON,
   TK_COMMA,
   TK_RETURN,
@@ -39,6 +62,7 @@ typedef enum {
   TK_SHORT,
   TK_SIGNED,
   TK_UNSIGNED,
+  TK_SIZEOF,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens

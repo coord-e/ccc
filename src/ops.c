@@ -15,6 +15,9 @@ void print_binop(FILE* p, BinopKind kind) {
     case BINOP_DIV:
       fprintf(p, "/");
       return;
+    case BINOP_REM:
+      fprintf(p, "%%");
+      return;
     case BINOP_EQ:
       fprintf(p, "==");
       return;
@@ -33,6 +36,21 @@ void print_binop(FILE* p, BinopKind kind) {
     case BINOP_LE:
       fprintf(p, "<=");
       return;
+    case BINOP_OR:
+      fprintf(p, "|");
+      return;
+    case BINOP_XOR:
+      fprintf(p, "^");
+      return;
+    case BINOP_AND:
+      fprintf(p, "&");
+      return;
+    case BINOP_SHIFT_RIGHT:
+      fprintf(p, ">>");
+      return;
+    case BINOP_SHIFT_LEFT:
+      fprintf(p, "<<");
+      return;
     default:
       CCC_UNREACHABLE;
   }
@@ -40,14 +58,14 @@ void print_binop(FILE* p, BinopKind kind) {
 
 void print_unaop(FILE* p, UnaopKind kind) {
   switch (kind) {
-    case UNAOP_ADDR:
-      fprintf(p, "&");
+    case UNAOP_POSITIVE:
+      fprintf(p, "+");
       return;
-    case UNAOP_ADDR_ARY:
-      fprintf(p, "&(array)");
+    case UNAOP_INTEGER_NEG:
+      fprintf(p, "-");
       return;
-    case UNAOP_DEREF:
-      fprintf(p, "*");
+    case UNAOP_BITWISE_NEG:
+      fprintf(p, "~");
       return;
     default:
       CCC_UNREACHABLE;

@@ -186,6 +186,7 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
 
   Reg dest = new_reg(env, lhs.size);
 
+  // TODO: emit this move in `arch` pass
   IRInst* i1 = new_inst_(env, IR_MOV);
   i1->rd     = dest;
   push_RegVec(i1->ras, lhs);
@@ -196,6 +197,24 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
   i2->rd     = dest;
   push_RegVec(i2->ras, dest);
   push_RegVec(i2->ras, rhs);
+  add_inst(env, i2);
+
+  return dest;
+}
+
+static Reg new_unaop(Env* env, UnaopKind op, Reg opr) {
+  Reg dest = new_reg(env, opr.size);
+
+  // TODO: emit this move in `arch` pass
+  IRInst* i1 = new_inst_(env, IR_MOV);
+  i1->rd     = dest;
+  push_RegVec(i1->ras, opr);
+  add_inst(env, i1);
+
+  IRInst* i2 = new_inst_(env, IR_UNA);
+  i2->unaop  = op;
+  i2->rd     = dest;
+  push_RegVec(i2->ras, dest);
   add_inst(env, i2);
 
   return dest;
@@ -293,6 +312,13 @@ static Reg nth_arg(Env* env, unsigned nth, DataSize size) {
   return r;
 }
 
+static void new_move(Env* env, Reg d, Reg s) {
+  IRInst* i = new_inst_(env, IR_MOV);
+  push_RegVec(i->ras, s);
+  i->rd = d;
+  add_inst(env, i);
+}
+
 static void new_jump(Env* env, BasicBlock* jump, BasicBlock* next);
 
 static bool is_exit(IRInstKind k) {
@@ -383,40 +409,23 @@ static Reg gen_lhs(Env* env, Expr* node) {
         return new_global(env, node->var);
       }
     }
-    case ND_UNAOP:
-      if (node->unaop == UNAOP_DEREF) {
-        return gen_expr(env, node->expr);
-      }
-      // fallthrough
+    case ND_DEREF:
+      return gen_expr(env, node->expr);
     default:
       error("invaild lhs");
   }
 }
 
 static DataSize datasize_of_node(Expr* e) {
-  return to_data_size(stored_size_ty(e->type));
-}
-
-static Reg gen_unaop(Env* env, UnaopKind op, Expr* opr) {
-  switch (op) {
-    case UNAOP_ADDR:
-    case UNAOP_ADDR_ARY:
-      return gen_lhs(env, opr->expr);
-    case UNAOP_DEREF: {
-      Reg r = gen_expr(env, opr->expr);
-      return new_load(env, r, datasize_of_node(opr));
-    }
-    default:
-      CCC_UNREACHABLE;
-  }
+  return to_data_size(sizeof_ty(e->type));
 }
 
 Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST: {
       // TODO: signedness?
-      unsigned cast_size = stored_size_ty(node->cast_type);
-      unsigned expr_size = stored_size_ty(node->expr->type);
+      unsigned cast_size = sizeof_ty(node->cast_type);
+      unsigned expr_size = sizeof_ty(node->expr->type);
       Reg r              = gen_expr(env, node->expr);
       if (cast_size > expr_size) {
         return new_sext(env, r, cast_size);
@@ -433,14 +442,36 @@ Reg gen_expr(Env* env, Expr* node) {
       Reg rhs = gen_expr(env, node->rhs);
       return new_binop(env, node->binop, lhs, rhs);
     }
-    case ND_UNAOP:
-      return gen_unaop(env, node->unaop, node);
+    case ND_UNAOP: {
+      Reg r = gen_expr(env, node->expr);
+      return new_unaop(env, node->unaop, r);
+    }
+    case ND_ADDR:
+    case ND_ADDR_ARY:
+      return gen_lhs(env, node->expr);
+    case ND_DEREF: {
+      Reg r = gen_expr(env, node->expr);
+      return new_load(env, r, datasize_of_node(node));
+    }
+    case ND_COMPOUND_ASSIGN: {
+      Reg addr = gen_lhs(env, node->lhs);
+      Reg rhs  = gen_expr(env, node->rhs);
+      Reg lhs  = new_load(env, addr, datasize_of_node(node->lhs));
+      Reg val  = new_binop(env, node->binop, lhs, rhs);
+      assert(sizeof_ty(node->lhs->type) == val.size);
+      new_store(env, addr, val, datasize_of_node(node));
+      return val;
+    }
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);
-      assert(stored_size_ty(node->lhs->type) == stored_size_ty(node->rhs->type));
+      assert(sizeof_ty(node->lhs->type) == sizeof_ty(node->rhs->type));
       new_store(env, addr, rhs, datasize_of_node(node));
       return rhs;
+    }
+    case ND_COMMA: {
+      gen_expr(env, node->lhs);
+      return gen_expr(env, node->rhs);
     }
     case ND_VAR: {
       // lvalue conversion is performed here
@@ -466,6 +497,31 @@ Reg gen_expr(Env* env, Expr* node) {
       add_inst(env, inst);
       return r;
     }
+    case ND_COND: {
+      Reg r = new_reg(env, datasize_of_node(node));
+
+      BasicBlock* then_bb = new_bb(env);
+      BasicBlock* else_bb = new_bb(env);
+      BasicBlock* next_bb = new_bb(env);
+
+      Reg cond = gen_expr(env, node->cond);
+      new_br(env, cond, then_bb, else_bb, then_bb);
+
+      // then
+      Reg then_ = gen_expr(env, node->then_);
+      new_move(env, r, then_);
+      new_jump(env, next_bb, else_bb);
+
+      // else
+      Reg else_ = gen_expr(env, node->else_);
+      new_move(env, r, else_);
+      new_jump(env, next_bb, next_bb);
+
+      return r;
+    }
+    case ND_SIZEOF_TYPE:
+    case ND_SIZEOF_EXPR:
+    // `sizeof` must be processed `sema`
     default:
       CCC_UNREACHABLE;
   }
@@ -617,7 +673,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator->name_ref, stored_size_ty(decl->type));
+  new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -647,7 +703,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 
   char* name    = head_ParamList(l)->decl->name_ref;
   Type* ty      = get_TypeVec(f->type->params, nth);
-  unsigned size = stored_size_ty(ty);
+  unsigned size = sizeof_ty(ty);
   new_var(env, name, size);
 
   unsigned addr;
@@ -767,6 +823,11 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_BIN:
       fprintf(p, "BIN ");
       print_binop(p, i->binop);
+      fprintf(p, " ");
+      break;
+    case IR_UNA:
+      fprintf(p, "UNA ");
+      print_binop(p, i->unaop);
       fprintf(p, " ");
       break;
     case IR_STACK_ADDR:

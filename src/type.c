@@ -201,6 +201,10 @@ Type* array_ty(Type* element, unsigned length) {
   return t;
 }
 
+Type* size_t_ty() {
+  return into_unsigned_ty(long_ty());
+}
+
 void make_signed_ty(Type* t) {
   assert(t->kind == TY_INT);
   t->is_signed = true;
@@ -287,22 +291,7 @@ unsigned sizeof_ty(const Type* t) {
     case TY_FUNC:
       error("attempt to obtain the size of function type");
     case TY_ARRAY:
-      return t->length;
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-unsigned stored_size_ty(const Type* t) {
-  switch (t->kind) {
-    case TY_INT:
-      return from_data_size(t->size);
-    case TY_PTR:
-      return 8;
-    case TY_FUNC:
-      error("attempt to obtain the size of function type");
-    case TY_ARRAY:
-      return t->length * stored_size_ty(t->element);
+      return t->length * sizeof_ty(t->element);
     default:
       CCC_UNREACHABLE;
   }

@@ -88,12 +88,31 @@ expr 55 "1 + (2 + (3 + (4 + (5 + (6 + (7 + (8 + (9 + 10))))))))"
 expr 21 "+1+20"
 expr 10 "-15+(+35-10)"
 
+expr 2 "5 % 3"
+expr 6 "111 % 7"
+
 expr 1 "10 > 5"
 expr 1 "3+3 > 5"
 expr 0 "30 == 20"
 expr 0 "5 >= 10"
 expr 1 "5 >= 5"
 expr 1 "30 != 20"
+
+expr 0 "!237"
+expr 18 "~237"
+
+expr 0 "0 || 0"
+expr 1 "1 || 0"
+expr 1 "1 || 1"
+expr 0 "0 && 0"
+expr 0 "1 && 0"
+expr 1 "1 && 1"
+
+expr 16 "2 << 3"
+expr 32 "256 >> 3"
+expr 239 "237 | 106"
+expr 135 "237 ^ 106"
+expr 104 "237 & 106"
 
 # return statements
 items 1 "return 1;";
@@ -119,17 +138,17 @@ items 30 "int a; a = 10; if (a) { if (a - 10) { a = a + 1; } else { a = a + 20; 
 # loop
 items 55 "int acc; int p; acc = 0; p = 10; while (p) { acc = acc + p; p = p - 1; } return acc;"
 items 60 "int acc; acc = 15; do { acc = acc * -2; } while (acc < 0); return acc;"
-items 45 "int i; int acc; acc = 0; for (i = 0; i < 10; i = i + 1) { acc = acc + i; } return acc;"
+items 45 "int i; int acc; acc = 0; for (i = 0; i < 10; ++i) { acc = acc + i; } return acc;"
 items 45 "int i; int j; i=0; j=0; while (i<10) { j=j+i; i=i+1; } return j;"
 items 1 "int x; x=0; do {x = x + 1; break;} while (1); return x;"
 items 1 "int x; x=0; do {x = x + 1; continue;} while (0); return x;"
-items 7 "int i; i=0; int j; for (j = 0; j < 10; j = j + 1) { if (j < 3) continue; i = i + 1; } return i;"
+items 7 "int i; i=0; int j; for (j = 0; j < 10; j++) { if (j < 3) continue; i = i + 1; } return i;"
 items 10 "while(0); return 10;"
 items 10 "while(1) break; return 10;"
 items 10 "for(;;) break; return 10;"
-items 0 "int x; for(x = 10; x > 0; x = x - 1); return x;"
+items 0 "int x; for(x = 10; x > 0; x--); return x;"
 items 30 "int i; int acc; i = 0; acc = 0; do { i = i + 1; if (i - 1 < 5) continue; acc = acc + i; if (i == 9) break; } while (i < 10); return acc;"
-items 26 "int acc; acc = 0; int i; for (i = 0; i < 100; i=i+1) { if (i < 5) continue; if (i == 9) break; acc = acc + i; } return acc;"
+items 26 "int acc; acc = 0; int i; for (i = 0; i < 100; ++i) { if (i < 5) continue; if (i == 9) break; acc = acc + i; } return acc;"
 
 # functions
 try_ 55 << EOF
@@ -239,7 +258,7 @@ int main() {
   int ary[5];
   int i;
 
-  for (i = 0; i < 5; i = i + 1) {
+  for (i = 0; i < 5; i++) {
     ary[i] = i * 2;
   }
 
@@ -256,5 +275,35 @@ EOF
 # cast
 items 10 "char a; a = (char)10; return (int)a;"
 items 5 "int* p; int a[3]; unsigned long addr; addr = (unsigned long)a + (unsigned long)4; a[1] = 5; p = (int*)addr; return *p;"
+
+# conditional operator
+expr 10 "1 ? 10 : 5"
+expr 25 "0 ? 10 : 25"
+
+# compound assignemnt
+items 5 "int a; a = 2; a += 3; return a;"
+items 5 "int a; a = 10; a -= 5; return a;"
+items 237 "int a; a = 237; a |= 106; return a-=2;"
+items 20 "int a[3]; a[0] = 10; a[1] = 20; a[2] = 30; int* p; p = a; p+=1; return *p;"
+items 10 "int a[3]; a[0] = 10; a[1] = 20; a[2] = 30; int* p; p = &a[2]; return *(p-=2);"
+items 4 "int a; a = 1; int b; b = a++; return b++ + ++a;";
+items 8 "int a; a = 5; int b; b = a--; return --b + a--;";
+items 20 "int a[3]; a[0] = 5; a[1] = 10; a[2] = 15; int* p; p = a; int* b; b = p++; return *b + *(++p);"
+
+# comma
+expr 3 "(1, 2, 3)"
+items 1 "int a; a = 0; return (a+=1, a);"
+
+# sizeof
+items 4 "int a; a = 10; return (int)sizeof(a);"
+items 1 "char a; return (int)sizeof(a);"
+items 2 "short a; return (int)sizeof(a);"
+items 40 "int a[10]; return (int)sizeof(a);"
+items 80 "long a[2][5]; return (int)sizeof(a);"
+expr 4 "(int)sizeof(int)";
+expr 1 "(int)sizeof(char)";
+expr 8 "(int)sizeof(char*)";
+expr 8 "(int)sizeof(int*)";
+expr 40 "(int)sizeof(int[10])";
 
 echo OK

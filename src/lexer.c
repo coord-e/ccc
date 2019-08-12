@@ -67,6 +67,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_SIGNED, cur);
   } else if (IS_SAME(init, "unsigned")) {
     return add_token(TK_UNSIGNED, cur);
+  } else if (IS_SAME(init, "sizeof")) {
+    return add_token(TK_SIZEOF, cur);
   }
 #undef IS_SAME
 
@@ -92,23 +94,59 @@ TokenList* tokenize(char* p) {
 
     switch (*p) {
       case '+':
-        cur = add_token(TK_PLUS, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '+':
+            cur = add_token(TK_DOUBLE_PLUS, cur);
+            p++;
+            continue;
+          case '=':
+            cur = add_token(TK_PLUS_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_PLUS, cur);
+            continue;
+        }
       case '-':
-        cur = add_token(TK_MINUS, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '-':
+            cur = add_token(TK_DOUBLE_MINUS, cur);
+            p++;
+            continue;
+          case '=':
+            cur = add_token(TK_MINUS_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_MINUS, cur);
+            continue;
+        }
       case '*':
-        cur = add_token(TK_STAR, cur);
         p++;
-        continue;
-      case '&':
-        cur = add_token(TK_AND, cur);
-        p++;
-        continue;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_STAR_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_STAR, cur);
+            continue;
+        }
       case '/':
-        cur = add_token(TK_SLASH, cur);
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_SLASH_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_SLASH, cur);
+            continue;
+        }
+      case '~':
+        cur = add_token(TK_TILDE, cur);
         p++;
         continue;
       case '(':
@@ -143,6 +181,66 @@ TokenList* tokenize(char* p) {
         cur = add_token(TK_COMMA, cur);
         p++;
         continue;
+      case '^':
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_HAT_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_HAT, cur);
+            continue;
+        }
+      case '%':
+        p++;
+        switch (*p) {
+          case '=':
+            cur = add_token(TK_PERCENT_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_PERCENT, cur);
+            continue;
+        }
+      case '&':
+        p++;
+        switch (*p) {
+          case '&':
+            cur = add_token(TK_DOUBLE_AND, cur);
+            p++;
+            continue;
+          case '=':
+            cur = add_token(TK_AND_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_AND, cur);
+            continue;
+        }
+      case '|':
+        p++;
+        switch (*p) {
+          case '|':
+            cur = add_token(TK_DOUBLE_VERTICAL, cur);
+            p++;
+            continue;
+          case '=':
+            cur = add_token(TK_VERTICAL_EQUAL, cur);
+            p++;
+            continue;
+          default:
+            cur = add_token(TK_VERTICAL, cur);
+            continue;
+        }
+      case ':':
+        cur = add_token(TK_COLON, cur);
+        p++;
+        continue;
+      case '?':
+        cur = add_token(TK_QUESTION, cur);
+        p++;
+        continue;
       case '=':
         p++;
         switch (*p) {
@@ -161,6 +259,9 @@ TokenList* tokenize(char* p) {
             cur = add_token(TK_NE, cur);
             p++;
             continue;
+          default:
+            cur = add_token(TK_EXCL, cur);
+            continue;
         }
       case '>':
         p++;
@@ -169,6 +270,17 @@ TokenList* tokenize(char* p) {
             cur = add_token(TK_GE, cur);
             p++;
             continue;
+          case '>':
+            p++;
+            switch (*p) {
+              case '=':
+                cur = add_token(TK_RIGHT_EQUAL, cur);
+                p++;
+                continue;
+              default:
+                cur = add_token(TK_RIGHT, cur);
+                continue;
+            }
           default:
             cur = add_token(TK_GT, cur);
             continue;
@@ -180,6 +292,17 @@ TokenList* tokenize(char* p) {
             cur = add_token(TK_LE, cur);
             p++;
             continue;
+          case '<':
+            p++;
+            switch (*p) {
+              case '=':
+                cur = add_token(TK_LEFT_EQUAL, cur);
+                p++;
+                continue;
+              default:
+                cur = add_token(TK_LEFT, cur);
+                continue;
+            }
           default:
             cur = add_token(TK_LT, cur);
             continue;
@@ -216,6 +339,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_SLASH:
       fprintf(p, "(/)");
+      break;
+    case TK_DOUBLE_PLUS:
+      fprintf(p, "(++)");
+      break;
+    case TK_DOUBLE_MINUS:
+      fprintf(p, "(--)");
       break;
     case TK_LPAREN:
       fprintf(p, "(()");
@@ -256,6 +385,12 @@ static void print_token(FILE* p, Token t) {
     case TK_LE:
       fprintf(p, "(<=)");
       break;
+    case TK_EXCL:
+      fprintf(p, "(!)");
+      break;
+    case TK_TILDE:
+      fprintf(p, "(~)");
+      break;
     case TK_SEMICOLON:
       fprintf(p, "(;)");
       break;
@@ -264,6 +399,63 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_AND:
       fprintf(p, "(&)");
+      break;
+    case TK_VERTICAL:
+      fprintf(p, "(|)");
+      break;
+    case TK_DOUBLE_AND:
+      fprintf(p, "(&&)");
+      break;
+    case TK_DOUBLE_VERTICAL:
+      fprintf(p, "(||)");
+      break;
+    case TK_HAT:
+      fprintf(p, "(^)");
+      break;
+    case TK_LEFT:
+      fprintf(p, "(<<)");
+      break;
+    case TK_RIGHT:
+      fprintf(p, "(>>)");
+      break;
+    case TK_COLON:
+      fprintf(p, "(:)");
+      break;
+    case TK_QUESTION:
+      fprintf(p, "(?)");
+      break;
+    case TK_PERCENT:
+      fprintf(p, "(%%)");
+      break;
+    case TK_STAR_EQUAL:
+      fprintf(p, "(*=)");
+      break;
+    case TK_SLASH_EQUAL:
+      fprintf(p, "(/=)");
+      break;
+    case TK_PERCENT_EQUAL:
+      fprintf(p, "(%%=)");
+      break;
+    case TK_PLUS_EQUAL:
+      fprintf(p, "(+=)");
+      break;
+    case TK_MINUS_EQUAL:
+      fprintf(p, "(-=)");
+      break;
+    case TK_LEFT_EQUAL:
+      fprintf(p, "(<<=)");
+      break;
+    case TK_RIGHT_EQUAL:
+      fprintf(p, "(>>=)");
+      break;
+    case TK_AND_EQUAL:
+      fprintf(p, "(&=)");
+      break;
+    case TK_HAT_EQUAL:
+      fprintf(p, "(^=)");
+      break;
+    case TK_VERTICAL_EQUAL:
+      fprintf(p, "(|=)");
       break;
     case TK_RETURN:
       fprintf(p, "(return)");
@@ -306,6 +498,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_UNSIGNED:
       fprintf(p, "(UNSIGNED)");
+      break;
+    case TK_SIZEOF:
+      fprintf(p, "(SIZEOF)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

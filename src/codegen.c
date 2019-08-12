@@ -51,6 +51,36 @@ static const char* rax_of_size(DataSize s) {
   }
 }
 
+static const char* rcx_of_size(DataSize s) {
+  switch (s) {
+    case SIZE_BYTE:
+      return "cl";
+    case SIZE_WORD:
+      return "cx";
+    case SIZE_DWORD:
+      return "ecx";
+    case SIZE_QWORD:
+      return "rcx";
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static const char* rdx_of_size(DataSize s) {
+  switch (s) {
+    case SIZE_BYTE:
+      return "dl";
+    case SIZE_WORD:
+      return "dx";
+    case SIZE_DWORD:
+      return "edx";
+    case SIZE_QWORD:
+      return "rdx";
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void emit_label(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -150,6 +180,7 @@ static void emit_epilogue(FILE* p, Function* f) {
 }
 
 static void codegen_binop(FILE* p, IRInst* inst);
+static void codegen_unaop(FILE* p, IRInst* inst);
 
 static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
@@ -186,6 +217,9 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_BIN:
       codegen_binop(p, h);
+      break;
+    case IR_UNA:
+      codegen_unaop(p, h);
       break;
     case IR_STACK_ADDR:
       emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), h->stack_idx);
@@ -245,12 +279,33 @@ static void codegen_cmp(FILE* p, const char* s, Reg rd, Reg rhs) {
   emit(p, "movzb %s, %s", reg_of(rd), regs8[rd.real]);
 }
 
+static void codegen_unaop(FILE* p, IRInst* inst) {
+  Reg rd  = inst->rd;
+  Reg opr = get_RegVec(inst->ras, 0);
+
+  if (rd.real != opr.real) {
+    emit(p, "mov %s, %s", reg_of(rd), reg_of(opr));
+  }
+
+  switch (inst->unaop) {
+    case UNAOP_POSITIVE:
+      return;
+    case UNAOP_INTEGER_NEG:
+      emit(p, "neg %s", reg_of(rd));
+      return;
+    case UNAOP_BITWISE_NEG:
+      emit(p, "not %s", reg_of(rd));
+      return;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void codegen_binop(FILE* p, IRInst* inst) {
   Reg rd  = inst->rd;
   Reg lhs = get_RegVec(inst->ras, 0);
   Reg rhs = get_RegVec(inst->ras, 1);
 
-  // extract ids for comparison
   // A = B op A instruction can't be emitted
   assert(rd.real != rhs.real);
 
@@ -274,6 +329,12 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "idiv %s", reg_of(rhs));
       emit(p, "mov %s, %s", reg_of(rd), rax_of_size(rd.size));
       return;
+    case BINOP_REM:
+      emit(p, "mov %s, %s", rax_of_size(rd.size), reg_of(rd));
+      emit(p, "cqo");
+      emit(p, "idiv %s", reg_of(rhs));
+      emit(p, "mov %s, %s", reg_of(rd), rdx_of_size(rd.size));
+      return;
     case BINOP_EQ:
       codegen_cmp(p, "e", rd, rhs);
       return;
@@ -291,6 +352,24 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       return;
     case BINOP_LE:
       codegen_cmp(p, "le", rd, rhs);
+      return;
+    case BINOP_SHIFT_RIGHT:
+      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      // TODO: Consider signedness
+      emit(p, "sar %s, cl", reg_of(rd));
+      return;
+    case BINOP_SHIFT_LEFT:
+      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      emit(p, "shl %s, cl", reg_of(rd));
+      return;
+    case BINOP_AND:
+      emit(p, "and %s, %s", reg_of(rd), reg_of(rhs));
+      return;
+    case BINOP_XOR:
+      emit(p, "xor %s, %s", reg_of(rd), reg_of(rhs));
+      return;
+    case BINOP_OR:
+      emit(p, "or %s, %s", reg_of(rd), reg_of(rhs));
       return;
     default:
       CCC_UNREACHABLE;

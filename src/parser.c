@@ -196,7 +196,7 @@ static ExprVec* argument_list(TokenList** t) {
   }
 
   do {
-    push_ExprVec(args, expr(t));
+    push_ExprVec(args, assign(t));
   } while (try (t, TK_COMMA));
 
   return args;
@@ -223,10 +223,24 @@ static Expr* postfix(TokenList** t) {
         // e[i] -> *(e + i)
         consume(t);
         Expr* idx = expr(t);
-        Expr* n   = new_node_unaop(UNAOP_DEREF, new_node_binop(BINOP_ADD, node, idx));
+        Expr* n   = new_node_deref(new_node_binop(BINOP_ADD, node, idx));
         expect(t, TK_RBRACKET);
         node = n;
         break;
+      case TK_DOUBLE_PLUS: {
+        consume(t);
+        // `e++` is converted to `(e+=1)-1`
+        Expr* a = new_node_compound_assign(BINOP_ADD, node, new_node_num(1));
+        node    = new_node_binop(BINOP_SUB, a, new_node_num(1));
+        break;
+      }
+      case TK_DOUBLE_MINUS: {
+        consume(t);
+        // `e--` is converted to `(e-=1)+1`
+        Expr* a = new_node_compound_assign(BINOP_SUB, node, new_node_num(1));
+        node    = new_node_binop(BINOP_ADD, a, new_node_num(1));
+        break;
+      }
       default:
         return node;
     }
@@ -237,18 +251,44 @@ static Expr* unary(TokenList** t) {
   switch (head_of(t)) {
     case TK_PLUS:
       consume(t);
-      // parse `+n` as `n`
-      return postfix(t);
+      return new_node_unaop(UNAOP_POSITIVE, postfix(t));
     case TK_MINUS:
       consume(t);
-      // parse `-n` as `0 - n`
-      return new_node_binop(BINOP_SUB, new_node_num(0), postfix(t));
+      return new_node_unaop(UNAOP_INTEGER_NEG, postfix(t));
+    case TK_TILDE:
+      consume(t);
+      return new_node_unaop(UNAOP_BITWISE_NEG, postfix(t));
+    case TK_EXCL:
+      consume(t);
+      // `!e` is equivalent to `(0 == e)` (section 6.5.3.3)
+      return new_node_binop(BINOP_EQ, new_node_num(0), postfix(t));
     case TK_STAR:
       consume(t);
-      return new_node_unaop(UNAOP_DEREF, postfix(t));
+      return new_node_deref(postfix(t));
     case TK_AND:
       consume(t);
-      return new_node_unaop(UNAOP_ADDR, postfix(t));
+      return new_node_addr(postfix(t));
+    case TK_DOUBLE_PLUS:
+      consume(t);
+      // `++e` is equivalent to `e+=1`
+      return new_node_compound_assign(BINOP_ADD, postfix(t), new_node_num(1));
+    case TK_DOUBLE_MINUS:
+      consume(t);
+      // `--e` is equivalent to `e-=1`
+      return new_node_compound_assign(BINOP_SUB, postfix(t), new_node_num(1));
+    case TK_SIZEOF:
+      consume(t);
+      if (head_of(t) == TK_LPAREN) {
+        TokenList* save = *t;
+        consume(t);
+        TypeName* ty = try_type_name(t);
+        if (ty != NULL) {
+          expect(t, TK_RPAREN);
+          return new_node_sizeof_type(ty);
+        }
+        *t = save;
+      }
+      return new_node_sizeof_expr(postfix(t));
     default:
       return postfix(t);
   }
@@ -286,6 +326,10 @@ static Expr* mul(TokenList** t) {
         consume(t);
         node = new_node_binop(BINOP_DIV, node, cast(t));
         break;
+      case TK_PERCENT:
+        consume(t);
+        node = new_node_binop(BINOP_REM, node, cast(t));
+        break;
       default:
         return node;
     }
@@ -311,26 +355,45 @@ static Expr* add(TokenList** t) {
   }
 }
 
-static Expr* relational(TokenList** t) {
+static Expr* shift(TokenList** t) {
   Expr* node = add(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_RIGHT:
+        consume(t);
+        node = new_node_binop(BINOP_SHIFT_RIGHT, node, add(t));
+        break;
+      case TK_LEFT:
+        consume(t);
+        node = new_node_binop(BINOP_SHIFT_LEFT, node, add(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* relational(TokenList** t) {
+  Expr* node = shift(t);
 
   for (;;) {
     switch (head_of(t)) {
       case TK_GT:
         consume(t);
-        node = new_node_binop(BINOP_GT, node, add(t));
+        node = new_node_binop(BINOP_GT, node, shift(t));
         break;
       case TK_GE:
         consume(t);
-        node = new_node_binop(BINOP_GE, node, add(t));
+        node = new_node_binop(BINOP_GE, node, shift(t));
         break;
       case TK_LT:
         consume(t);
-        node = new_node_binop(BINOP_LT, node, add(t));
+        node = new_node_binop(BINOP_LT, node, shift(t));
         break;
       case TK_LE:
         consume(t);
-        node = new_node_binop(BINOP_LE, node, add(t));
+        node = new_node_binop(BINOP_LE, node, shift(t));
         break;
       default:
         return node;
@@ -357,21 +420,159 @@ static Expr* equality(TokenList** t) {
   }
 }
 
-static Expr* assign(TokenList** t) {
+static Expr* bit_and(TokenList** t) {
   Expr* node = equality(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_AND:
+        consume(t);
+        node = new_node_binop(BINOP_AND, node, equality(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* bit_xor(TokenList** t) {
+  Expr* node = bit_and(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_HAT:
+        consume(t);
+        node = new_node_binop(BINOP_XOR, node, bit_and(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* bit_or(TokenList** t) {
+  Expr* node = bit_xor(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_VERTICAL:
+        consume(t);
+        node = new_node_binop(BINOP_OR, node, bit_xor(t));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* logic_and(TokenList** t) {
+  Expr* node = bit_or(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_DOUBLE_AND:
+        // e1 && e2
+        // is equivalent to
+        // e1 ? (e2 ? 1 : 0) : 0
+        consume(t);
+        node = new_node_cond(node, new_node_cond(bit_or(t), new_node_num(1), new_node_num(0)),
+                             new_node_num(0));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* logic_or(TokenList** t) {
+  Expr* node = logic_and(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_DOUBLE_VERTICAL:
+        // e1 || e2
+        // is equivalent to
+        // e1 ? 1 : (e2 ? 1 : 0)
+        consume(t);
+        node = new_node_cond(node, new_node_num(1),
+                             new_node_cond(logic_and(t), new_node_num(1), new_node_num(0)));
+        break;
+      default:
+        return node;
+    }
+  }
+}
+
+static Expr* conditional(TokenList** t) {
+  Expr* node = logic_or(t);
+
+  switch (head_of(t)) {
+    case TK_QUESTION:
+      consume(t);
+      Expr* then_ = expr(t);
+      expect(t, TK_COLON);
+      return new_node_cond(node, then_, conditional(t));
+    default:
+      return node;
+  }
+}
+
+static Expr* assign(TokenList** t) {
+  Expr* node = conditional(t);
 
   // `=` has right associativity
   switch (head_of(t)) {
     case TK_EQUAL:
       consume(t);
       return new_node_assign(node, assign(t));
+    case TK_STAR_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_MUL, node, assign(t));
+    case TK_SLASH_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_DIV, node, assign(t));
+    case TK_PERCENT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_REM, node, assign(t));
+    case TK_PLUS_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_ADD, node, assign(t));
+    case TK_MINUS_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_SUB, node, assign(t));
+    case TK_LEFT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_SHIFT_LEFT, node, assign(t));
+    case TK_RIGHT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_SHIFT_RIGHT, node, assign(t));
+    case TK_AND_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_AND, node, assign(t));
+    case TK_HAT_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_XOR, node, assign(t));
+    case TK_VERTICAL_EQUAL:
+      consume(t);
+      return new_node_compound_assign(BINOP_OR, node, assign(t));
     default:
       return node;
   }
 }
 
 static Expr* expr(TokenList** t) {
-  return assign(t);
+  Expr* node = assign(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_COMMA:
+        consume(t);
+        node = new_node_comma(node, assign(t));
+        break;
+      default:
+        return node;
+    }
+  }
 }
 
 static BlockItemList* block_item_list(TokenList** t);

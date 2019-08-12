@@ -52,6 +52,10 @@ static void release_expr(Expr* e) {
   release_TypeName(e->cast_to);
   release_Type(e->cast_type);
   release_Type(e->type);
+  release_expr(e->cond);
+  release_expr(e->then_);
+  release_expr(e->else_);
+  release_TypeName(e->sizeof_);
 
   free(e);
 }
@@ -223,6 +227,21 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;
+    case ND_COMMA:
+      fprintf(p, "(");
+      print_expr(p, expr->lhs);
+      fprintf(p, ", ");
+      print_expr(p, expr->rhs);
+      fprintf(p, ")");
+      return;
+    case ND_COMPOUND_ASSIGN:
+      fprintf(p, "(");
+      print_expr(p, expr->lhs);
+      print_binop(p, expr->binop);
+      fprintf(p, "= ");
+      print_expr(p, expr->rhs);
+      fprintf(p, ")");
+      return;
     case ND_BINOP:
       fprintf(p, "(");
       print_binop(p, expr->binop);
@@ -254,6 +273,40 @@ static void print_expr(FILE* p, Expr* expr) {
       }
       fprintf(p, ")");
       print_expr(p, expr->expr);
+      return;
+    case ND_ADDR:
+      fprintf(p, "(& ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_ADDR_ARY:
+      fprintf(p, "(&ary ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_DEREF:
+      fprintf(p, "(* ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_COND:
+      fputs("(", p);
+      print_expr(p, expr->cond);
+      fputs("?", p);
+      print_expr(p, expr->then_);
+      fputs(":", p);
+      print_expr(p, expr->else_);
+      fputs(")", p);
+      return;
+    case ND_SIZEOF_EXPR:
+      fprintf(p, "(sizeof ");
+      print_expr(p, expr->expr);
+      fprintf(p, ")");
+      return;
+    case ND_SIZEOF_TYPE:
+      fprintf(p, "(sizeof ");
+      print_TypeName(p, expr->sizeof_);
+      fprintf(p, ")");
       return;
     default:
       CCC_UNREACHABLE;
@@ -404,6 +457,10 @@ Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->cast_to   = NULL;
   node->cast_type = NULL;
   node->type      = NULL;
+  node->cond      = NULL;
+  node->then_     = NULL;
+  node->else_     = NULL;
+  node->sizeof_   = NULL;
   return node;
 }
 
@@ -432,14 +489,62 @@ Expr* new_node_unaop(UnaopKind kind, Expr* expr) {
   return node;
 }
 
+Expr* new_node_addr(Expr* expr) {
+  Expr* node = new_node(ND_ADDR, NULL, NULL);
+  node->expr = expr;
+  return node;
+}
+
+Expr* new_node_addr_ary(Expr* expr) {
+  Expr* node = new_node(ND_ADDR_ARY, NULL, NULL);
+  node->expr = expr;
+  return node;
+}
+
+Expr* new_node_deref(Expr* expr) {
+  Expr* node = new_node(ND_DEREF, NULL, NULL);
+  node->expr = expr;
+  return node;
+}
+
 Expr* new_node_assign(Expr* lhs, Expr* rhs) {
   return new_node(ND_ASSIGN, lhs, rhs);
+}
+
+Expr* new_node_comma(Expr* lhs, Expr* rhs) {
+  return new_node(ND_COMMA, lhs, rhs);
+}
+
+Expr* new_node_compound_assign(BinopKind kind, Expr* lhs, Expr* rhs) {
+  Expr* node  = new_node(ND_COMPOUND_ASSIGN, lhs, rhs);
+  node->binop = kind;
+  return node;
 }
 
 Expr* new_node_cast(TypeName* ty, Expr* opr) {
   Expr* node    = new_node(ND_CAST, NULL, NULL);
   node->cast_to = ty;
   node->expr    = opr;
+  return node;
+}
+
+Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_) {
+  Expr* node  = new_node(ND_COND, NULL, NULL);
+  node->then_ = then_;
+  node->cond  = cond;
+  node->else_ = else_;
+  return node;
+}
+
+Expr* new_node_sizeof_type(TypeName* ty) {
+  Expr* node    = new_node(ND_SIZEOF_TYPE, NULL, NULL);
+  node->sizeof_ = ty;
+  return node;
+}
+
+Expr* new_node_sizeof_expr(Expr* e) {
+  Expr* node = new_node(ND_SIZEOF_EXPR, NULL, NULL);
+  node->expr = e;
   return node;
 }
 

@@ -61,6 +61,8 @@ Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, unsigned);
 
+Type* size_t_ty();
+
 void make_signed_ty(Type*);
 void make_unsigned_ty(Type*);
 Type* to_signed_ty(Type*);
@@ -78,7 +80,6 @@ bool is_array_ty(const Type*);
 bool is_function_ty(const Type*);
 
 unsigned sizeof_ty(const Type*);
-unsigned stored_size_ty(const Type*);
 Type* int_of_size_ty(unsigned);
 
 #endif

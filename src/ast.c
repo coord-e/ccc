@@ -24,6 +24,18 @@ static void release_Declarator(Declarator* d) {
   free(d);
 }
 
+static void release_Initializer(Initializer* init) {
+  if (init == NULL) {
+    return;
+  }
+
+  release_expr(init->expr);
+  release_InitializerList(init->list);
+  free(init);
+}
+
+DEFINE_LIST(release_Initializer, Initializer*, InitializerList)
+
 static void release_declaration(Declaration* d) {
   if (d == NULL) {
     return;
@@ -624,6 +636,13 @@ Declarator* new_Declarator(DeclaratorKind kind) {
 
 bool is_abstract_declarator(Declarator* d) {
   return d->name_ref == NULL;
+}
+
+Initializer* new_Initializer(InitializerKind kind) {
+  Initializer* init = calloc(1, sizeof(Initializer));
+  init->expr        = NULL;
+  init->list        = NULL;
+  return init;
 }
 
 Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s) {

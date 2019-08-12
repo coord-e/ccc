@@ -58,6 +58,23 @@ struct Declarator {
 Declarator* new_Declarator(DeclaratorKind);
 bool is_abstract_declarator(Declarator*);
 
+typedef struct Initializer Initializer;
+
+DECLARE_LIST(Initializer*, InitializerList)
+
+typedef enum {
+  IN_EXPR,
+  IN_LIST,
+} InitializerKind;
+
+struct Initializer {
+  InitializerKind kind;
+  Expr* expr;             // for IN_EXPR, owned
+  InitializerList* list;  // for IN_LIST, owned
+};
+
+Initializer* new_Initializer(InitializerKind);
+
 typedef struct {
   DeclarationSpecifiers* spec;  // owned
   Declarator* declarator;       // owned

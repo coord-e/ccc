@@ -682,7 +682,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
       release_UIMap(inst);
       break;
     }
-    case ST_LABEL: {
+    case ST_LABEL:
+    case ST_CASE:
+    case ST_DEFAULT: {
       BasicBlock* next_bb = get_label(env, stmt->label_id);
 
       create_or_start_bb(env, next_bb);
@@ -693,6 +695,32 @@ static void gen_stmt(Env* env, Statement* stmt) {
     }
     case ST_GOTO: {
       new_jump(env, get_named_label(env, stmt->label_name), NULL);
+      break;
+    }
+    case ST_SWITCH: {
+      Reg r = gen_expr(env, stmt->expr);
+
+      BasicBlock* next_bb = new_bb(env);
+      set_loop(env, next_bb, NULL);
+
+      for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
+        Statement* case_    = get_StmtVec(stmt->cases, i);
+        Reg cond            = new_binop(env, BINOP_EQ, r, new_imm(env, case_->case_value, r.size));
+        BasicBlock* fail_bb = new_bb(env);
+        new_br(env, cond, get_label(env, case_->label_id), fail_bb, fail_bb);
+      }
+
+      if (stmt->default_ != NULL) {
+        new_jump(env, get_label(env, stmt->default_->label_id), NULL);
+      } else {
+        new_jump(env, next_bb, NULL);
+      }
+
+      gen_stmt(env, stmt->body);
+
+      new_jump(env, next_bb, next_bb);
+      reset_loop(env);
+
       break;
     }
     case ST_NULL:

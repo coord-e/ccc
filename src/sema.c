@@ -711,15 +711,15 @@ static void sema_stmt(Env* env, Statement* stmt) {
       break;
     case ST_SWITCH: {
       sema_expr(env, stmt->expr);
-      stmt->case_value = eval_constant(stmt->expr);
-      Statement* old   = start_switch(env, stmt);
+      Statement* old = start_switch(env, stmt);
       sema_stmt(env, stmt->body);
       start_switch(env, old);
       break;
     }
     case ST_CASE: {
       set_case(env, stmt);
-      stmt->label_id = add_anon_label(env);
+      stmt->case_value = eval_constant(stmt->expr);
+      stmt->label_id   = add_anon_label(env);
       sema_stmt(env, stmt->body);
       break;
     }

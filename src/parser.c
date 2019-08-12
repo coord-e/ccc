@@ -227,6 +227,20 @@ static Expr* postfix(TokenList** t) {
         expect(t, TK_RBRACKET);
         node = n;
         break;
+      case TK_DOUBLE_PLUS: {
+        consume(t);
+        // `e++` is converted to `(e+=1)-1`
+        Expr* a = new_node_compound_assign(BINOP_ADD, node, new_node_num(1));
+        node    = new_node_binop(BINOP_SUB, a, new_node_num(1));
+        break;
+      }
+      case TK_DOUBLE_MINUS: {
+        consume(t);
+        // `e--` is converted to `(e-=1)+1`
+        Expr* a = new_node_compound_assign(BINOP_SUB, node, new_node_num(1));
+        node    = new_node_binop(BINOP_ADD, a, new_node_num(1));
+        break;
+      }
       default:
         return node;
     }
@@ -256,9 +270,11 @@ static Expr* unary(TokenList** t) {
       return new_node_addr(postfix(t));
     case TK_DOUBLE_PLUS:
       consume(t);
+      // `++e` is equivalent to `e+=1`
       return new_node_compound_assign(BINOP_ADD, postfix(t), new_node_num(1));
     case TK_DOUBLE_MINUS:
       consume(t);
+      // `--e` is equivalent to `e-=1`
       return new_node_compound_assign(BINOP_SUB, postfix(t), new_node_num(1));
     default:
       return postfix(t);

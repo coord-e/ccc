@@ -403,7 +403,20 @@ static void codegen_functions(FILE* p, FunctionList* l) {
   codegen_functions(p, tail_FunctionList(l));
 }
 
+static void codegen_globals(FILE* p, GVarList* l) {
+  if (is_nil_GVarList(l)) {
+    return;
+  }
+
+  GlobalVar* v = head_GVarList(l);
+  emit(p, ".comm %s,%d", v->name, v->size);
+
+  codegen_globals(p, tail_GVarList(l));
+}
+
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
+  emit(p, ".text");
+  codegen_globals(p, ir->globals);
   codegen_functions(p, ir->functions);
 }

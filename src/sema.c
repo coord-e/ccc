@@ -852,6 +852,18 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       add_global(global, name, ty);
       break;
     }
+    case EX_DECL: {
+      Declaration* decl = d->decl;
+      Type* base_ty     = translate_base_type(decl->spec->base_type);
+      char* name;
+      Type* ty;
+      extract_declarator(decl->declarator, base_ty, &name, &ty);
+      // TODO: check linkage
+      should_complete(ty);
+      decl->type = copy_Type(ty);
+      add_global(global, name, ty);
+      break;
+    }
     default:
       CCC_UNREACHABLE;
   }

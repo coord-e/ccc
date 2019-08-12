@@ -56,20 +56,45 @@ static void release_Function(Function* f) {
 
 DEFINE_LIST(release_Function, Function*, FunctionList)
 
+static GlobalVar* new_GlobalVar(char* name, unsigned size) {
+  GlobalVar* v = calloc(1, sizeof(GlobalVar));
+  v->name      = name;
+  v->size      = size;
+  return v;
+}
+
+static void release_GlobalVar(GlobalVar* v) {
+  if (v == NULL) {
+    return;
+  }
+
+  free(v->name);
+  free(v);
+}
+
+DEFINE_LIST(release_GlobalVar, GlobalVar*, GVarList)
+
 typedef struct {
   unsigned bb_count;
   unsigned inst_count;
+  GVarList* globals;
 } GlobalEnv;
 
 static GlobalEnv* init_GlobalEnv() {
   GlobalEnv* env  = calloc(1, sizeof(GlobalEnv));
   env->bb_count   = 0;
   env->inst_count = 0;
+  env->globals    = nil_GVarList();
   return env;
 }
 
 static void release_GlobalEnv(GlobalEnv* env) {
   free(env);
+}
+
+static void add_gvar(GlobalEnv* env, const char* name, Type* t) {
+  GlobalVar* gv = new_GlobalVar(strdup(name), sizeof_ty(t));
+  env->globals  = cons_GVarList(gv, env->globals);
 }
 
 typedef struct {
@@ -820,6 +845,9 @@ static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, Tra
     }
     case EX_FUNC_DECL:
       return gen_TranslationUnit(genv, acc, tail);
+    case EX_DECL:
+      add_gvar(genv, d->decl->declarator->name_ref, d->decl->type);
+      return gen_TranslationUnit(genv, acc, tail);
     default:
       CCC_UNREACHABLE;
   }
@@ -832,6 +860,7 @@ IR* generate_IR(AST* ast) {
   ir->functions  = gen_TranslationUnit(genv, nil_FunctionList(), ast);
   ir->inst_count = genv->inst_count;
   ir->bb_count   = genv->bb_count;
+  ir->globals    = genv->globals;
 
   release_GlobalEnv(genv);
 
@@ -840,6 +869,7 @@ IR* generate_IR(AST* ast) {
 
 void release_IR(IR* ir) {
   release_FunctionList(ir->functions);
+  release_GVarList(ir->globals);
 }
 
 static void print_reg(FILE* p, Reg r) {
@@ -1020,4 +1050,5 @@ void print_IR(FILE* p, IR* ir) {
   fprintf(p, "digraph CFG {\n");
   print_FunctionList(p, ir->functions);
   fprintf(p, "}\n");
+  // TODO: print `ir->globals`
 }

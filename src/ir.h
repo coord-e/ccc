@@ -144,10 +144,18 @@ typedef struct {
 DECLARE_LIST(Function*, FunctionList)
 
 typedef struct {
+  char* name;  // owned
+  unsigned size;
+} GlobalVar;
+
+DECLARE_LIST(GlobalVar*, GVarList)
+
+typedef struct {
   unsigned inst_count;
   unsigned bb_count;
 
   FunctionList* functions;  // owned
+  GVarList* globals;        // owned
 } IR;
 
 // build IR from ast

@@ -690,6 +690,48 @@ static Statement* statement(TokenList** t) {
       consume(t);
       return new_statement(ST_NULL, NULL);
     }
+    case TK_CASE: {
+      consume(t);
+      Expr* e = conditional(t);
+      expect(t, TK_COLON);
+      Statement* s = new_statement(ST_CASE, e);
+      s->body      = statement(t);
+      return s;
+    }
+    case TK_DEFAULT: {
+      consume(t);
+      expect(t, TK_COLON);
+      Statement* s = new_statement(ST_DEFAULT, NULL);
+      s->body      = statement(t);
+      return s;
+    }
+    case TK_SWITCH: {
+      consume(t);
+      expect(t, TK_LPAREN);
+      Expr* cond = expr(t);
+      expect(t, TK_RPAREN);
+      Statement* s = new_statement(ST_SWITCH, cond);
+      s->body      = statement(t);
+      return s;
+    }
+    case TK_GOTO: {
+      consume(t);
+      char* name    = expect(t, TK_IDENT).ident;
+      Statement* s  = new_statement(ST_GOTO, NULL);
+      s->label_name = strdup(name);
+      return s;
+    }
+    case TK_IDENT: {
+      if (head_TokenList(tail_TokenList(*t)).kind == TK_COLON) {
+        char* name = expect(t, TK_IDENT).ident;
+        expect(t, TK_COLON);
+        Statement* s  = new_statement(ST_LABEL, NULL);
+        s->label_name = strdup(name);
+        s->body       = statement(t);
+        return s;
+      }
+      // fallthough
+    }
     default: {
       Expr* e = expr(t);
       expect(t, TK_SEMICOLON);

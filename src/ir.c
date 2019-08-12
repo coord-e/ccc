@@ -469,6 +469,10 @@ Reg gen_expr(Env* env, Expr* node) {
       new_store(env, addr, rhs, datasize_of_node(node));
       return rhs;
     }
+    case ND_COMMA: {
+      gen_expr(env, node->lhs);
+      return gen_expr(env, node->rhs);
+    }
     case ND_VAR: {
       // lvalue conversion is performed here
       if (is_array_ty(node->type)) {

@@ -226,6 +226,13 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;
+    case ND_COMMA:
+      fprintf(p, "(");
+      print_expr(p, expr->lhs);
+      fprintf(p, ", ");
+      print_expr(p, expr->rhs);
+      fprintf(p, ")");
+      return;
     case ND_COMPOUND_ASSIGN:
       fprintf(p, "(");
       print_expr(p, expr->lhs);
@@ -490,6 +497,10 @@ Expr* new_node_deref(Expr* expr) {
 
 Expr* new_node_assign(Expr* lhs, Expr* rhs) {
   return new_node(ND_ASSIGN, lhs, rhs);
+}
+
+Expr* new_node_comma(Expr* lhs, Expr* rhs) {
+  return new_node(ND_COMMA, lhs, rhs);
 }
 
 Expr* new_node_compound_assign(BinopKind kind, Expr* lhs, Expr* rhs) {

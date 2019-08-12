@@ -548,7 +548,18 @@ static Expr* assign(TokenList** t) {
 }
 
 static Expr* expr(TokenList** t) {
-  return assign(t);
+  Expr* node = assign(t);
+
+  for (;;) {
+    switch (head_of(t)) {
+      case TK_COMMA:
+        consume(t);
+        node = new_node_comma(node, assign(t));
+        break;
+      default:
+        return node;
+    }
+  }
 }
 
 static BlockItemList* block_item_list(TokenList** t);

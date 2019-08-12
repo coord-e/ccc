@@ -85,6 +85,7 @@ typedef enum {
   ND_CALL,
   ND_CAST,
   ND_COND,
+  ND_COMMA,
 } ExprKind;
 
 DECLARE_VECTOR(Expr*, ExprVec)
@@ -92,7 +93,7 @@ DECLARE_VECTOR(Expr*, ExprVec)
 struct Expr {
   ExprKind kind;
 
-  Expr* lhs;  // for ND_BINOP, ND_COMPOUND_ASSIGN and ND_ASSIGN, owned
+  Expr* lhs;  // for ND_BINOP, ND_COMMA, ND_COMPOUND_ASSIGN and ND_ASSIGN, owned
   Expr* rhs;  // ditto
 
   Expr* expr;  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP and ND_CAST, owned
@@ -123,6 +124,7 @@ Expr* new_node_addr(Expr* expr);
 Expr* new_node_addr_ary(Expr* expr);
 Expr* new_node_deref(Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
+Expr* new_node_comma(Expr* lhs, Expr* rhs);
 Expr* new_node_compound_assign(BinopKind, Expr* lhs, Expr* rhs);
 Expr* new_node_cast(TypeName* ty, Expr* opr);
 Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);

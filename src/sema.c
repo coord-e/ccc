@@ -438,6 +438,11 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       t = copy_Type(lhs_ty);
       break;
     }
+    case ND_COMMA: {
+      sema_expr(env, expr->lhs);
+      t = copy_Type(sema_expr(env, expr->rhs));
+      break;
+    }
     case ND_COMPOUND_ASSIGN: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       Type* rhs_ty = sema_expr(env, expr->rhs);

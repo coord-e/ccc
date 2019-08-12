@@ -196,7 +196,7 @@ static ExprVec* argument_list(TokenList** t) {
   }
 
   do {
-    push_ExprVec(args, expr(t));
+    push_ExprVec(args, assign(t));
   } while (try (t, TK_COMMA));
 
   return args;

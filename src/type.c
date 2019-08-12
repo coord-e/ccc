@@ -293,6 +293,24 @@ bool is_scalar_ty(const Type* ty) {
   return is_arithmetic_ty(ty) || is_pointer_ty(ty);
 }
 
+bool is_complete_ty(const Type* ty) {
+  switch (ty->kind) {
+    case TY_VOID:
+      return false;
+    case TY_INT:
+      return true;
+    case TY_PTR:
+      return true;
+    case TY_FUNC:
+      return true;
+    case TY_ARRAY:
+      // TODO: ensure that the size is known
+      return true;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
     case TY_VOID:

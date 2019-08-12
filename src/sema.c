@@ -176,6 +176,15 @@ static void should_scalar(Type* ty) {
   }
 }
 
+static void should_complete(Type* ty) {
+  if (!is_complete_ty(ty)) {
+    fputs("complete type is expected, but got ", stderr);
+    print_Type(stderr, ty);
+    fputs("\n", stderr);
+    error("type error");
+  }
+}
+
 static int eval_constant(Expr* e) {
   // TODO: Support more nodes
   switch (e->kind) {
@@ -614,6 +623,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     }
     case ND_SIZEOF_EXPR: {
       Type* ty = sema_expr_raw(env, expr->expr);
+      should_complete(ty);
 
       // TODO: shallow release of rhs of this assignment
       *expr = *new_node_num(sizeof_ty(ty));
@@ -653,6 +663,8 @@ static void sema_decl(Env* env, Declaration* decl) {
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
+  // TODO: check linkage
+  should_complete(ty);
   decl->type = copy_Type(ty);
   add_var(env, name, ty);
 }

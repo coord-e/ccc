@@ -701,7 +701,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
       Reg r = gen_expr(env, stmt->expr);
 
       BasicBlock* next_bb = new_bb(env);
-      set_loop(env, next_bb, NULL);
+
+      BasicBlock* old_break = env->loop_break;
+      env->loop_break       = next_bb;
 
       for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
         Statement* case_    = get_StmtVec(stmt->cases, i);
@@ -719,7 +721,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
 
       new_jump(env, next_bb, next_bb);
-      reset_loop(env);
+      env->loop_break = old_break;
 
       break;
     }

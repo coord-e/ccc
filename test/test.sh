@@ -290,4 +290,8 @@ items 4 "int a; a = 1; int b; b = a++; return b++ + ++a;";
 items 8 "int a; a = 5; int b; b = a--; return --b + a--;";
 items 20 "int a[3]; a[0] = 5; a[1] = 10; a[2] = 15; int* p; p = a; int* b; b = p++; return *b + *(++p);"
 
+# comma
+expr 3 "(1, 2, 3)"
+items 1 "int a; a = 0; return (a+=1, a);"
+
 echo OK

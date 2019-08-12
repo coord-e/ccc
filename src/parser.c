@@ -45,6 +45,8 @@ static Expr* expr(TokenList** t);
 static Expr* assign(TokenList** t);
 
 static Declarator* try_declarator(TokenList** t, bool is_abstract) {
+  TokenList* save = *t;
+
   unsigned num_ptrs = 0;
   while (head_of(t) == TK_STAR) {
     consume(t);
@@ -52,6 +54,7 @@ static Declarator* try_declarator(TokenList** t, bool is_abstract) {
   }
 
   if (!is_abstract && head_of(t) != TK_IDENT) {
+    *t = save;
     return NULL;
   }
 

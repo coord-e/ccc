@@ -83,6 +83,7 @@ typedef enum {
   ND_COMPOUND_ASSIGN,
   ND_VAR,
   ND_NUM,
+  ND_STRING,
   ND_CALL,
   ND_CAST,
   ND_COND,
@@ -109,6 +110,7 @@ struct Expr {
   UnaopKind unaop;  // for ND_UNAOP
   char* var;        // for ND_VAR, owned
   int num;          // for ND_NUM
+  char* string;     // for ND_STRING, owned
   ExprVec* args;    // for ND_CALL, owned
 
   Expr* cond;   // for ND_COND, owned
@@ -122,7 +124,8 @@ struct Expr {
 
 Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs);
 Expr* new_node_num(int num);
-Expr* new_node_var(char* ident);
+Expr* new_node_var(const char* ident);
+Expr* new_node_string(const char* s);
 Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
 Expr* new_node_unaop(UnaopKind kind, Expr* expr);
 Expr* new_node_addr(Expr* expr);

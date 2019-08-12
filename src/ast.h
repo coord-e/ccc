@@ -186,9 +186,15 @@ struct Statement {
   Expr* before;  // for ST_FOR
   Expr* after;   // for ST_FOR, NULL if omitted
 
-  char* label_name;  // for ST_LABEL and ST_GOTO, owned
-
   BlockItemList* items;  // for ST_COMPOUND
+
+  // for ST_LABEL and ST_GOTO, owned
+  char* label_name;
+
+  // will filled in `sema`
+  unsigned label_id;    // for ST_LABEL, ST_CASE, ST_DEFAULT
+  StmtVec* cases;       // for ST_SWITCH, not owned
+  Statement* default_;  // for ST_SWITCH, not owned
 };
 
 Statement* new_statement(StmtKind kind, Expr* expr);
@@ -201,7 +207,7 @@ typedef struct {
 ParameterDecl* new_ParameterDecl(DeclarationSpecifiers*, Declarator*);
 
 DECLARE_LIST(ParameterDecl*, ParamList)
-DECLARE_VECTOR(char*, StringVec)
+DECLARE_MAP(unsigned, UIMap)
 
 typedef struct {
   DeclarationSpecifiers* spec;  // owned
@@ -211,8 +217,9 @@ typedef struct {
   BlockItemList* items;  // owned
 
   // will filled in `sema`
-  Type* type;                 // owned
-  StringVec* defined_labels;  // owned
+  Type* type;           // owned
+  UIMap* named_labels;  // owned
+  unsigned label_count;
 } FunctionDef;
 
 FunctionDef* new_function_def();

@@ -4,11 +4,6 @@
 #include "map.h"
 #include "parser.h"
 
-// Unsigned Integer Map
-DECLARE_MAP(unsigned, UIMap)
-static void release_unsigned(unsigned i) {}
-DEFINE_MAP(release_unsigned, unsigned, UIMap)
-
 IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   IRInst* i    = calloc(1, sizeof(IRInst));
   i->kind      = kind;
@@ -49,7 +44,6 @@ static void release_BasicBlock(BasicBlock* bb) {
 }
 
 DECLARE_MAP(BasicBlock*, BBMap)
-DEFINE_MAP(release_BasicBlock, BasicBlock*, BBMap)
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 
@@ -86,7 +80,8 @@ typedef struct {
 
   UIMap* vars;
   BBList* blocks;
-  BBMap* labels;
+  BBVec* labels;
+  UIMap* named_labels;
 
   BasicBlock* entry;
   BasicBlock* exit;
@@ -131,7 +126,7 @@ static BasicBlock* new_bb(Env* env) {
   return bb;
 }
 
-static Env* new_env(GlobalEnv* genv) {
+static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
   Env* env         = calloc(1, sizeof(Env));
   env->global_env  = genv;
   env->reg_count   = 0;
@@ -140,12 +135,17 @@ static Env* new_env(GlobalEnv* genv) {
   env->inst_count  = 0;
   env->vars        = new_UIMap(32);
   env->blocks      = nil_BBList();
-  env->labels      = new_BBMap(32);
 
   env->exit = new_bb(env);
 
   env->loop_break    = NULL;
   env->loop_continue = NULL;
+
+  env->named_labels = f->named_labels;
+  env->labels       = new_BBVec(f->label_count);
+  for (unsigned i = 0; i < f->label_count; i++) {
+    push_BBVec(env->labels, new_bb(env));
+  }
 
   return env;
 }
@@ -160,21 +160,17 @@ static void start_bb(Env* env, BasicBlock* bb) {
   env->inst_cur = env->cur->insts;
 }
 
-static void add_label(Env* env, const char* name, BasicBlock* bb) {
-  if (lookup_BBMap(env->labels, name, NULL)) {
-    error("redefinition of label \"%s\"", name);
-  }
-
-  insert_BBMap(env->labels, name, bb);
+static BasicBlock* get_label(Env* env, unsigned id) {
+  return get_BBVec(env->labels, id);
 }
 
-static BasicBlock* get_label(Env* env, const char* name) {
-  BasicBlock* r;
-  if (!lookup_BBMap(env->labels, name, &r)) {
+static BasicBlock* get_named_label(Env* env, const char* name) {
+  unsigned id;
+  if (!lookup_UIMap(env->named_labels, name, &id)) {
     error("use of undefined label \"%s\"", name);
   }
 
-  return r;
+  return get_label(env, id);
 }
 
 static Reg new_reg(Env* env, DataSize size) {
@@ -687,7 +683,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       break;
     }
     case ST_LABEL: {
-      BasicBlock* next_bb = get_label(env, stmt->label_name);
+      BasicBlock* next_bb = get_label(env, stmt->label_id);
 
       create_or_start_bb(env, next_bb);
 
@@ -696,7 +692,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       break;
     }
     case ST_GOTO: {
-      new_jump(env, get_label(env, stmt->label_name), NULL);
+      new_jump(env, get_named_label(env, stmt->label_name), NULL);
       break;
     }
     case ST_NULL:
@@ -750,13 +746,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 }
 
 static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
-  Env* env = new_env(genv);
-
-  for (unsigned i = 0; i < length_StringVec(ast->defined_labels); i++) {
-    char* label_name = get_StringVec(ast->defined_labels, i);
-    BasicBlock* bb   = new_bb(env);
-    add_label(env, label_name, bb);
-  }
+  Env* env = new_env(genv, ast);
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);

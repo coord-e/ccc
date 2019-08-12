@@ -113,10 +113,8 @@ static void release_ParameterDecl(ParameterDecl* d) {
 }
 
 DEFINE_LIST(release_ParameterDecl, ParameterDecl*, ParamList)
-static void release_string(char* s) {
-  free(s);
-}
-DEFINE_VECTOR(release_string, char*, StringVec)
+static void release_unsigned(unsigned i) {}
+DEFINE_MAP(release_unsigned, unsigned, UIMap)
 
 static void release_FunctionDef(FunctionDef* def) {
   if (def == NULL) {
@@ -127,7 +125,7 @@ static void release_FunctionDef(FunctionDef* def) {
   release_ParamList(def->params);
   release_BlockItemList(def->items);
   release_Type(def->type);
-  release_StringVec(def->defined_labels);
+  release_UIMap(def->named_labels);
   free(def);
 }
 static void release_FunctionDecl(FunctionDecl* decl) {
@@ -639,13 +637,14 @@ BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl
 }
 
 FunctionDef* new_function_def() {
-  FunctionDef* def    = calloc(1, sizeof(FunctionDef));
-  def->spec           = NULL;
-  def->decl           = NULL;
-  def->params         = NULL;
-  def->items          = NULL;
-  def->type           = NULL;
-  def->defined_labels = NULL;
+  FunctionDef* def  = calloc(1, sizeof(FunctionDef));
+  def->spec         = NULL;
+  def->decl         = NULL;
+  def->params       = NULL;
+  def->items        = NULL;
+  def->type         = NULL;
+  def->named_labels = NULL;
+  def->label_count  = 0;
   return def;
 }
 

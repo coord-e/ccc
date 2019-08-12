@@ -13,7 +13,8 @@ typedef struct {
   TypeMap* vars;
   Type* ret_ty;
   GlobalEnv* global;
-  StringVec* labels;
+  UIMap* named_labels;
+  unsigned label_count;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
@@ -23,11 +24,12 @@ static GlobalEnv* init_GlobalEnv() {
 }
 
 static Env* init_Env(GlobalEnv* global, Type* ret) {
-  Env* env    = calloc(1, sizeof(Env));
-  env->vars   = new_TypeMap(64);
-  env->global = global;
-  env->ret_ty = ret;
-  env->labels = new_StringVec(32);
+  Env* env          = calloc(1, sizeof(Env));
+  env->vars         = new_TypeMap(64);
+  env->global       = global;
+  env->ret_ty       = ret;
+  env->named_labels = new_UIMap(32);
+  env->label_count  = 0;
   return env;
 }
 
@@ -49,8 +51,22 @@ static void add_global(GlobalEnv* env, const char* name, Type* ty) {
   insert_TypeMap(env->names, name, ty);
 }
 
-static void add_label(Env* env, const char* name) {
-  push_StringVec(env->labels, strdup(name));
+static unsigned new_label_id(Env* env) {
+  return env->label_count++;
+}
+
+static unsigned add_anon_label(Env* env) {
+  return new_label_id(env);
+}
+
+static unsigned add_named_label(Env* env, const char* name) {
+  if (lookup_UIMap(env->named_labels, name, NULL)) {
+    error("redefinition of label \"%s\"", name);
+  }
+
+  unsigned id = new_label_id(env);
+  insert_UIMap(env->named_labels, name, id);
+  return id;
 }
 
 static Type* get_var(Env* env, const char* name) {
@@ -658,7 +674,7 @@ static void sema_stmt(Env* env, Statement* stmt) {
     case ST_GOTO:
       break;
     case ST_LABEL:
-      add_label(env, stmt->label_name);
+      stmt->label_id = add_named_label(env, stmt->label_name);
       sema_stmt(env, stmt->body);
       break;
     default:
@@ -726,7 +742,8 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
   add_global(global, name, ty);
   sema_items(env, f->items);
 
-  f->defined_labels = env->labels;
+  f->named_labels = env->named_labels;
+  f->label_count  = env->label_count;
 
   release_Env(env);
 }

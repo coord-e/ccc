@@ -279,11 +279,14 @@ static Expr* unary(TokenList** t) {
     case TK_SIZEOF:
       consume(t);
       if (head_of(t) == TK_LPAREN) {
+        TokenList* save = *t;
+        consume(t);
         TypeName* ty = try_type_name(t);
         if (ty != NULL) {
           expect(t, TK_RPAREN);
           return new_node_sizeof_type(ty);
         }
+        *t = save;
       }
       return new_node_sizeof_expr(postfix(t));
     default:

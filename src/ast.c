@@ -76,8 +76,9 @@ static void release_statement(Statement* stmt) {
   release_expr(stmt->after);
   free(stmt->label_name);
   release_BlockItemList(stmt->items);
-  release_StmtVec(stmt->cases);
-  release_statement(stmt->default_);
+  // TODO: shallow release
+  /* release_StmtVec(stmt->cases); */
+  /* release_statement(stmt->default_); */
   free(stmt);
 }
 

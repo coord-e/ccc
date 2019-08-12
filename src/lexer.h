@@ -60,6 +60,7 @@ typedef enum {
   TK_CHAR,
   TK_LONG,
   TK_SHORT,
+  TK_VOID,
   TK_SIGNED,
   TK_UNSIGNED,
   TK_SIZEOF,

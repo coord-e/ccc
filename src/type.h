@@ -80,7 +80,6 @@ bool is_array_ty(const Type*);
 bool is_function_ty(const Type*);
 
 unsigned sizeof_ty(const Type*);
-unsigned stored_size_ty(const Type*);
 Type* int_of_size_ty(unsigned);
 
 #endif

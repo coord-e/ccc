@@ -417,15 +417,15 @@ static Reg gen_lhs(Env* env, Expr* node) {
 }
 
 static DataSize datasize_of_node(Expr* e) {
-  return to_data_size(stored_size_ty(e->type));
+  return to_data_size(sizeof_ty(e->type));
 }
 
 Reg gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST: {
       // TODO: signedness?
-      unsigned cast_size = stored_size_ty(node->cast_type);
-      unsigned expr_size = stored_size_ty(node->expr->type);
+      unsigned cast_size = sizeof_ty(node->cast_type);
+      unsigned expr_size = sizeof_ty(node->expr->type);
       Reg r              = gen_expr(env, node->expr);
       if (cast_size > expr_size) {
         return new_sext(env, r, cast_size);
@@ -458,14 +458,14 @@ Reg gen_expr(Env* env, Expr* node) {
       Reg rhs  = gen_expr(env, node->rhs);
       Reg lhs  = new_load(env, addr, datasize_of_node(node->lhs));
       Reg val  = new_binop(env, node->binop, lhs, rhs);
-      assert(stored_size_ty(node->lhs->type) == val.size);
+      assert(sizeof_ty(node->lhs->type) == val.size);
       new_store(env, addr, val, datasize_of_node(node));
       return val;
     }
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);
-      assert(stored_size_ty(node->lhs->type) == stored_size_ty(node->rhs->type));
+      assert(sizeof_ty(node->lhs->type) == sizeof_ty(node->rhs->type));
       new_store(env, addr, rhs, datasize_of_node(node));
       return rhs;
     }
@@ -673,7 +673,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator->name_ref, stored_size_ty(decl->type));
+  new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -703,7 +703,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 
   char* name    = head_ParamList(l)->decl->name_ref;
   Type* ty      = get_TypeVec(f->type->params, nth);
-  unsigned size = stored_size_ty(ty);
+  unsigned size = sizeof_ty(ty);
   new_var(env, name, size);
 
   unsigned addr;

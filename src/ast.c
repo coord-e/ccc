@@ -226,6 +226,14 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;
+    case ND_COMPOUND_ASSIGN:
+      fprintf(p, "(");
+      print_expr(p, expr->lhs);
+      print_binop(p, expr->binop);
+      fprintf(p, " = ");
+      print_expr(p, expr->rhs);
+      fprintf(p, ")");
+      return;
     case ND_BINOP:
       fprintf(p, "(");
       print_binop(p, expr->binop);
@@ -482,6 +490,12 @@ Expr* new_node_deref(Expr* expr) {
 
 Expr* new_node_assign(Expr* lhs, Expr* rhs) {
   return new_node(ND_ASSIGN, lhs, rhs);
+}
+
+Expr* new_node_compound_assign(BinopKind kind, Expr* lhs, Expr* rhs) {
+  Expr* node  = new_node(ND_COMPOUND_ASSIGN, lhs, rhs);
+  node->binop = kind;
+  return node;
 }
 
 Expr* new_node_cast(TypeName* ty, Expr* opr) {

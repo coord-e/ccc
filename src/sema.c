@@ -713,7 +713,9 @@ static void sema_stmt(Env* env, Statement* stmt) {
       sema_expr(env, stmt->expr);
       Statement* old = start_switch(env, stmt);
       sema_stmt(env, stmt->body);
-      start_switch(env, old);
+      if (old != NULL) {
+        start_switch(env, old);
+      }
       break;
     }
     case ST_CASE: {

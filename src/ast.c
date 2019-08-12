@@ -55,6 +55,7 @@ static void release_expr(Expr* e) {
   release_expr(e->cond);
   release_expr(e->then_);
   release_expr(e->else_);
+  release_BlockItemList(e->items);
 
   free(e);
 }
@@ -282,6 +283,11 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->else_);
       fputs(")", p);
       return;
+    case ND_STATEMENT:
+      fputs("{", p);
+      print_BlockItemList(p, expr->items);
+      fputs("}", p);
+      return;
     default:
       CCC_UNREACHABLE;
   }
@@ -434,6 +440,7 @@ Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->cond      = NULL;
   node->then_     = NULL;
   node->else_     = NULL;
+  node->items     = NULL;
   return node;
 }
 
@@ -496,6 +503,12 @@ Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_) {
   node->then_ = then_;
   node->cond  = cond;
   node->else_ = else_;
+  return node;
+}
+
+Expr* new_node_statement(BlockItemList* items) {
+  Expr* node  = new_node(ND_STATEMENT, NULL, NULL);
+  node->items = items;
   return node;
 }
 

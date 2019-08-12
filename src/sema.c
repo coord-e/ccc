@@ -649,6 +649,8 @@ static void sema_stmt(Env* env, Statement* stmt) {
     case ST_BREAK:
     case ST_CONTINUE:
     case ST_NULL:
+    case ST_LABEL:
+    case ST_GOTO:
       break;
     default:
       CCC_UNREACHABLE;

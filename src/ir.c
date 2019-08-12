@@ -48,6 +48,8 @@ static void release_BasicBlock(BasicBlock* bb) {
   free(bb);
 }
 
+DECLARE_MAP(BasicBlock*, BBMap)
+DEFINE_MAP(release_BasicBlock, BasicBlock*, BBMap)
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 
@@ -84,6 +86,7 @@ typedef struct {
 
   UIMap* vars;
   BBList* blocks;
+  BBMap* labels;
 
   BasicBlock* entry;
   BasicBlock* exit;
@@ -137,6 +140,7 @@ static Env* new_env(GlobalEnv* genv) {
   env->inst_count  = 0;
   env->vars        = new_UIMap(32);
   env->blocks      = nil_BBList();
+  env->labels      = new_BBMap(32);
 
   env->exit = new_bb(env);
 
@@ -154,6 +158,23 @@ static void connect_bb(BasicBlock* from, BasicBlock* to) {
 static void start_bb(Env* env, BasicBlock* bb) {
   env->cur      = bb;
   env->inst_cur = env->cur->insts;
+}
+
+static void add_label(Env* env, const char* name, BasicBlock* bb) {
+  if (lookup_BBMap(env->labels, name, NULL)) {
+    error("redefinition of label \"%s\"", name);
+  }
+
+  insert_BBMap(env->labels, name, bb);
+}
+
+static BasicBlock* get_label(Env* env, const char* name) {
+  BasicBlock* r;
+  if (!lookup_BBMap(env->labels, name, &r)) {
+    error("use of undefined label \"%s\"", name);
+  }
+
+  return r;
 }
 
 static Reg new_reg(Env* env, DataSize size) {
@@ -665,6 +686,20 @@ static void gen_stmt(Env* env, Statement* stmt) {
       release_UIMap(inst);
       break;
     }
+    case ST_LABEL: {
+      BasicBlock* next_bb = new_bb(env);
+      add_label(env, stmt->label_name, next_bb);
+
+      create_or_start_bb(env, next_bb);
+
+      gen_stmt(env, stmt->body);
+
+      break;
+    }
+    case ST_GOTO: {
+      new_jump(env, get_label(env, stmt->label_name), NULL);
+      break;
+    }
     case ST_NULL:
       break;
     default:
@@ -738,6 +773,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   ir->intervals     = NULL;
   ir->used_regs     = NULL;
 
+  // TODO: shallow release of containers
   free(env);
   return ir;
 }

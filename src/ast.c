@@ -520,9 +520,10 @@ Expr* new_node_num(int num) {
   return node;
 }
 
-Expr* new_node_string(const char* s) {
-  Expr* node   = new_node(ND_STRING, NULL, NULL);
-  node->string = strdup(s);
+Expr* new_node_string(const char* s, size_t len) {
+  Expr* node    = new_node(ND_STRING, NULL, NULL);
+  node->string  = strdup(s);
+  node->str_len = len;
   return node;
 }
 

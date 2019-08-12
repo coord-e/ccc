@@ -584,6 +584,9 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     case ND_NUM:
       t = int_ty();
       break;
+    case ND_STRING:
+      t = array_ty(char_ty(), expr->str_len + 1);
+      break;
     case ND_CALL: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       if (lhs_ty->kind != TY_PTR || lhs_ty->ptr_to->kind != TY_FUNC) {

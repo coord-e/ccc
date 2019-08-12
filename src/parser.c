@@ -187,7 +187,8 @@ static Expr* term(TokenList** t) {
     } else if (head_of(t) == TK_IDENT) {
       return new_node_var(consuming(t).ident);
     } else if (head_of(t) == TK_STRING) {
-      return new_node_string(consuming(t).string);
+      Token tk = consuming(t);
+      return new_node_string(tk.string, tk.length);
     } else {
       error("unexpected token.");
     }

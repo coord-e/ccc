@@ -200,6 +200,7 @@ TokenList* tokenize(char* p) {
           p++;
         cur              = add_token(TK_STRING, cur);
         cur->head.string = strndup(init, p - init);
+        cur->head.length = p - init;
         p++;
         continue;
       case '^':
@@ -542,7 +543,7 @@ static void print_token(FILE* p, Token t) {
       fprintf(p, "num(%d)", t.number);
       break;
     case TK_STRING:
-      fprintf(p, "str(%s)", t.string);
+      fprintf(p, "str(%s,%ld)", t.string, t.length);
       break;
     case TK_END:
       fprintf(p, "end");

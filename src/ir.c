@@ -56,10 +56,10 @@ static void release_Function(Function* f) {
 
 DEFINE_LIST(release_Function, Function*, FunctionList)
 
-static GlobalVar* new_GlobalVar(char* name, unsigned size) {
+static GlobalVar* new_GlobalVar(GlobalVarKind kind, char* name) {
   GlobalVar* v = calloc(1, sizeof(GlobalVar));
+  v->kind      = kind;
   v->name      = name;
-  v->size      = size;
   return v;
 }
 
@@ -72,19 +72,19 @@ static void release_GlobalVar(GlobalVar* v) {
   free(v);
 }
 
-DEFINE_LIST(release_GlobalVar, GlobalVar*, GVarList)
+DEFINE_VECTOR(release_GlobalVar, GlobalVar*, GlobalVarVec)
 
 typedef struct {
   unsigned bb_count;
   unsigned inst_count;
-  GVarList* globals;
+  GlobalVarVec* globals;
 } GlobalEnv;
 
 static GlobalEnv* init_GlobalEnv() {
   GlobalEnv* env  = calloc(1, sizeof(GlobalEnv));
   env->bb_count   = 0;
   env->inst_count = 0;
-  env->globals    = nil_GVarList();
+  env->globals    = new_GlobalVarVec(16);
   return env;
 }
 
@@ -92,9 +92,16 @@ static void release_GlobalEnv(GlobalEnv* env) {
   free(env);
 }
 
-static void add_gvar(GlobalEnv* env, const char* name, Type* t) {
-  GlobalVar* gv = new_GlobalVar(strdup(name), sizeof_ty(t));
-  env->globals  = cons_GVarList(gv, env->globals);
+static void add_normal_gvar(GlobalEnv* env, const char* name, Type* t) {
+  GlobalVar* gv = new_GlobalVar(GV_NORMAL, strdup(name));
+  gv->size      = sizeof_ty(t);
+  push_GlobalVarVec(env->globals, gv);
+}
+
+static void add_string_gvar(GlobalEnv* env, const char* name, const char* str) {
+  GlobalVar* gv = new_GlobalVar(GV_STRING, strdup(name));
+  gv->string    = strdup(str);
+  push_GlobalVarVec(env->globals, gv);
 }
 
 typedef struct {
@@ -439,6 +446,15 @@ static Reg new_global(Env* env, const char* name) {
   return r;
 }
 
+static Reg new_string(Env* env, const char* str) {
+  unsigned i = length_GlobalVarVec(env->global_env->globals);
+  // TODO: allocate accurate length of string
+  char name[10];
+  sprintf(name, "_s_%d", i);
+  add_string_gvar(env->global_env, name, str);
+  return new_global(env, name);
+}
+
 static Reg gen_expr(Env* env, Expr* node);
 
 static Reg gen_lhs(Env* env, Expr* node) {
@@ -451,6 +467,8 @@ static Reg gen_lhs(Env* env, Expr* node) {
         return new_global(env, node->var);
       }
     }
+    case ND_STRING:
+      return new_string(env, node->string);
     case ND_DEREF:
       return gen_expr(env, node->expr);
     default:
@@ -515,6 +533,9 @@ Reg gen_expr(Env* env, Expr* node) {
       gen_expr(env, node->lhs);
       return gen_expr(env, node->rhs);
     }
+    case ND_STRING:
+      assert(is_array_ty(node->type));
+      error("attempt to perform lvalue conversion on string constant");
     case ND_VAR: {
       // lvalue conversion is performed here
       if (is_array_ty(node->type)) {
@@ -846,7 +867,7 @@ static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, Tra
     case EX_FUNC_DECL:
       return gen_TranslationUnit(genv, acc, tail);
     case EX_DECL:
-      add_gvar(genv, d->decl->declarator->name_ref, d->decl->type);
+      add_normal_gvar(genv, d->decl->declarator->name_ref, d->decl->type);
       return gen_TranslationUnit(genv, acc, tail);
     default:
       CCC_UNREACHABLE;
@@ -869,7 +890,7 @@ IR* generate_IR(AST* ast) {
 
 void release_IR(IR* ir) {
   release_FunctionList(ir->functions);
-  release_GVarList(ir->globals);
+  release_GlobalVarVec(ir->globals);
 }
 
 static void print_reg(FILE* p, Reg r) {

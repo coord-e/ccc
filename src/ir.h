@@ -143,19 +143,28 @@ typedef struct {
 
 DECLARE_LIST(Function*, FunctionList)
 
+typedef enum {
+  GV_NORMAL,
+  GV_STRING,
+} GlobalVarKind;
+
 typedef struct {
+  GlobalVarKind kind;
   char* name;  // owned
-  unsigned size;
+
+  unsigned size;  // for GV_NORMAL
+
+  char* string;  // for GV_STRING
 } GlobalVar;
 
-DECLARE_LIST(GlobalVar*, GVarList)
+DECLARE_VECTOR(GlobalVar*, GlobalVarVec)
 
 typedef struct {
   unsigned inst_count;
   unsigned bb_count;
 
   FunctionList* functions;  // owned
-  GVarList* globals;        // owned
+  GlobalVarVec* globals;    // owned
 } IR;
 
 // build IR from ast

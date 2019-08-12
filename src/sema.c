@@ -690,8 +690,12 @@ static void sema_stmt(Env* env, Statement* stmt) {
       sema_expr(env, stmt->expr);
       break;
     case ST_RETURN: {
-      Type* t = sema_expr(env, stmt->expr);
-      should_compatible(env->ret_ty, t);
+      if (stmt->expr == NULL) {
+        should_compatible(env->ret_ty, void_ty());
+      } else {
+        Type* t = sema_expr(env, stmt->expr);
+        should_compatible(env->ret_ty, t);
+      }
       break;
     }
     case ST_IF:

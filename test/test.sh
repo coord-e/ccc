@@ -296,6 +296,14 @@ items 1 "int a; a = 0; return (a+=1, a);"
 
 # sizeof
 items 4 "int a; a = 10; return (int)sizeof(a);"
-items 10 "int a[10]; return (int)sizeof(a);"
+items 1 "char a; return (int)sizeof(a);"
+items 2 "short a; return (int)sizeof(a);"
+items 40 "int a[10]; return (int)sizeof(a);"
+items 80 "long a[2][5]; return (int)sizeof(a);"
+expr 4 "(int)sizeof(int)";
+expr 1 "(int)sizeof(char)";
+expr 8 "(int)sizeof(char*)";
+expr 8 "(int)sizeof(int*)";
+expr 40 "(int)sizeof(int[10])";
 
 echo OK

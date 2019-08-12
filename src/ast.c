@@ -230,7 +230,7 @@ static void print_expr(FILE* p, Expr* expr) {
       fprintf(p, "(");
       print_expr(p, expr->lhs);
       print_binop(p, expr->binop);
-      fprintf(p, " = ");
+      fprintf(p, "= ");
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;

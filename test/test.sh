@@ -280,4 +280,11 @@ items 5 "int* p; int a[3]; unsigned long addr; addr = (unsigned long)a + (unsign
 expr 10 "1 ? 10 : 5"
 expr 25 "0 ? 10 : 25"
 
+# compound assignemnt
+items 5 "int a; a = 2; a += 3; return a;"
+items 5 "int a; a = 10; a -= 5; return a;"
+items 237 "int a; a = 237; a |= 106; return a-=2;"
+items 20 "int a[3]; a[0] = 10; a[1] = 20; a[2] = 30; int* p; p = a; p+=1; return *p;"
+items 10 "int a[3]; a[0] = 10; a[1] = 20; a[2] = 30; int* p; p = &a[2]; return *(p-=2);"
+
 echo OK

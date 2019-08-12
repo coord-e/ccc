@@ -453,6 +453,15 @@ Reg gen_expr(Env* env, Expr* node) {
       Reg r = gen_expr(env, node->expr);
       return new_load(env, r, datasize_of_node(node));
     }
+    case ND_COMPOUND_ASSIGN: {
+      Reg addr = gen_lhs(env, node->lhs);
+      Reg rhs  = gen_expr(env, node->rhs);
+      Reg lhs  = new_load(env, addr, datasize_of_node(node->lhs));
+      Reg val  = new_binop(env, node->binop, lhs, rhs);
+      assert(stored_size_ty(node->lhs->type) == val.size);
+      new_store(env, addr, val, datasize_of_node(node));
+      return val;
+    }
     case ND_ASSIGN: {
       Reg addr = gen_lhs(env, node->lhs);
       Reg rhs  = gen_expr(env, node->rhs);

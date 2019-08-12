@@ -15,6 +15,7 @@ typedef struct {
   GlobalEnv* global;
   UIMap* named_labels;
   unsigned label_count;
+  Statement* current_switch;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
@@ -24,12 +25,13 @@ static GlobalEnv* init_GlobalEnv() {
 }
 
 static Env* init_Env(GlobalEnv* global, Type* ret) {
-  Env* env          = calloc(1, sizeof(Env));
-  env->vars         = new_TypeMap(64);
-  env->global       = global;
-  env->ret_ty       = ret;
-  env->named_labels = new_UIMap(32);
-  env->label_count  = 0;
+  Env* env            = calloc(1, sizeof(Env));
+  env->vars           = new_TypeMap(64);
+  env->global         = global;
+  env->ret_ty         = ret;
+  env->named_labels   = new_UIMap(32);
+  env->label_count    = 0;
+  env->current_switch = NULL;
   return env;
 }
 
@@ -67,6 +69,36 @@ static unsigned add_named_label(Env* env, const char* name) {
   unsigned id = new_label_id(env);
   insert_UIMap(env->named_labels, name, id);
   return id;
+}
+
+static Statement* start_switch(Env* env, Statement* s) {
+  assert(s->cases == NULL);
+  s->cases = new_StmtVec(8);
+
+  Statement* old      = env->current_switch;
+  env->current_switch = s;
+  return old;
+}
+
+static void set_case(Env* env, Statement* s) {
+  assert(s->kind == ST_CASE);
+  if (env->current_switch == NULL) {
+    error("case statement not in switch statement");
+  }
+
+  push_StmtVec(env->current_switch->cases, s);
+}
+
+static void set_default(Env* env, Statement* s) {
+  assert(s->kind == ST_DEFAULT);
+  if (env->current_switch == NULL) {
+    error("default statement not in switch statement");
+  }
+  if (env->current_switch->default_ != NULL) {
+    error("multiple default labels in one switch");
+  }
+
+  env->current_switch->default_ = s;
 }
 
 static Type* get_var(Env* env, const char* name) {
@@ -677,6 +709,26 @@ static void sema_stmt(Env* env, Statement* stmt) {
       stmt->label_id = add_named_label(env, stmt->label_name);
       sema_stmt(env, stmt->body);
       break;
+    case ST_SWITCH: {
+      sema_expr(env, stmt->expr);
+      stmt->case_value = eval_constant(stmt->expr);
+      Statement* old   = start_switch(env, stmt);
+      sema_stmt(env, stmt->body);
+      start_switch(env, old);
+      break;
+    }
+    case ST_CASE: {
+      set_case(env, stmt);
+      stmt->label_id = add_anon_label(env);
+      sema_stmt(env, stmt->body);
+      break;
+    }
+    case ST_DEFAULT: {
+      set_default(env, stmt);
+      stmt->label_id = add_anon_label(env);
+      sema_stmt(env, stmt->body);
+      break;
+    }
     default:
       CCC_UNREACHABLE;
   }

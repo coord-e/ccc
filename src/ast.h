@@ -154,6 +154,8 @@ BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl
 
 DECLARE_LIST(BlockItem*, BlockItemList)
 
+DECLARE_VECTOR(Statement*, StmtVec)
+
 typedef enum {
   ST_EXPRESSION,
   ST_RETURN,
@@ -193,6 +195,7 @@ struct Statement {
 
   // will filled in `sema`
   unsigned label_id;    // for ST_LABEL, ST_CASE, ST_DEFAULT
+  long case_value;      // for ST_CASE
   StmtVec* cases;       // for ST_SWITCH, not owned
   Statement* default_;  // for ST_SWITCH, not owned
 };

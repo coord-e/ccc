@@ -788,6 +788,17 @@ static ParamList* parameter_list(TokenList** t) {
 static ExternalDecl* external_declaration(TokenList** t) {
   DeclarationSpecifiers* spec = declaration_specifiers(t);
   Declarator* d               = declarator(t, false);
+
+  if (head_of(t) != TK_LPAREN) {
+    expect(t, TK_SEMICOLON);
+
+    Declaration* decl = new_declaration(spec, d);
+
+    ExternalDecl* edecl = new_external_decl(EX_DECL);
+    edecl->decl         = decl;
+    return edecl;
+  }
+
   expect(t, TK_LPAREN);
   ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);

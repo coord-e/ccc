@@ -243,12 +243,14 @@ FunctionDecl* new_function_decl();
 typedef enum {
   EX_FUNC,
   EX_FUNC_DECL,
+  EX_DECL,
 } ExtDeclKind;
 
 typedef struct {
   ExtDeclKind kind;
   FunctionDef* func;        // for EX_FUNC, owned
   FunctionDecl* func_decl;  // for EX_FUNC_DECL, owned
+  Declaration* decl;        // for EX_DECL, owned
 } ExternalDecl;
 
 ExternalDecl* new_external_decl(ExtDeclKind kind);

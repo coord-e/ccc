@@ -387,6 +387,9 @@ static void print_ExternalDecl(FILE* p, ExternalDecl* edecl) {
     case EX_FUNC_DECL:
       print_FunctionDecl(p, edecl->func_decl);
       break;
+    case EX_DECL:
+      print_declaration(p, edecl->decl);
+      break;
     default:
       CCC_UNREACHABLE;
   }

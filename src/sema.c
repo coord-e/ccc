@@ -176,6 +176,15 @@ static void should_scalar(Type* ty) {
   }
 }
 
+static void should_complete(Type* ty) {
+  if (!is_complete_ty(ty)) {
+    fputs("complete type is expected, but got ", stderr);
+    print_Type(stderr, ty);
+    fputs("\n", stderr);
+    error("type error");
+  }
+}
+
 static int eval_constant(Expr* e) {
   // TODO: Support more nodes
   switch (e->kind) {
@@ -189,6 +198,8 @@ static int eval_constant(Expr* e) {
 static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic ignored "-Wswitch"
   switch (t) {
+    case BT_VOID:
+      return void_ty();
     case BT_SIGNED + BT_CHAR:
       return into_signed_ty(char_ty());
     case BT_CHAR:
@@ -612,6 +623,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     }
     case ND_SIZEOF_EXPR: {
       Type* ty = sema_expr_raw(env, expr->expr);
+      should_complete(ty);
 
       // TODO: shallow release of rhs of this assignment
       *expr = *new_node_num(sizeof_ty(ty));
@@ -651,6 +663,8 @@ static void sema_decl(Env* env, Declaration* decl) {
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
+  // TODO: check linkage
+  should_complete(ty);
   decl->type = copy_Type(ty);
   add_var(env, name, ty);
 }
@@ -676,8 +690,12 @@ static void sema_stmt(Env* env, Statement* stmt) {
       sema_expr(env, stmt->expr);
       break;
     case ST_RETURN: {
-      Type* t = sema_expr(env, stmt->expr);
-      should_compatible(env->ret_ty, t);
+      if (stmt->expr == NULL) {
+        should_compatible(env->ret_ty, void_ty());
+      } else {
+        Type* t = sema_expr(env, stmt->expr);
+        should_compatible(env->ret_ty, t);
+      }
       break;
     }
     case ST_IF:
@@ -762,6 +780,16 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
     Type* base_ty    = translate_base_type(d->spec->base_type);
+    if (base_ty->kind == TY_VOID) {
+      if (length_TypeVec(params) != 0 || !is_nil_ParamList(tail_ParamList(cur))) {
+        error("void must be the first and only parameter if specified");
+      }
+      if (!is_abstract_declarator(d->decl)) {
+        error("argument may not have void type");
+      }
+      return params;
+    }
+
     if (env == NULL) {
       Type* type;
       extract_declarator(d->decl, base_ty, NULL, &type);

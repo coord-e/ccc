@@ -316,7 +316,7 @@ items 10 "int a; a = 0; switch (3) { case 0: return 2; case 3: a = 10; break; ca
 items 10 "int a; a = 0; switch (3) { case 0: return 2; default: a = 10; break; } return a;"
 items 5 "int a; a = 5; switch (3) { ++a; } return a;"
 try_ 42 <<EOF
-int main() {
+int main(void) {
   int x;
   x = 0;
   while (1) {

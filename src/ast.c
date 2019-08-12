@@ -172,6 +172,9 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
     return;
   }
   switch (b) {
+    case BT_VOID:
+      fputs("void ", p);
+      break;
     case BT_INT:
       fputs("int", p);
       break;

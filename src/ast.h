@@ -17,7 +17,7 @@ typedef struct Expr Expr;
 typedef enum {
   BT_SIGNED   = 1,
   BT_UNSIGNED = 1 << 2,
-  /* VOID     = 1 << 4, */
+  BT_VOID     = 1 << 4,
   /* BOOL     = 1 << 6, */
   BT_CHAR  = 1 << 8,
   BT_SHORT = 1 << 10,

@@ -780,7 +780,10 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
-  gen_params(env, ast, 0, ast->params);
+  // if the parameter is `void`, the lengths of `ast->params` and `ast->type->params` differs
+  if (length_TypeVec(ast->type->params) != 0) {
+    gen_params(env, ast, 0, ast->params);
+  }
   gen_block_item_list(env, ast->items);
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);

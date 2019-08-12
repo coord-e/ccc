@@ -254,6 +254,12 @@ static Expr* unary(TokenList** t) {
     case TK_AND:
       consume(t);
       return new_node_addr(postfix(t));
+    case TK_DOUBLE_PLUS:
+      consume(t);
+      return new_node_compound_assign(BINOP_ADD, postfix(t), new_node_num(1));
+    case TK_DOUBLE_MINUS:
+      consume(t);
+      return new_node_compound_assign(BINOP_SUB, postfix(t), new_node_num(1));
     default:
       return postfix(t);
   }

@@ -94,6 +94,10 @@ TokenList* tokenize(char* p) {
       case '+':
         p++;
         switch (*p) {
+          case '+':
+            cur = add_token(TK_DOUBLE_PLUS, cur);
+            p++;
+            continue;
           case '=':
             cur = add_token(TK_PLUS_EQUAL, cur);
             p++;
@@ -105,6 +109,10 @@ TokenList* tokenize(char* p) {
       case '-':
         p++;
         switch (*p) {
+          case '-':
+            cur = add_token(TK_DOUBLE_MINUS, cur);
+            p++;
+            continue;
           case '=':
             cur = add_token(TK_MINUS_EQUAL, cur);
             p++;
@@ -329,6 +337,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_SLASH:
       fprintf(p, "(/)");
+      break;
+    case TK_DOUBLE_PLUS:
+      fprintf(p, "(++)");
+      break;
+    case TK_DOUBLE_MINUS:
+      fprintf(p, "(--)");
       break;
     case TK_LPAREN:
       fprintf(p, "(()");

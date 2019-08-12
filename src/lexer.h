@@ -9,6 +9,8 @@ typedef enum {
   TK_MINUS,
   TK_STAR,
   TK_SLASH,
+  TK_DOUBLE_PLUS,
+  TK_DOUBLE_MINUS,
   TK_AND,
   TK_VERTICAL,
   TK_DOUBLE_AND,

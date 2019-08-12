@@ -776,6 +776,16 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
     Type* base_ty    = translate_base_type(d->spec->base_type);
+    if (base_ty->kind == TY_VOID) {
+      if (length_TypeVec(params) != 0 || !is_nil_ParamList(tail_ParamList(cur))) {
+        error("void must be the first and only parameter if specified");
+      }
+      if (!is_abstract_declarator(d->decl)) {
+        error("argument may not have void type");
+      }
+      return params;
+    }
+
     if (env == NULL) {
       Type* type;
       extract_declarator(d->decl, base_ty, NULL, &type);

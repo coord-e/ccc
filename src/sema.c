@@ -244,7 +244,9 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
       return;
     case DE_DIRECT:
       *type = ptrify(base, decl->num_ptrs);
-      *name = decl->name;
+      if (name != NULL) {
+        *name = decl->name;
+      }
       return;
     case DE_ARRAY: {
       Type* ty;

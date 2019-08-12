@@ -306,4 +306,9 @@ expr 8 "(int)sizeof(char*)";
 expr 8 "(int)sizeof(int*)";
 expr 40 "(int)sizeof(int[10])";
 
+# labels
+items 0 "int a; a = 0; goto x; a = 5; x: ; return a;"
+items 55 "int acc; int p; acc = 0; p = 10; loop: if(!p) goto end; acc = acc + p; p = p - 1; goto loop; end: return acc;"
+items 60 "int acc; acc = 15; loop: acc = acc * -2; if (acc < 0) goto loop; return acc;"
+
 echo OK

@@ -68,6 +68,14 @@ static void release_statement(Statement* stmt) {
   }
 
   release_expr(stmt->expr);
+  release_statement(stmt->body);
+  release_statement(stmt->then_);
+  release_statement(stmt->else_);
+  release_expr(stmt->init);
+  release_expr(stmt->before);
+  release_expr(stmt->after);
+  free(stmt->label_name);
+  release_BlockItemList(stmt->items);
   free(stmt);
 }
 
@@ -435,6 +443,29 @@ void print_statement(FILE* p, Statement* d) {
       fputs("{ ", p);
       print_BlockItemList(p, d->items);
       fputs(" }", p);
+      break;
+    case ST_LABEL:
+      fprintf(p, "%s: ", d->label_name);
+      print_statement(p, d->body);
+      break;
+    case ST_CASE:
+      fprintf(p, "case ");
+      print_expr(p, d->expr);
+      fputs(": ", p);
+      print_statement(p, d->body);
+      break;
+    case ST_DEFAULT:
+      fputs("default: ", p);
+      print_statement(p, d->body);
+      break;
+    case ST_GOTO:
+      fprintf(p, "goto %s;", d->label_name);
+      break;
+    case ST_SWITCH:
+      fputs("switch (", p);
+      print_expr(p, d->expr);
+      fputs(") ", p);
+      print_statement(p, d->body);
       break;
     default:
       CCC_UNREACHABLE;

@@ -164,13 +164,19 @@ typedef enum {
   ST_BREAK,
   ST_CONTINUE,
   ST_NULL,
+  ST_LABEL,
+  ST_CASE,
+  ST_DEFAULT,
+  ST_GOTO,
+  ST_SWITCH,
 } StmtKind;
 
 struct Statement {
   StmtKind kind;
-  Expr* expr;  // for ST_EXPRESSION, ST_RETURN, ST_WHILE, ST_DO, and ST_IF, owned
+  // for ST_EXPRESSION, ST_RETURN, ST_WHILE, ST_DO, ST_SWITCH, ST_CASE, and ST_IF, owned
+  Expr* expr;
 
-  Statement* body;  // for ST_WHILE, ST_DO, ST_BODY
+  Statement* body;  // for ST_WHILE, ST_DO, ST_FOR, ST_LABEL, ST_CASE, ST_DEFAULT, ST_SWITCH
 
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF
@@ -178,6 +184,8 @@ struct Statement {
   Expr* init;    // for ST_FOR, NULL if omitted
   Expr* before;  // for ST_FOR
   Expr* after;   // for ST_FOR, NULL if omitted
+
+  char* label_name;  // for ST_LABEL and ST_GOTO, owned
 
   BlockItemList* items;  // for ST_COMPOUND
 };

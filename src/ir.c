@@ -687,8 +687,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       break;
     }
     case ST_LABEL: {
-      BasicBlock* next_bb = new_bb(env);
-      add_label(env, stmt->label_name, next_bb);
+      BasicBlock* next_bb = get_label(env, stmt->label_name);
 
       create_or_start_bb(env, next_bb);
 
@@ -752,6 +751,12 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 
 static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   Env* env = new_env(genv);
+
+  for (unsigned i = 0; i < length_StringVec(ast->defined_labels); i++) {
+    char* label_name = get_StringVec(ast->defined_labels, i);
+    BasicBlock* bb   = new_bb(env);
+    add_label(env, label_name, bb);
+  }
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);

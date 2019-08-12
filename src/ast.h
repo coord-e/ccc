@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "list.h"
+#include "map.h"
 #include "ops.h"
 #include "type.h"
 #include "vector.h"
@@ -200,6 +201,7 @@ typedef struct {
 ParameterDecl* new_ParameterDecl(DeclarationSpecifiers*, Declarator*);
 
 DECLARE_LIST(ParameterDecl*, ParamList)
+DECLARE_VECTOR(char*, StringVec)
 
 typedef struct {
   DeclarationSpecifiers* spec;  // owned
@@ -209,7 +211,8 @@ typedef struct {
   BlockItemList* items;  // owned
 
   // will filled in `sema`
-  Type* type;  // owned
+  Type* type;                 // owned
+  StringVec* defined_labels;  // owned
 } FunctionDef;
 
 FunctionDef* new_function_def();

@@ -13,6 +13,7 @@ typedef struct {
   TypeMap* vars;
   Type* ret_ty;
   GlobalEnv* global;
+  StringVec* labels;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
@@ -26,6 +27,7 @@ static Env* init_Env(GlobalEnv* global, Type* ret) {
   env->vars   = new_TypeMap(64);
   env->global = global;
   env->ret_ty = ret;
+  env->labels = new_StringVec(32);
   return env;
 }
 
@@ -45,6 +47,10 @@ static void add_var(Env* env, const char* name, Type* ty) {
 
 static void add_global(GlobalEnv* env, const char* name, Type* ty) {
   insert_TypeMap(env->names, name, ty);
+}
+
+static void add_label(Env* env, const char* name) {
+  push_StringVec(env->labels, strdup(name));
 }
 
 static Type* get_var(Env* env, const char* name) {
@@ -649,8 +655,11 @@ static void sema_stmt(Env* env, Statement* stmt) {
     case ST_BREAK:
     case ST_CONTINUE:
     case ST_NULL:
-    case ST_LABEL:
     case ST_GOTO:
+      break;
+    case ST_LABEL:
+      add_label(env, stmt->label_name);
+      sema_stmt(env, stmt->body);
       break;
     default:
       CCC_UNREACHABLE;
@@ -716,6 +725,8 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
 
   add_global(global, name, ty);
   sema_items(env, f->items);
+
+  f->defined_labels = env->labels;
 
   release_Env(env);
 }

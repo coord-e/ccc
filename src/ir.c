@@ -4,11 +4,6 @@
 #include "map.h"
 #include "parser.h"
 
-// Unsigned Integer Map
-DECLARE_MAP(unsigned, UIMap)
-static void release_unsigned(unsigned i) {}
-DEFINE_MAP(release_unsigned, unsigned, UIMap)
-
 IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   IRInst* i    = calloc(1, sizeof(IRInst));
   i->kind      = kind;
@@ -48,6 +43,7 @@ static void release_BasicBlock(BasicBlock* bb) {
   free(bb);
 }
 
+DECLARE_MAP(BasicBlock*, BBMap)
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 
@@ -84,6 +80,8 @@ typedef struct {
 
   UIMap* vars;
   BBList* blocks;
+  BBVec* labels;
+  UIMap* named_labels;
 
   BasicBlock* entry;
   BasicBlock* exit;
@@ -128,7 +126,7 @@ static BasicBlock* new_bb(Env* env) {
   return bb;
 }
 
-static Env* new_env(GlobalEnv* genv) {
+static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
   Env* env         = calloc(1, sizeof(Env));
   env->global_env  = genv;
   env->reg_count   = 0;
@@ -143,6 +141,12 @@ static Env* new_env(GlobalEnv* genv) {
   env->loop_break    = NULL;
   env->loop_continue = NULL;
 
+  env->named_labels = f->named_labels;
+  env->labels       = new_BBVec(f->label_count);
+  for (unsigned i = 0; i < f->label_count; i++) {
+    push_BBVec(env->labels, new_bb(env));
+  }
+
   return env;
 }
 
@@ -154,6 +158,19 @@ static void connect_bb(BasicBlock* from, BasicBlock* to) {
 static void start_bb(Env* env, BasicBlock* bb) {
   env->cur      = bb;
   env->inst_cur = env->cur->insts;
+}
+
+static BasicBlock* get_label(Env* env, unsigned id) {
+  return get_BBVec(env->labels, id);
+}
+
+static BasicBlock* get_named_label(Env* env, const char* name) {
+  unsigned id;
+  if (!lookup_UIMap(env->named_labels, name, &id)) {
+    error("use of undefined label \"%s\"", name);
+  }
+
+  return get_label(env, id);
 }
 
 static Reg new_reg(Env* env, DataSize size) {
@@ -665,6 +682,49 @@ static void gen_stmt(Env* env, Statement* stmt) {
       release_UIMap(inst);
       break;
     }
+    case ST_LABEL:
+    case ST_CASE:
+    case ST_DEFAULT: {
+      BasicBlock* next_bb = get_label(env, stmt->label_id);
+
+      create_or_start_bb(env, next_bb);
+
+      gen_stmt(env, stmt->body);
+
+      break;
+    }
+    case ST_GOTO: {
+      new_jump(env, get_named_label(env, stmt->label_name), NULL);
+      break;
+    }
+    case ST_SWITCH: {
+      Reg r = gen_expr(env, stmt->expr);
+
+      BasicBlock* next_bb = new_bb(env);
+
+      BasicBlock* old_break = env->loop_break;
+      env->loop_break       = next_bb;
+
+      for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
+        Statement* case_    = get_StmtVec(stmt->cases, i);
+        Reg cond            = new_binop(env, BINOP_EQ, r, new_imm(env, case_->case_value, r.size));
+        BasicBlock* fail_bb = new_bb(env);
+        new_br(env, cond, get_label(env, case_->label_id), fail_bb, fail_bb);
+      }
+
+      if (stmt->default_ != NULL) {
+        new_jump(env, get_label(env, stmt->default_->label_id), NULL);
+      } else {
+        new_jump(env, next_bb, NULL);
+      }
+
+      gen_stmt(env, stmt->body);
+
+      new_jump(env, next_bb, next_bb);
+      env->loop_break = old_break;
+
+      break;
+    }
     case ST_NULL:
       break;
     default:
@@ -716,7 +776,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 }
 
 static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
-  Env* env = new_env(genv);
+  Env* env = new_env(genv, ast);
 
   BasicBlock* entry = new_bb(env);
   start_bb(env, entry);
@@ -738,6 +798,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   ir->intervals     = NULL;
   ir->used_regs     = NULL;
 
+  // TODO: shallow release of containers
   free(env);
   return ir;
 }

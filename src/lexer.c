@@ -69,6 +69,14 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_UNSIGNED, cur);
   } else if (IS_SAME(init, "sizeof")) {
     return add_token(TK_SIZEOF, cur);
+  } else if (IS_SAME(init, "switch")) {
+    return add_token(TK_SWITCH, cur);
+  } else if (IS_SAME(init, "goto")) {
+    return add_token(TK_GOTO, cur);
+  } else if (IS_SAME(init, "case")) {
+    return add_token(TK_CASE, cur);
+  } else if (IS_SAME(init, "default")) {
+    return add_token(TK_DEFAULT, cur);
   }
 #undef IS_SAME
 
@@ -501,6 +509,18 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_SIZEOF:
       fprintf(p, "(SIZEOF)");
+      break;
+    case TK_SWITCH:
+      fprintf(p, "(SWITCH)");
+      break;
+    case TK_GOTO:
+      fprintf(p, "(GOTO)");
+      break;
+    case TK_CASE:
+      fprintf(p, "(CASE)");
+      break;
+    case TK_DEFAULT:
+      fprintf(p, "(DEFAULT)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

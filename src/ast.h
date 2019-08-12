@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "list.h"
+#include "map.h"
 #include "ops.h"
 #include "type.h"
 #include "vector.h"
@@ -153,6 +154,8 @@ BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl
 
 DECLARE_LIST(BlockItem*, BlockItemList)
 
+DECLARE_VECTOR(Statement*, StmtVec)
+
 typedef enum {
   ST_EXPRESSION,
   ST_RETURN,
@@ -164,13 +167,19 @@ typedef enum {
   ST_BREAK,
   ST_CONTINUE,
   ST_NULL,
+  ST_LABEL,
+  ST_CASE,
+  ST_DEFAULT,
+  ST_GOTO,
+  ST_SWITCH,
 } StmtKind;
 
 struct Statement {
   StmtKind kind;
-  Expr* expr;  // for ST_EXPRESSION, ST_RETURN, ST_WHILE, ST_DO, and ST_IF, owned
+  // for ST_EXPRESSION, ST_RETURN, ST_WHILE, ST_DO, ST_SWITCH, ST_CASE, and ST_IF, owned
+  Expr* expr;
 
-  Statement* body;  // for ST_WHILE, ST_DO, ST_BODY
+  Statement* body;  // for ST_WHILE, ST_DO, ST_FOR, ST_LABEL, ST_CASE, ST_DEFAULT, ST_SWITCH
 
   Statement* then_;  // for ST_IF
   Statement* else_;  // for ST_IF
@@ -180,6 +189,15 @@ struct Statement {
   Expr* after;   // for ST_FOR, NULL if omitted
 
   BlockItemList* items;  // for ST_COMPOUND
+
+  // for ST_LABEL and ST_GOTO, owned
+  char* label_name;
+
+  // will filled in `sema`
+  unsigned label_id;    // for ST_LABEL, ST_CASE, ST_DEFAULT
+  long case_value;      // for ST_CASE
+  StmtVec* cases;       // for ST_SWITCH, not owned
+  Statement* default_;  // for ST_SWITCH, not owned
 };
 
 Statement* new_statement(StmtKind kind, Expr* expr);
@@ -192,6 +210,7 @@ typedef struct {
 ParameterDecl* new_ParameterDecl(DeclarationSpecifiers*, Declarator*);
 
 DECLARE_LIST(ParameterDecl*, ParamList)
+DECLARE_MAP(unsigned, UIMap)
 
 typedef struct {
   DeclarationSpecifiers* spec;  // owned
@@ -201,7 +220,9 @@ typedef struct {
   BlockItemList* items;  // owned
 
   // will filled in `sema`
-  Type* type;  // owned
+  Type* type;           // owned
+  UIMap* named_labels;  // owned
+  unsigned label_count;
 } FunctionDef;
 
 FunctionDef* new_function_def();

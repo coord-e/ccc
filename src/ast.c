@@ -68,8 +68,21 @@ static void release_statement(Statement* stmt) {
   }
 
   release_expr(stmt->expr);
+  release_statement(stmt->body);
+  release_statement(stmt->then_);
+  release_statement(stmt->else_);
+  release_expr(stmt->init);
+  release_expr(stmt->before);
+  release_expr(stmt->after);
+  free(stmt->label_name);
+  release_BlockItemList(stmt->items);
+  // TODO: shallow release
+  /* release_StmtVec(stmt->cases); */
+  /* release_statement(stmt->default_); */
   free(stmt);
 }
+
+DEFINE_VECTOR(release_statement, Statement*, StmtVec)
 
 static void release_BlockItem(BlockItem* item) {
   if (item == NULL) {
@@ -105,6 +118,8 @@ static void release_ParameterDecl(ParameterDecl* d) {
 }
 
 DEFINE_LIST(release_ParameterDecl, ParameterDecl*, ParamList)
+static void release_unsigned(unsigned i) {}
+DEFINE_MAP(release_unsigned, unsigned, UIMap)
 
 static void release_FunctionDef(FunctionDef* def) {
   if (def == NULL) {
@@ -115,6 +130,7 @@ static void release_FunctionDef(FunctionDef* def) {
   release_ParamList(def->params);
   release_BlockItemList(def->items);
   release_Type(def->type);
+  release_UIMap(def->named_labels);
   free(def);
 }
 static void release_FunctionDecl(FunctionDecl* decl) {
@@ -436,6 +452,29 @@ void print_statement(FILE* p, Statement* d) {
       print_BlockItemList(p, d->items);
       fputs(" }", p);
       break;
+    case ST_LABEL:
+      fprintf(p, "%s: ", d->label_name);
+      print_statement(p, d->body);
+      break;
+    case ST_CASE:
+      fprintf(p, "case ");
+      print_expr(p, d->expr);
+      fputs(": ", p);
+      print_statement(p, d->body);
+      break;
+    case ST_DEFAULT:
+      fputs("default: ", p);
+      print_statement(p, d->body);
+      break;
+    case ST_GOTO:
+      fprintf(p, "goto %s;", d->label_name);
+      break;
+    case ST_SWITCH:
+      fputs("switch (", p);
+      print_expr(p, d->expr);
+      fputs(") ", p);
+      print_statement(p, d->body);
+      break;
     default:
       CCC_UNREACHABLE;
   }
@@ -603,12 +642,14 @@ BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl
 }
 
 FunctionDef* new_function_def() {
-  FunctionDef* def = calloc(1, sizeof(FunctionDef));
-  def->spec        = NULL;
-  def->decl        = NULL;
-  def->params      = NULL;
-  def->items       = NULL;
-  def->type        = NULL;
+  FunctionDef* def  = calloc(1, sizeof(FunctionDef));
+  def->spec         = NULL;
+  def->decl         = NULL;
+  def->params       = NULL;
+  def->items        = NULL;
+  def->type         = NULL;
+  def->named_labels = NULL;
+  def->label_count  = 0;
   return def;
 }
 

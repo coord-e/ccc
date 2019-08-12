@@ -306,4 +306,42 @@ expr 8 "(int)sizeof(char*)";
 expr 8 "(int)sizeof(int*)";
 expr 40 "(int)sizeof(int[10])";
 
+# labels
+items 0 "int a; a = 0; goto x; a = 5; x: ; return a;"
+items 55 "int acc; int p; acc = 0; p = 10; loop: if(!p) goto end; acc = acc + p; p = p - 1; goto loop; end: return acc;"
+items 60 "int acc; acc = 15; loop: acc = acc * -2; if (acc < 0) goto loop; return acc;"
+
+# switch-case
+items 10 "int a; a = 0; switch (3) { case 0: return 2; case 3: a = 10; break; case 1: return 0; } return a;"
+items 10 "int a; a = 0; switch (3) { case 0: return 2; default: a = 10; break; } return a;"
+items 5 "int a; a = 5; switch (3) { ++a; } return a;"
+try_ 42 <<EOF
+int main() {
+  int x;
+  x = 0;
+  while (1) {
+    switch (x) {
+    case 0:
+    case 2:
+    case 4:
+      x += 3;
+      continue;
+    case 1:
+    case 3:
+    case 5:
+      x -= 1;
+      continue;
+    case 28:
+      x = 42;
+      break;
+    default:
+      x *= 2;
+      continue;
+    }
+    break;
+  }
+  return x;
+}
+EOF
+
 echo OK

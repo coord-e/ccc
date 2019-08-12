@@ -27,11 +27,11 @@
     char* key;                                                                                     \
     T value;                                                                                       \
   };                                                                                               \
-  static void release_entry(Name##Entry e) {                                                       \
+  static void release_##Name##Entry(Name##Entry e) {                                               \
     free(e.key);                                                                                   \
     release_T(e.value);                                                                            \
   }                                                                                                \
-  DEFINE_LIST(release_entry, Name##Entry, Name##Entries)                                           \
+  DEFINE_LIST(release_##Name##Entry, Name##Entry, Name##Entries)                                   \
   DEFINE_VECTOR(release_##Name##Entries, Name##Entries*, Name##Table)                              \
   struct Name {                                                                                    \
     Name##Table* table;                                                                            \

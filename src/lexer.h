@@ -63,6 +63,10 @@ typedef enum {
   TK_SIGNED,
   TK_UNSIGNED,
   TK_SIZEOF,
+  TK_SWITCH,
+  TK_GOTO,
+  TK_CASE,
+  TK_DEFAULT,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_END,     // end of tokens

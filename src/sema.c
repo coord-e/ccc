@@ -229,6 +229,25 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   return new_cast_direct(copy_Type(ptr_opr->type), new_expr);
 }
 
+// p += n (p: t*, s: sizeof(t)) -> (t*)(*((uint64_t*)&p) += n * s)
+// both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
+static Expr* build_pointer_arith_assign(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
+  assert(is_pointer_ty(ptr_opr->type));
+  assert(is_integer_ty(int_opr->type));
+
+  Type* int_ty       = into_unsigned_ty(int_of_size_ty(sizeof_ty(ptr_opr->type)));
+  unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
+
+  Expr* ptr_opr_c = new_cast_direct(ptr_to_ty(int_ty), new_node_addr(ptr_opr));
+  Expr* lhs       = new_node_deref(ptr_opr_c);
+  // TODO: Remove this explicit cast by arithmetic conversion
+  Expr* int_opr_c = new_cast_direct(copy_Type(int_ty),
+                                    new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
+  Expr* new_expr  = new_node_compound_assign(op, lhs, int_opr_c);
+
+  return new_cast_direct(copy_Type(ptr_opr->type), new_expr);
+}
+
 // p1 - p2 (p1, p2: t*, s: sizeof(t)) -> ((uint64_t)p1 - (uint64_t)p2) / s
 // both `opr1` and `opr2` are consumed and new untyped node is returned
 static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
@@ -264,6 +283,47 @@ static Expr* build_decay(Expr* opr) {
 
 static Type* sema_expr(Env* env, Expr* expr);
 
+static Type* sema_binop_simple(BinopKind op, Type* lhs, Type* rhs) {
+  switch (op) {
+    case BINOP_ADD:
+    case BINOP_SUB:
+    case BINOP_MUL:
+    case BINOP_DIV:
+    case BINOP_SHIFT_RIGHT:
+    case BINOP_SHIFT_LEFT:
+    case BINOP_AND:
+    case BINOP_XOR:
+    case BINOP_OR:
+    case BINOP_REM:
+      should_integer(lhs);
+      should_integer(rhs);
+      // TODO: arithmetic conversion
+      return copy_Type(lhs);
+    case BINOP_EQ:
+    case BINOP_NE:
+      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
+        return int_ty();
+      }
+      should_pointer(lhs);
+      should_pointer(rhs);
+      should_compatible(lhs->ptr_to, rhs->ptr_to);
+      return int_ty();
+    case BINOP_GT:
+    case BINOP_GE:
+    case BINOP_LT:
+    case BINOP_LE:
+      if (is_real_ty(lhs) && is_real_ty(rhs)) {
+        return int_ty();
+      }
+      should_pointer(lhs);
+      should_pointer(rhs);
+      should_compatible(lhs->ptr_to, rhs->ptr_to);
+      return int_ty();
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static Type* sema_binop(Env* env, Expr* expr) {
   BinopKind op = expr->binop;
   Type* lhs    = sema_expr(env, expr->lhs);
@@ -295,15 +355,8 @@ static Type* sema_binop(Env* env, Expr* expr) {
 
         return ty;
       }
-      should_arithmetic(lhs);
-      should_arithmetic(rhs);
-      // TODO: arithmetic conversion
-      return copy_Type(lhs);
+      // fallthrouth
     case BINOP_SUB:
-      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
-        // TODO: arithmetic conversion
-        return copy_Type(lhs);
-      }
       if (is_pointer_ty(lhs) && is_pointer_ty(rhs)) {
         should_compatible(lhs->ptr_to, rhs->ptr_to);
 
@@ -317,63 +370,19 @@ static Type* sema_binop(Env* env, Expr* expr) {
 
         return ty;
       }
-      should_pointer(lhs);
-      should_integer(rhs);
+      if (is_pointer_ty(lhs) && is_integer_ty(rhs)) {
+        // TODO: shallow release of rhs of this assignment
+        *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
 
-      // TODO: shallow release of rhs of this assignment
-      *expr = *build_pointer_arith(op, expr->lhs, expr->rhs);
+        Type* ty = copy_Type(lhs);
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, ty));
 
-      Type* ty = copy_Type(lhs);
-      sema_expr(env, expr);
-      assert(equal_to_Type(expr->type, ty));
-
-      return ty;
-    case BINOP_MUL:
-    case BINOP_DIV:
-      should_arithmetic(lhs);
-      should_arithmetic(rhs);
-      // TODO: arithmetic conversion
-      return copy_Type(lhs);
-    case BINOP_EQ:
-    case BINOP_NE:
-      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
-        return int_ty();
+        return ty;
       }
-      should_pointer(lhs);
-      should_pointer(rhs);
-      should_compatible(lhs->ptr_to, rhs->ptr_to);
-      return int_ty();
-    case BINOP_GT:
-    case BINOP_GE:
-    case BINOP_LT:
-    case BINOP_LE:
-      if (is_real_ty(lhs) && is_real_ty(rhs)) {
-        return int_ty();
-      }
-      should_pointer(lhs);
-      should_pointer(rhs);
-      should_compatible(lhs->ptr_to, rhs->ptr_to);
-      return int_ty();
-    case BINOP_SHIFT_RIGHT:
-    case BINOP_SHIFT_LEFT:
-      should_integer(lhs);
-      should_integer(rhs);
-      // TODO: integer promotion
-      return copy_Type(lhs);
-    case BINOP_AND:
-    case BINOP_XOR:
-    case BINOP_OR:
-      should_integer(lhs);
-      should_integer(rhs);
-      // TODO: arithmetic conversion
-      return copy_Type(lhs);
-    case BINOP_REM:
-      should_integer(lhs);
-      should_integer(rhs);
-      // TODO: arithmetic conversion
-      return copy_Type(lhs);
+      // fallthrouth
     default:
-      CCC_UNREACHABLE;
+      return sema_binop_simple(op, lhs, rhs);
   }
 }
 
@@ -427,6 +436,36 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       // TODO: type conversion
       should_compatible(lhs_ty, rhs_ty);
       t = copy_Type(lhs_ty);
+      break;
+    }
+    case ND_COMPOUND_ASSIGN: {
+      Type* lhs_ty = sema_expr(env, expr->lhs);
+      Type* rhs_ty = sema_expr(env, expr->rhs);
+      switch (expr->binop) {
+        case BINOP_ADD:
+        case BINOP_SUB:
+          if (is_pointer_ty(lhs_ty) && is_integer_ty(rhs_ty)) {
+            // TODO: shallow release of rhs of this assignment
+            *expr = *build_pointer_arith_assign(expr->binop, expr->lhs, expr->rhs);
+
+            Type* ty = copy_Type(lhs_ty);
+            sema_expr(env, expr);
+            assert(equal_to_Type(expr->type, ty));
+
+            t = ty;
+            break;
+          }
+          // fallthrough
+        default: {
+          should_arithmetic(lhs_ty);
+          should_arithmetic(rhs_ty);
+          Type* r = sema_binop_simple(expr->binop, lhs_ty, rhs_ty);
+          // TODO: type conversion
+          should_compatible(lhs_ty, r);
+          t = copy_Type(lhs_ty);
+          break;
+        }
+      }
       break;
     }
     case ND_ADDR: {

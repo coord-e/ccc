@@ -70,6 +70,7 @@ typedef enum {
   TK_DEFAULT,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
+  TK_STRING,  // strings
   TK_END,     // end of tokens
 } TokenKind;
 
@@ -77,8 +78,10 @@ typedef struct Token Token;
 
 struct Token {
   TokenKind kind;
-  char* ident;  // for TK_IDENT, owned
-  int number;   // for TK_NUMBER
+  char* ident;    // for TK_IDENT, owned
+  char* string;   // for TK_STRING, owned
+  size_t length;  // for TK_STRING
+  int number;     // for TK_NUMBER
 };
 
 DECLARE_LIST(Token, TokenList)

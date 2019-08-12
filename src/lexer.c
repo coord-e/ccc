@@ -10,13 +10,15 @@
 
 static void release_token(Token t) {
   free(t.ident);
+  free(t.string);
 }
 DEFINE_LIST(release_token, Token, TokenList)
 
 static TokenList* add_token(TokenKind kind, TokenList* cur) {
   Token t;
-  t.ident = NULL;
-  t.kind  = kind;
+  t.ident  = NULL;
+  t.string = NULL;
+  t.kind   = kind;
   return snoc_TokenList(t, cur);
 }
 
@@ -189,6 +191,16 @@ TokenList* tokenize(char* p) {
         continue;
       case ',':
         cur = add_token(TK_COMMA, cur);
+        p++;
+        continue;
+      case '"':
+        p++;
+        char* init = p;
+        while (*p != '"')
+          p++;
+        cur              = add_token(TK_STRING, cur);
+        cur->head.string = strndup(init, p - init);
+        cur->head.length = p - init;
         p++;
         continue;
       case '^':
@@ -529,6 +541,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);
+      break;
+    case TK_STRING:
+      fprintf(p, "str(%s,%ld)", t.string, t.length);
       break;
     case TK_END:
       fprintf(p, "end");

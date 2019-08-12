@@ -403,7 +403,24 @@ static void codegen_functions(FILE* p, FunctionList* l) {
   codegen_functions(p, tail_FunctionList(l));
 }
 
+static void codegen_globals(FILE* p, GlobalVarVec* vs) {
+  for (unsigned i = 0; i < length_GlobalVarVec(vs); i++) {
+    GlobalVar* v = get_GlobalVarVec(vs, i);
+    switch (v->kind) {
+      case GV_NORMAL:
+        emit(p, ".comm %s,%d", v->name, v->size);
+        break;
+      case GV_STRING:
+        emit_label(p, v->name);
+        emit(p, ".string \"%s\"", v->string);
+        break;
+    }
+  }
+}
+
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
+  emit(p, ".text");
+  codegen_globals(p, ir->globals);
   codegen_functions(p, ir->functions);
 }

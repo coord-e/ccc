@@ -45,6 +45,8 @@ static Expr* expr(TokenList** t);
 static Expr* assign(TokenList** t);
 
 static Declarator* try_declarator(TokenList** t, bool is_abstract) {
+  TokenList* save = *t;
+
   unsigned num_ptrs = 0;
   while (head_of(t) == TK_STAR) {
     consume(t);
@@ -52,6 +54,7 @@ static Declarator* try_declarator(TokenList** t, bool is_abstract) {
   }
 
   if (!is_abstract && head_of(t) != TK_IDENT) {
+    *t = save;
     return NULL;
   }
 
@@ -186,6 +189,9 @@ static Expr* term(TokenList** t) {
       return new_node_num(consuming(t).number);
     } else if (head_of(t) == TK_IDENT) {
       return new_node_var(consuming(t).ident);
+    } else if (head_of(t) == TK_STRING) {
+      Token tk = consuming(t);
+      return new_node_string(tk.string, tk.length);
     } else {
       error("unexpected token.");
     }
@@ -788,6 +794,17 @@ static ParamList* parameter_list(TokenList** t) {
 static ExternalDecl* external_declaration(TokenList** t) {
   DeclarationSpecifiers* spec = declaration_specifiers(t);
   Declarator* d               = declarator(t, false);
+
+  if (head_of(t) != TK_LPAREN) {
+    expect(t, TK_SEMICOLON);
+
+    Declaration* decl = new_declaration(spec, d);
+
+    ExternalDecl* edecl = new_external_decl(EX_DECL);
+    edecl->decl         = decl;
+    return edecl;
+  }
+
   expect(t, TK_LPAREN);
   ParamList* params = parameter_list(t);
   expect(t, TK_RPAREN);

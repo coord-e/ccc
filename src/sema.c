@@ -244,7 +244,9 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
       return;
     case DE_DIRECT:
       *type = ptrify(base, decl->num_ptrs);
-      *name = decl->name;
+      if (name != NULL) {
+        *name = decl->name;
+      }
       return;
     case DE_ARRAY: {
       Type* ty;
@@ -584,6 +586,9 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     case ND_NUM:
       t = int_ty();
       break;
+    case ND_STRING:
+      t = array_ty(char_ty(), expr->str_len + 1);
+      break;
     case ND_CALL: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       if (lhs_ty->kind != TY_PTR || lhs_ty->ptr_to->kind != TY_FUNC) {
@@ -849,6 +854,18 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       TypeVec* params = param_types(NULL, f->params);
       Type* ty        = func_ty(ret, params);
       f->type         = copy_Type(ty);
+      add_global(global, name, ty);
+      break;
+    }
+    case EX_DECL: {
+      Declaration* decl = d->decl;
+      Type* base_ty     = translate_base_type(decl->spec->base_type);
+      char* name;
+      Type* ty;
+      extract_declarator(decl->declarator, base_ty, &name, &ty);
+      // TODO: check linkage
+      should_complete(ty);
+      decl->type = copy_Type(ty);
       add_global(global, name, ty);
       break;
     }

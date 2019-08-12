@@ -48,6 +48,7 @@ static void release_expr(Expr* e) {
   release_expr(e->rhs);
   release_expr(e->expr);
   free(e->var);
+  free(e->string);
   release_ExprVec(e->args);
   release_TypeName(e->cast_to);
   release_Type(e->cast_type);
@@ -236,6 +237,9 @@ static void print_expr(FILE* p, Expr* expr) {
     case ND_NUM:
       fprintf(p, "%d", expr->num);
       return;
+    case ND_STRING:
+      fprintf(p, "\"%s\"", expr->string);
+      return;
     case ND_VAR:
       fprintf(p, "%s", expr->var);
       return;
@@ -387,6 +391,9 @@ static void print_ExternalDecl(FILE* p, ExternalDecl* edecl) {
     case EX_FUNC_DECL:
       print_FunctionDecl(p, edecl->func_decl);
       break;
+    case EX_DECL:
+      print_declaration(p, edecl->decl);
+      break;
     default:
       CCC_UNREACHABLE;
   }
@@ -495,6 +502,7 @@ Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
   node->rhs       = rhs;
   node->expr      = NULL;
   node->var       = NULL;
+  node->string    = NULL;
   node->args      = NULL;
   node->cast_to   = NULL;
   node->cast_type = NULL;
@@ -512,7 +520,14 @@ Expr* new_node_num(int num) {
   return node;
 }
 
-Expr* new_node_var(char* ident) {
+Expr* new_node_string(const char* s, size_t len) {
+  Expr* node    = new_node(ND_STRING, NULL, NULL);
+  node->string  = strdup(s);
+  node->str_len = len;
+  return node;
+}
+
+Expr* new_node_var(const char* ident) {
   Expr* node = new_node(ND_VAR, NULL, NULL);
   node->var  = strdup(ident);
   return node;

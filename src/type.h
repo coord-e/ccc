@@ -18,6 +18,7 @@ unsigned from_data_size(DataSize);
 
 typedef enum {
   TY_INT,  // not `int`, but all integer types
+  TY_VOID,
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
@@ -57,6 +58,7 @@ Type* char_ty();
 Type* int_ty();
 Type* long_ty();
 Type* short_ty();
+Type* void_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, unsigned);

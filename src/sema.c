@@ -189,6 +189,8 @@ static int eval_constant(Expr* e) {
 static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic ignored "-Wswitch"
   switch (t) {
+    case BT_VOID:
+      return void_ty();
     case BT_SIGNED + BT_CHAR:
       return into_signed_ty(char_ty());
     case BT_CHAR:

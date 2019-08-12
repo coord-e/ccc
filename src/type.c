@@ -76,6 +76,9 @@ DECLARE_VECTOR_PRINTER(TypeVec)
 
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
+    case TY_VOID:
+      fprintf(p, "void");
+      break;
     case TY_INT:
       if (ty->is_signed) {
         fprintf(p, "signed ");
@@ -126,6 +129,8 @@ bool equal_to_Type(const Type* a, const Type* b) {
   }
 
   switch (a->kind) {
+    case TY_VOID:
+      return true;
     case TY_INT:
       return a->size == b->size && a->is_signed == b->is_signed;
     case TY_PTR:
@@ -179,6 +184,10 @@ Type* long_ty() {
 
 Type* short_ty() {
   return new_int_Type(SIZE_WORD, true);
+}
+
+Type* void_ty() {
+  return new_Type(TY_VOID);
 }
 
 Type* ptr_to_ty(Type* ty) {
@@ -241,6 +250,8 @@ Type* into_unsigned_ty(Type* t) {
 
 bool is_arithmetic_ty(const Type* ty) {
   switch (ty->kind) {
+    case TY_VOID:
+      return false;
     case TY_INT:
       return true;
     case TY_PTR:
@@ -284,6 +295,8 @@ bool is_scalar_ty(const Type* ty) {
 
 unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
+    case TY_VOID:
+      return 1;
     case TY_INT:
       return from_data_size(t->size);
     case TY_PTR:

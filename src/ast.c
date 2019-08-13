@@ -36,19 +36,38 @@ static void release_Initializer(Initializer* init) {
 
 DEFINE_LIST(release_Initializer, Initializer*, InitializerList)
 
+static void release_InitDeclarator(InitDeclarator* d) {
+  if (d == NULL) {
+    return;
+  }
+
+  release_Declarator(d->declarator);
+  release_Initializer(d->initializer);
+  release_Type(d->type);
+  free(d);
+}
+
+DEFINE_LIST(release_InitDeclarator, InitDeclarator*, InitDeclaratorList)
+
 static void release_declaration(Declaration* d) {
   if (d == NULL) {
     return;
   }
 
   release_DeclarationSpecifiers(d->spec);
-  release_Declarator(d->declarator);
-  release_Type(d->type);
+  release_InitDeclaratorList(d->declarators);
   free(d);
 }
 
 static void release_TypeName(TypeName* t) {
-  release_declaration(t);
+  if (t == NULL) {
+    return;
+  }
+
+  release_DeclarationSpecifiers(t->spec);
+  release_Declarator(t->declarator);
+  release_Type(t->type);
+  free(t);
 }
 
 static void release_expr(Expr* e) {
@@ -229,10 +248,40 @@ static void print_Declarator(FILE* p, Declarator* d) {
   }
 }
 
+DECLARE_LIST_PRINTER(InitializerList)
+
+static void print_Initializer(FILE* p, Initializer* init) {
+  switch (init->kind) {
+    case IN_EXPR:
+      print_expr(p, init->expr);
+      break;
+    case IN_LIST:
+      fputs("{", p);
+      print_InitializerList(p, init->list);
+      fputs("}", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+DEFINE_LIST_PRINTER(print_Initializer, ", ", "", InitializerList)
+
+static void print_InitDeclarator(FILE* p, InitDeclarator* decl) {
+  print_Declarator(p, decl->declarator);
+  if (decl->initializer != NULL) {
+    fputs(" = ", p);
+    print_Initializer(p, decl->initializer);
+  }
+}
+
+DECLARE_LIST_PRINTER(InitDeclaratorList)
+DEFINE_LIST_PRINTER(print_InitDeclarator, ", ", "", InitDeclaratorList)
+
 static void print_declaration(FILE* p, Declaration* d) {
   print_DeclarationSpecifiers(p, d->spec);
   fputs(" ", p);
-  print_Declarator(p, d->declarator);
+  print_InitDeclaratorList(p, d->declarators);
   fputs(";", p);
 }
 
@@ -645,12 +694,18 @@ Initializer* new_Initializer(InitializerKind kind) {
   return init;
 }
 
-Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s) {
-  assert(!is_abstract_declarator(s));
+InitDeclarator* new_InitDeclarator(Declarator* d, Initializer* init) {
+  InitDeclarator* decl = calloc(1, sizeof(InitDeclarator));
+  decl->declarator     = d;
+  decl->initializer    = init;
+  return decl;
+}
+
+Declaration* new_declaration(DeclarationSpecifiers* spec, InitDeclaratorList* s) {
+  // TODO: check that all declarator in `s` is not an abstract declarator
   Declaration* d = calloc(1, sizeof(Declaration));
   d->spec        = spec;
-  d->declarator  = s;
-  d->type        = NULL;
+  d->declarators = s;
   return d;
 }
 

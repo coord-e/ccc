@@ -76,17 +76,33 @@ struct Initializer {
 Initializer* new_Initializer(InitializerKind);
 
 typedef struct {
+  Declarator* declarator;    // owned
+  Initializer* initializer;  // owned, nullable
+
+  // will filled in `sema`
+  // NOTE: computed from declarator and declaration-specifier from declaration
+  Type* type;  // owned
+} InitDeclarator;
+
+DECLARE_LIST(InitDeclarator*, InitDeclaratorList)
+
+// NOTE: the second parameter can be NULL
+InitDeclarator* new_InitDeclarator(Declarator*, Initializer*);
+
+typedef struct {
+  DeclarationSpecifiers* spec;      // owned
+  InitDeclaratorList* declarators;  // owned
+} Declaration;
+
+Declaration* new_declaration(DeclarationSpecifiers* spec, InitDeclaratorList* list);
+
+typedef struct {
   DeclarationSpecifiers* spec;  // owned
   Declarator* declarator;       // owned
 
   // will filled in `sema`
   Type* type;  // owned
-} Declaration;
-
-Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s);
-
-// type-name is declaration whose declarator is an abstract declarator
-typedef Declaration TypeName;
+} TypeName;
 
 TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s);
 

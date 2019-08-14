@@ -146,6 +146,7 @@ DECLARE_LIST(Function*, FunctionList)
 typedef enum {
   GE_ADD,
   GE_SUB,
+  GE_NAME,
   GE_NUM,
   GE_STRING,
 } GlobalExprKind;
@@ -156,6 +157,8 @@ typedef struct {
 
   char* lhs;  // for GE_ADD, GE_SUB, owned
   long rhs;   // ditto
+
+  char* name;  // for GE_NAME, owned
 
   long num;       // for GE_NUM
   DataSize size;  // for GE_NUM

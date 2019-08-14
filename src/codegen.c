@@ -432,6 +432,9 @@ static void codegen_global_expr(FILE* p, GlobalExpr* expr) {
     case GE_STRING:
       emit(p, ".string \"%s\"", expr->string);
       break;
+    case GE_NAME:
+      emit(p, ".quad %s", expr->name);
+      break;
     default:
       CCC_UNREACHABLE;
   }

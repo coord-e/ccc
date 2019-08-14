@@ -59,9 +59,18 @@ static DirectDeclarator* try_direct_declarator(TokenList** t, bool is_abstract) 
 
   while (head_of(t) == TK_LBRACKET) {
     consume(t);
+
+    Expr* length;
+    if (head_of(t) == TK_RBRACKET) {
+      // length omitted
+      length = NULL;
+    } else {
+      length = assign(t);
+    }
+
     DirectDeclarator* ary = new_DirectDeclarator(DE_ARRAY);
     ary->decl             = d;
-    ary->length           = assign(t);
+    ary->length           = length;
     ary->name_ref         = base->name;
     expect(t, TK_RBRACKET);
 

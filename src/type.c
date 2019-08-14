@@ -113,7 +113,11 @@ void print_Type(FILE* p, Type* ty) {
       print_Type(p, ty->ret);
       break;
     case TY_ARRAY:
-      fprintf(p, "[%d] ", ty->length);
+      if (ty->is_length_known) {
+        fprintf(p, "[%d] ", ty->length);
+      } else {
+        fprintf(p, "[] ");
+      }
       print_Type(p, ty->element);
       break;
     default:
@@ -203,10 +207,10 @@ Type* func_ty(Type* ret, TypeVec* params) {
   return t;
 }
 
-Type* array_ty(Type* element, unsigned length) {
-  Type* t    = new_Type(TY_ARRAY);
-  t->element = element;
-  t->length  = length;
+Type* array_ty(Type* element, bool is_length_known) {
+  Type* t            = new_Type(TY_ARRAY);
+  t->element         = element;
+  t->is_length_known = is_length_known;
   return t;
 }
 
@@ -308,8 +312,7 @@ bool is_complete_ty(const Type* ty) {
     case TY_FUNC:
       return true;
     case TY_ARRAY:
-      // TODO: ensure that the size is known
-      return true;
+      return ty->is_length_known;
     default:
       CCC_UNREACHABLE;
   }
@@ -317,6 +320,9 @@ bool is_complete_ty(const Type* ty) {
 
 unsigned length_of_ty(const Type* ty) {
   assert(ty->kind == TY_ARRAY);
+  if (!ty->is_length_known) {
+    error("attempt to obtain the length of incomplete array type");
+  }
   return ty->length;
 }
 

@@ -44,6 +44,7 @@ struct Type {
 
   // for TY_ARRAY
   Type* element;
+  bool is_length_known;
   unsigned length;
 };
 
@@ -61,7 +62,7 @@ Type* short_ty();
 Type* void_ty();
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
-Type* array_ty(Type*, unsigned);
+Type* array_ty(Type*, bool is_length_known);
 
 Type* size_t_ty();
 

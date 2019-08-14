@@ -259,12 +259,20 @@ static void extract_direct_declarator(DirectDeclarator* decl,
       }
       return;
     case DE_ARRAY: {
-      int length = eval_constant(decl->length);
-      if (length <= 0) {
-        error("invalid size of array: %d", length);
+      Type* t;
+      if (decl->length != NULL) {
+        int length = eval_constant(decl->length);
+        if (length <= 0) {
+          error("invalid size of array: %d", length);
+        }
+
+        t         = array_ty(base, true);
+        t->length = length;
+      } else {
+        t = array_ty(base, false);
       }
 
-      extract_direct_declarator(decl->decl, array_ty(base, length), name, type);
+      extract_direct_declarator(decl->decl, t, name, type);
       return;
     }
     default:
@@ -601,7 +609,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       t = int_ty();
       break;
     case ND_STRING:
-      t = array_ty(char_ty(), expr->str_len + 1);
+      t         = array_ty(char_ty(), true);
+      t->length = expr->str_len + 1;
       break;
     case ND_CALL: {
       Type* lhs_ty = sema_expr(env, expr->lhs);

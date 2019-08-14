@@ -163,7 +163,7 @@ typedef struct {
   char* string;  // for GE_STRING
 } GlobalExpr;
 
-DECLARE_VECTOR(GlobalExpr, GlobalInitializer)
+DECLARE_VECTOR(GlobalExpr*, GlobalInitializer)
 
 typedef struct {
   char* name;  // owned

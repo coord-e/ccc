@@ -455,6 +455,40 @@ static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
   return copy_Type(t);
 }
 
+// conversion as if by assignment
+// conversion is simplified to a cast expression
+// mainly this performs the complex constraint check of assignment
+static void assignment_conversion(Type* lhs_ty, Expr* rhs) {
+  // TODO: check qualifiers
+  // TODO: check structs
+  // TODO: check _Bool
+  // TODO: check null pointer constant
+  Type* rhs_ty = rhs->type;
+
+  if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
+    goto convertible;
+  }
+
+  if (is_pointer_ty(lhs_ty) && is_pointer_ty(rhs_ty)) {
+    if (is_compatible_ty(lhs_ty->ptr_to, rhs_ty->ptr_to)) {
+      goto convertible;
+    }
+
+    if (lhs_ty->ptr_to->kind == TY_VOID || rhs_ty->ptr_to->kind == TY_VOID) {
+      goto convertible;
+    }
+  }
+
+  print_Type(stderr, rhs_ty);
+  fprintf(stderr, " and ");
+  print_Type(stderr, lhs_ty);
+  error(" is not assignable");
+
+convertible:
+  // TODO: shallow release
+  *rhs = *new_cast_direct(copy_Type(lhs_ty), rhs);
+}
+
 static Type* sema_expr(Env* env, Expr* expr);
 
 static Type* sema_binop_simple(BinopKind op, Type* lhs, Type* rhs) {

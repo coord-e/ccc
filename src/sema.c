@@ -664,14 +664,31 @@ static Type* sema_expr(Env* env, Expr* e) {
 static void sema_initializer(Env* env, Type* type, Initializer* init);
 
 static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l) {
-  if (is_nil_InitializerList(l)) {
-    return;
-  }
-
   assert(is_array_ty(type));
-  sema_initializer(env, type->element, head_InitializerList(l));
 
-  sema_aggr_initializer_list(env, type, tail_InitializerList(l));
+  InitializerList* cur = l;
+
+  for (unsigned i = 0; i < type->length; i++) {
+    if (is_nil_InitializerList(cur)) {
+      Initializer* empty;
+      if (is_scalar_ty(type->element)) {
+        empty       = new_Initializer(IN_EXPR);
+        empty->expr = new_node_num(0);
+      } else {
+        empty       = new_Initializer(IN_LIST);
+        empty->list = nil_InitializerList();
+      }
+      sema_initializer(env, type->element, empty);
+
+      cur = snoc_InitializerList(empty, cur);
+      cur = tail_InitializerList(cur);  // set to be NULL again
+    } else {
+      Initializer* head = head_InitializerList(cur);
+      sema_initializer(env, type->element, head);
+
+      cur = tail_InitializerList(cur);
+    }
+  }
 }
 
 static void sema_scalar_initializer_list(Env* env, Type* type, InitializerList* l) {
@@ -742,11 +759,13 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
     }
     case IN_LIST: {
       // check string initializer
-      Initializer* head = head_InitializerList(init->list);
-      if (is_char_array_ty(type) && is_single_InitializerList(init->list) &&
-          head->kind == IN_EXPR && head->expr->kind == ND_STRING) {
-        sema_string_initializer(env, type, init, head->expr);
-        break;
+      if (!is_nil_InitializerList(init->list)) {
+        Initializer* head = head_InitializerList(init->list);
+        if (is_char_array_ty(type) && is_single_InitializerList(init->list) &&
+            head->kind == IN_EXPR && head->expr->kind == ND_STRING) {
+          sema_string_initializer(env, type, init, head->expr);
+          break;
+        }
       }
 
       if (is_scalar_ty(type)) {

@@ -393,5 +393,9 @@ items 108 "char s[6] = \"hello\"; return (int)s[3];"
 items 108 "char s[6] = {\"hello\"}; return (int)s[3];"
 items 108 "char *s = {\"hello\"}; return (int)s[3];"
 items 100 "char s[2][6] = {\"hello\", \"world\"}; return (int)s[1][4];"
+items 0 "char s[6] = {\"hello\"}; return (int)s[5];"
+items 0 "char s[10] = \"omg\"; return (int)s[3];"
+items 0 "int a[10] = {}; return a[5];"
+items 0 "int a[2][4] = {}; return a[1][2];"
 
 echo OK

@@ -806,6 +806,7 @@ static void gen_local_array_initializer(Env* env, Reg target, Initializer* init,
 
   InitializerList* cur = init->list;
   unsigned offset      = 0;
+  // NOTE: `sema` ensured that the initializer list has the same length than the array
   while (!is_nil_InitializerList(cur)) {
     Initializer* ci = head_InitializerList(cur);
     Reg r           = new_binop(env, BINOP_ADD, target, new_imm(env, offset, target.size));

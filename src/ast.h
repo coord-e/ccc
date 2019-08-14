@@ -40,22 +40,29 @@ typedef enum {
   DE_DIRECT_ABSTRACT,
   DE_DIRECT,
   DE_ARRAY,
-} DeclaratorKind;
+} DirectDeclKind;
 
-typedef struct Declarator Declarator;
+typedef struct DirectDeclarator DirectDeclarator;
 
-struct Declarator {
-  DeclaratorKind kind;
+struct DirectDeclarator {
+  DirectDeclKind kind;
   char* name_ref;  // not owned, NULL if this is abstract declarator
 
-  char* name;         // for DE_DIRECT, owned
-  unsigned num_ptrs;  // for DE_DIRECT, DE_DIRECT_ABSTRACT
+  char* name;  // for DE_DIRECT, owned
 
-  Declarator* decl;  // for DE_ARRAY, owned
-  Expr* length;      // for DE_ARRAY, owned
+  DirectDeclarator* decl;  // for DE_ARRAY, owned
+  Expr* length;            // for DE_ARRAY, owned
 };
 
-Declarator* new_Declarator(DeclaratorKind);
+DirectDeclarator* new_DirectDeclarator(DirectDeclKind);
+bool is_abstract_direct_declarator(DirectDeclarator*);
+
+typedef struct {
+  DirectDeclarator* direct;
+  unsigned num_ptrs;
+} Declarator;
+
+Declarator* new_Declarator(DirectDeclarator* direct, unsigned num_ptrs);
 bool is_abstract_declarator(Declarator*);
 
 typedef struct Initializer Initializer;

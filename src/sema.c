@@ -243,16 +243,17 @@ static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic warning "-Wswitch"
 }
 
-// extract `Decalrator` and store the result to `name` and `type`
-// if `name` is NULL, this accepts abstract declarator
-static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
+static void extract_direct_declarator(DirectDeclarator* decl,
+                                      Type* base,
+                                      char** name,
+                                      Type** type) {
   switch (decl->kind) {
     case DE_DIRECT_ABSTRACT:
       assert(name == NULL);
-      *type = ptrify(base, decl->num_ptrs);
+      *type = base;
       return;
     case DE_DIRECT:
-      *type = ptrify(base, decl->num_ptrs);
+      *type = base;
       if (name != NULL) {
         *name = decl->name;
       }
@@ -263,12 +264,20 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
         error("invalid size of array: %d", length);
       }
 
-      extract_declarator(decl->decl, array_ty(base, length), name, type);
+      extract_direct_declarator(decl->decl, array_ty(base, length), name, type);
       return;
     }
     default:
       CCC_UNREACHABLE;
   }
+}
+
+// extract `Decalrator` and store the result to `name` and `type`
+// if `name` is NULL, this accepts abstract declarator
+static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
+  Type* ty;
+  extract_direct_declarator(decl->direct, base, name, &ty);
+  *type = ptrify(ty, decl->num_ptrs);
 }
 
 static Type* translate_type_name(TypeName* t) {

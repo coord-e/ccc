@@ -13,14 +13,23 @@ static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
   free(spec);
 }
 
-static void release_Declarator(Declarator* d) {
+static void release_DirectDeclarator(DirectDeclarator* d) {
   if (d == NULL) {
     return;
   }
 
   free(d->name);
-  release_Declarator(d->decl);
+  release_DirectDeclarator(d->decl);
   release_expr(d->length);
+  free(d);
+}
+
+static void release_Declarator(Declarator* d) {
+  if (d == NULL) {
+    return;
+  }
+
+  release_DirectDeclarator(d->direct);
   free(d);
 }
 
@@ -224,21 +233,15 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
   }
 }
 
-static void print_Declarator(FILE* p, Declarator* d) {
+static void print_DirectDeclarator(FILE* p, DirectDeclarator* d) {
   switch (d->kind) {
     case DE_DIRECT_ABSTRACT:
-      for (unsigned i = 0; i < d->num_ptrs; i++) {
-        fprintf(p, "*");
-      }
       break;
     case DE_DIRECT:
-      for (unsigned i = 0; i < d->num_ptrs; i++) {
-        fprintf(p, "*");
-      }
       fprintf(p, "%s", d->name);
       break;
     case DE_ARRAY:
-      print_Declarator(p, d->decl);
+      print_DirectDeclarator(p, d->decl);
       fputs("[", p);
       print_expr(p, d->length);
       fputs("]", p);
@@ -246,6 +249,13 @@ static void print_Declarator(FILE* p, Declarator* d) {
     default:
       CCC_UNREACHABLE;
   }
+}
+
+static void print_Declarator(FILE* p, Declarator* d) {
+  for (unsigned i = 0; i < d->num_ptrs; i++) {
+    fprintf(p, "*");
+  }
+  print_DirectDeclarator(p, d->direct);
 }
 
 DECLARE_LIST_PRINTER(InitializerList)
@@ -672,19 +682,29 @@ Expr* shallow_copy_node(Expr* e) {
   return node;
 }
 
-Declarator* new_Declarator(DeclaratorKind kind) {
-  Declarator* d = calloc(1, sizeof(Declarator));
-  d->kind       = kind;
-  d->name_ref   = NULL;
-  d->num_ptrs   = 0;
-  d->name       = NULL;
-  d->decl       = NULL;
-  d->length     = NULL;
+DirectDeclarator* new_DirectDeclarator(DirectDeclKind kind) {
+  DirectDeclarator* d = calloc(1, sizeof(DirectDeclarator));
+  d->kind             = kind;
+  d->name_ref         = NULL;
+  d->name             = NULL;
+  d->decl             = NULL;
+  d->length           = NULL;
   return d;
 }
 
-bool is_abstract_declarator(Declarator* d) {
+Declarator* new_Declarator(DirectDeclarator* direct, unsigned num_ptrs) {
+  Declarator* d = calloc(1, sizeof(Declarator));
+  d->direct     = direct;
+  d->num_ptrs   = num_ptrs;
+  return d;
+}
+
+bool is_abstract_direct_declarator(DirectDeclarator* d) {
   return d->name_ref == NULL;
+}
+
+bool is_abstract_declarator(Declarator* d) {
+  return is_abstract_direct_declarator(d->direct);
 }
 
 Initializer* new_Initializer(InitializerKind kind) {

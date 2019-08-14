@@ -44,6 +44,32 @@ static bool try
 static Expr* expr(TokenList** t);
 static Expr* assign(TokenList** t);
 
+static DirectDeclarator* try_direct_declarator(TokenList** t, bool is_abstract) {
+  if (!is_abstract && head_of(t) != TK_IDENT) {
+    return NULL;
+  }
+
+  DirectDeclarator* base = new_DirectDeclarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
+  if (!is_abstract) {
+    base->name     = strdup(expect(t, TK_IDENT).ident);
+    base->name_ref = base->name;
+  }
+
+  DirectDeclarator* d = base;
+
+  while (head_of(t) == TK_LBRACKET) {
+    consume(t);
+    DirectDeclarator* ary = new_DirectDeclarator(DE_ARRAY);
+    ary->decl             = d;
+    ary->length           = assign(t);
+    ary->name_ref         = base->name;
+    expect(t, TK_RBRACKET);
+
+    d = ary;
+  }
+  return d;
+}
+
 static Declarator* try_declarator(TokenList** t, bool is_abstract) {
   TokenList* save = *t;
 
@@ -53,31 +79,13 @@ static Declarator* try_declarator(TokenList** t, bool is_abstract) {
     num_ptrs++;
   }
 
-  if (!is_abstract && head_of(t) != TK_IDENT) {
+  DirectDeclarator* d = try_direct_declarator(t, is_abstract);
+  if (d == NULL) {
     *t = save;
     return NULL;
   }
 
-  Declarator* base = new_Declarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
-  base->num_ptrs   = num_ptrs;
-  if (!is_abstract) {
-    base->name     = strdup(expect(t, TK_IDENT).ident);
-    base->name_ref = base->name;
-  }
-
-  Declarator* d = base;
-
-  while (head_of(t) == TK_LBRACKET) {
-    consume(t);
-    Declarator* ary = new_Declarator(DE_ARRAY);
-    ary->decl       = d;
-    ary->length     = assign(t);
-    ary->name_ref   = base->name;
-    expect(t, TK_RBRACKET);
-
-    d = ary;
-  }
-  return d;
+  return new_Declarator(d, num_ptrs);
 }
 
 static Declarator* declarator(TokenList** t, bool is_abstract) {

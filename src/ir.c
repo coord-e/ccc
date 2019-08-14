@@ -894,7 +894,7 @@ static void gen_local_initializer(Env* env, Reg target, Initializer* init, Type*
 
 static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl) {
   if (env != NULL) {
-    unsigned var = new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
+    unsigned var = new_var(env, decl->declarator->direct->name_ref, sizeof_ty(decl->type));
     Reg r        = new_stack_addr(env, var);
 
     if (decl->initializer != NULL) {
@@ -908,7 +908,7 @@ static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl)
     assert(decl->initializer != NULL);
 
     GlobalInitializer* gi = translate_initializer(decl->initializer);
-    add_normal_gvar(genv, decl->declarator->name_ref, gi);
+    add_normal_gvar(genv, decl->declarator->direct->name_ref, gi);
   }
 }
 
@@ -949,7 +949,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
     return;
   }
 
-  char* name    = head_ParamList(l)->decl->name_ref;
+  char* name    = head_ParamList(l)->decl->direct->name_ref;
   Type* ty      = get_TypeVec(f->type->params, nth);
   unsigned size = sizeof_ty(ty);
   new_var(env, name, size);
@@ -977,7 +977,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   new_exit_ret(env);
 
   Function* ir      = calloc(1, sizeof(Function));
-  ir->name          = strdup(ast->decl->name_ref);
+  ir->name          = strdup(ast->decl->direct->name_ref);
   ir->entry         = entry;
   ir->exit          = env->cur;
   ir->bb_count      = env->bb_count;

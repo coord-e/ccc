@@ -463,13 +463,20 @@ static Reg new_global(Env* env, const char* name) {
   return r;
 }
 
-static Reg new_string(Env* env, const char* str) {
-  unsigned i = length_GlobalVarVec(env->global_env->globals);
+static char* new_named_string(GlobalEnv* env, const char* str) {
+  unsigned i = length_GlobalVarVec(env->globals);
   // TODO: allocate accurate length of string
   char name[10];
   sprintf(name, "_s_%d", i);
-  add_string_gvar(env->global_env, name, str);
-  return new_global(env, name);
+  add_string_gvar(env, name, str);
+  return strdup(name);
+}
+
+static Reg new_string(Env* env, const char* str) {
+  char* name = new_named_string(env->global_env, str);
+  Reg r      = new_global(env, name);
+  free(name);
+  return r;
 }
 
 static Reg gen_expr(Env* env, Expr* node);
@@ -795,7 +802,26 @@ static void gen_stmt(Env* env, Statement* stmt) {
   }
 }
 
-static GlobalExpr* translate_initializer_expr(Expr* expr) {
+static GlobalExpr* translate_initializer_lhs(GlobalEnv* env, Expr* expr) {
+  switch (expr->kind) {
+    case ND_VAR: {
+      GlobalExpr* e = new_GlobalExpr(GE_NAME);
+      e->name       = strdup(expr->var);
+      return e;
+    }
+    case ND_STRING: {
+      GlobalExpr* e = new_GlobalExpr(GE_NAME);
+      e->name       = new_named_string(env, expr->string);
+      return e;
+    }
+    default:
+      error("global initializer element is not constant");
+  }
+}
+
+static GlobalExpr* translate_initializer_expr(GlobalEnv* env, Expr* expr) {
+  // TODO: Support more expressions
+  // TODO: Use the common evaluator with sema
   switch (expr->kind) {
     case ND_NUM: {
       GlobalExpr* e = new_GlobalExpr(GE_NUM);
@@ -810,19 +836,22 @@ static GlobalExpr* translate_initializer_expr(Expr* expr) {
     }
     case ND_CAST: {
       // TODO: strictly consider types in constant evaluation
-      GlobalExpr* e = translate_initializer_expr(expr->expr);
+      GlobalExpr* e = translate_initializer_expr(env, expr->expr);
       e->size       = to_data_size(sizeof_ty(expr->cast_type));
       return e;
     }
+    case ND_ADDR:
+    case ND_ADDR_ARY:
+      return translate_initializer_lhs(env, expr->expr);
     default:
-      CCC_UNREACHABLE;
+      error("global initializer element is not constant");
   }
 }
 
-static GlobalInitializer* translate_initializer(Initializer* init) {
+static GlobalInitializer* translate_initializer(GlobalEnv* env, Initializer* init) {
   switch (init->kind) {
     case IN_EXPR: {
-      GlobalExpr* e = translate_initializer_expr(init->expr);
+      GlobalExpr* e = translate_initializer_expr(env, init->expr);
       return single_GlobalInitializer(e);
     }
     case IN_LIST: {
@@ -832,7 +861,7 @@ static GlobalInitializer* translate_initializer(Initializer* init) {
       while (!is_nil_InitializerList(read_cur)) {
         Initializer* e = head_InitializerList(read_cur);
 
-        GlobalInitializer* elem = translate_initializer(e);
+        GlobalInitializer* elem = translate_initializer(env, e);
         gen_cur                 = append_GlobalInitializer(gen_cur, elem);
 
         read_cur = tail_InitializerList(read_cur);
@@ -907,7 +936,7 @@ static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl)
     // NOTE: `sema` ensured that all global declaration except `extern` has an initializer
     assert(decl->initializer != NULL);
 
-    GlobalInitializer* gi = translate_initializer(decl->initializer);
+    GlobalInitializer* gi = translate_initializer(genv, decl->initializer);
     add_normal_gvar(genv, decl->declarator->direct->name_ref, gi);
   }
 }

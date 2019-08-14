@@ -300,6 +300,12 @@ static Expr* new_cast_direct(Type* ty, Expr* opr) {
   return e;
 }
 
+// cast for lvals
+static Expr* new_lval_cast(Type* ty, Expr* opr) {
+  Expr* ptr_opr_c = new_cast_direct(ptr_to_ty(ty), new_node_addr(opr));
+  return new_node_deref(ptr_opr_c);
+}
+
 // p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
 // both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
 static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
@@ -327,8 +333,7 @@ static Expr* build_pointer_arith_assign(BinopKind op, Expr* ptr_opr, Expr* int_o
   Type* int_ty       = into_unsigned_ty(int_of_size_ty(sizeof_ty(ptr_opr->type)));
   unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
-  Expr* ptr_opr_c = new_cast_direct(ptr_to_ty(int_ty), new_node_addr(ptr_opr));
-  Expr* lhs       = new_node_deref(ptr_opr_c);
+  Expr* lhs = new_lval_cast(int_ty, ptr_opr);
   // TODO: Remove this explicit cast by arithmetic conversion
   Expr* int_opr_c = new_cast_direct(copy_Type(int_ty),
                                     new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
@@ -396,11 +401,15 @@ static Type* sema_expr(Env* env, Expr* expr);
 
 // perform an integer promotion, if required
 // caller has an ownership of returned `Type*`
-static Type* integer_promotion(Env* env, Expr* opr) {
+static Type* integer_promotion(Env* env, Expr* opr, bool is_lval) {
   Type* t = promoted_type(opr->type);
   if (t != NULL) {
     // TODO: shallow release rhs
-    *opr = *new_cast_direct(t, indirect(opr));
+    if (is_lval) {
+      *opr = *new_lval_cast(t, indirect(opr));
+    } else {
+      *opr = *new_cast_direct(t, indirect(opr));
+    }
     sema_expr(env, opr);
     return copy_Type(t);
   } else {
@@ -412,9 +421,10 @@ static Type* integer_promotion(Env* env, Expr* opr) {
 // and return a "common real type""
 // caller has an ownership of returned `Type*`
 // TODO: shallow release (entire function)
-static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2) {
-  Type* t1 = integer_promotion(env, e1);
-  Type* t2 = integer_promotion(env, e2);
+// TODO: improve the control flow (e1_is_*)
+static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2, bool e1_is_lval) {
+  Type* t1 = integer_promotion(env, e1, e1_is_lval);
+  Type* t2 = integer_promotion(env, e2, false);
 
   // assign types for ease (we need exprs and types to be paired later)
   e1->type = t1;
@@ -432,7 +442,11 @@ static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2) {
       return copy_Type(t1);
     } else {
       // t1 is lesser
-      *e1 = *new_cast_direct(copy_Type(t2), indirect(e1));
+      if (e1_is_lval) {
+        *e1 = *new_lval_cast(copy_Type(t2), indirect(e1));
+      } else {
+        *e1 = *new_cast_direct(copy_Type(t2), indirect(e1));
+      }
       sema_expr(env, e1);
       return copy_Type(t2);
     }
@@ -440,29 +454,50 @@ static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2) {
 
   Expr* signed_opr;
   Expr* unsigned_opr;
+  bool e1_is_signed;
   if (t1->is_signed) {
     signed_opr   = e1;
     unsigned_opr = e2;
+    e1_is_signed = true;
   } else {
     signed_opr   = e2;
     unsigned_opr = e1;
+    e1_is_signed = false;
   }
 
   if (compare_rank_ty(unsigned_opr->type, signed_opr->type) >= 0) {
-    *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), indirect(signed_opr));
+    if (e1_is_signed && e1_is_lval) {
+      *signed_opr = *new_lval_cast(copy_Type(unsigned_opr->type), indirect(signed_opr));
+    } else {
+      *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), indirect(signed_opr));
+    }
     sema_expr(env, signed_opr);
     return copy_Type(unsigned_opr->type);
   }
 
   if (is_representable_in_ty(unsigned_opr->type, signed_opr->type)) {
-    *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), indirect(unsigned_opr));
+    if (e1_is_signed && e1_is_lval) {
+      *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), indirect(unsigned_opr));
+    } else {
+      *unsigned_opr = *new_lval_cast(copy_Type(signed_opr->type), indirect(unsigned_opr));
+    }
     sema_expr(env, unsigned_opr);
     return copy_Type(signed_opr->type);
   }
 
-  Type* t       = to_unsigned_ty(signed_opr->type);
-  *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
-  *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
+  Type* t = to_unsigned_ty(signed_opr->type);
+  if (e1_is_lval) {
+    if (e1_is_signed) {
+      *signed_opr   = *new_lval_cast(t, indirect(signed_opr));
+      *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
+    } else {
+      *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
+      *unsigned_opr = *new_lval_cast(copy_Type(t), indirect(unsigned_opr));
+    }
+  } else {
+    *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
+    *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
+  }
   sema_expr(env, signed_opr);
   sema_expr(env, unsigned_opr);
   return copy_Type(t);
@@ -503,14 +538,8 @@ convertible:
   sema_expr(env, rhs);
 }
 
-static Type* sema_binop_simple(Env* env, BinopKind op, Expr* lhs, Expr* rhs) {
-  Type* lhs_ty = lhs->type;
-  Type* rhs_ty = rhs->type;
-
-  Type* conv_ty = NULL;
-  if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
-    conv_ty = arithmetic_conversion(env, lhs, rhs);
-  }
+static Type* sema_binop_simple(BinopKind op, Type* lhs_ty, Type* rhs_ty) {
+  // NOTE: arithmetic conversion should be performed
 
   switch (op) {
     case BINOP_ADD:
@@ -525,11 +554,11 @@ static Type* sema_binop_simple(Env* env, BinopKind op, Expr* lhs, Expr* rhs) {
     case BINOP_REM:
       should_integer(lhs_ty);
       should_integer(rhs_ty);
-      return conv_ty;
+      return copy_Type(lhs_ty);
     case BINOP_EQ:
     case BINOP_NE:
       if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
-        return conv_ty;
+        return copy_Type(lhs_ty);
       }
       should_pointer(lhs_ty);
       should_pointer(rhs_ty);
@@ -540,7 +569,7 @@ static Type* sema_binop_simple(Env* env, BinopKind op, Expr* lhs, Expr* rhs) {
     case BINOP_LT:
     case BINOP_LE:
       if (is_real_ty(lhs_ty) && is_real_ty(rhs_ty)) {
-        return conv_ty;
+        return copy_Type(lhs_ty);
       }
       should_pointer(lhs_ty);
       should_pointer(rhs_ty);
@@ -609,7 +638,10 @@ static Type* sema_binop(Env* env, Expr* expr) {
       }
       // fallthrouth
     default:
-      return sema_binop_simple(env, op, expr->lhs, expr->rhs);
+      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
+        arithmetic_conversion(env, expr->lhs, expr->rhs, false);
+      }
+      return sema_binop_simple(op, lhs, rhs);
   }
 }
 
@@ -621,11 +653,11 @@ static Type* sema_unaop(Env* env, Expr* e) {
     case UNAOP_POSITIVE:
     case UNAOP_INTEGER_NEG: {
       should_arithmetic(ty);
-      return integer_promotion(env, e->expr);
+      return integer_promotion(env, e->expr, false);
     }
     case UNAOP_BITWISE_NEG: {
       should_integer(ty);
-      return integer_promotion(env, e->expr);
+      return integer_promotion(env, e->expr, false);
     }
     default:
       CCC_UNREACHABLE;
@@ -687,7 +719,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
         default: {
           should_arithmetic(lhs_ty);
           should_arithmetic(rhs_ty);
-          sema_binop_simple(env, expr->binop, expr->lhs, expr->rhs);
+          arithmetic_conversion(env, expr->lhs, expr->rhs, true);
+          sema_binop_simple(expr->binop, lhs_ty, rhs_ty);
           assignment_conversion(env, lhs_ty, expr->rhs);
           t = copy_Type(lhs_ty);
           break;
@@ -718,7 +751,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       Type* else_ty = sema_expr(env, expr->else_);
       should_scalar(cond_ty);
       if (is_arithmetic_ty(then_ty) && is_arithmetic_ty(else_ty)) {
-        t = arithmetic_conversion(env, expr->then_, expr->else_);
+        t = arithmetic_conversion(env, expr->then_, expr->else_, false);
         break;
       }
       if (is_pointer_ty(then_ty) && is_pointer_ty(else_ty)) {

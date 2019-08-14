@@ -491,7 +491,15 @@ convertible:
 
 static Type* sema_expr(Env* env, Expr* expr);
 
-static Type* sema_binop_simple(BinopKind op, Type* lhs, Type* rhs) {
+static Type* sema_binop_simple(BinopKind op, Expr* lhs, Expr* rhs) {
+  Type* lhs_ty = lhs->type;
+  Type* rhs_ty = rhs->type;
+
+  Type* conv_ty = NULL;
+  if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
+    conv_ty = arithmetic_conversion(lhs, rhs);
+  }
+
   switch (op) {
     case BINOP_ADD:
     case BINOP_SUB:
@@ -503,29 +511,28 @@ static Type* sema_binop_simple(BinopKind op, Type* lhs, Type* rhs) {
     case BINOP_XOR:
     case BINOP_OR:
     case BINOP_REM:
-      should_integer(lhs);
-      should_integer(rhs);
-      // TODO: arithmetic conversion
-      return copy_Type(lhs);
+      should_integer(lhs_ty);
+      should_integer(rhs_ty);
+      return conv_ty;
     case BINOP_EQ:
     case BINOP_NE:
-      if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
-        return int_ty();
+      if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
+        return conv_ty;
       }
-      should_pointer(lhs);
-      should_pointer(rhs);
-      should_compatible(lhs->ptr_to, rhs->ptr_to);
+      should_pointer(lhs_ty);
+      should_pointer(rhs_ty);
+      should_compatible(lhs_ty->ptr_to, rhs_ty->ptr_to);
       return int_ty();
     case BINOP_GT:
     case BINOP_GE:
     case BINOP_LT:
     case BINOP_LE:
-      if (is_real_ty(lhs) && is_real_ty(rhs)) {
-        return int_ty();
+      if (is_real_ty(lhs_ty) && is_real_ty(rhs_ty)) {
+        return conv_ty;
       }
-      should_pointer(lhs);
-      should_pointer(rhs);
-      should_compatible(lhs->ptr_to, rhs->ptr_to);
+      should_pointer(lhs_ty);
+      should_pointer(rhs_ty);
+      should_compatible(lhs_ty->ptr_to, rhs_ty->ptr_to);
       return int_ty();
     default:
       CCC_UNREACHABLE;
@@ -590,7 +597,7 @@ static Type* sema_binop(Env* env, Expr* expr) {
       }
       // fallthrouth
     default:
-      return sema_binop_simple(op, lhs, rhs);
+      return sema_binop_simple(op, expr->lhs, expr->rhs);
   }
 }
 
@@ -602,13 +609,11 @@ static Type* sema_unaop(Env* env, Expr* e) {
     case UNAOP_POSITIVE:
     case UNAOP_INTEGER_NEG: {
       should_arithmetic(ty);
-      // TODO: integral promotion
-      return copy_Type(ty);
+      return integer_promotion(e->expr);
     }
     case UNAOP_BITWISE_NEG: {
       should_integer(ty);
-      // TODO: integral promotion
-      return copy_Type(ty);
+      return integer_promotion(e->expr);
     }
     default:
       CCC_UNREACHABLE;
@@ -625,7 +630,6 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
         expr->cast_type = translate_type_name(expr->cast_to);
       }
       // TODO: Check floating type
-      // TODO: arithmetic conversions
       should_scalar(ty);
       t = copy_Type(expr->cast_type);
       break;
@@ -640,9 +644,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     }
     case ND_ASSIGN: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
-      Type* rhs_ty = sema_expr(env, expr->rhs);
-      // TODO: type conversion
-      should_compatible(lhs_ty, rhs_ty);
+      sema_expr(env, expr->rhs);
+      assignment_conversion(lhs_ty, expr->rhs);
       t = copy_Type(lhs_ty);
       break;
     }
@@ -672,9 +675,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
         default: {
           should_arithmetic(lhs_ty);
           should_arithmetic(rhs_ty);
-          Type* r = sema_binop_simple(expr->binop, lhs_ty, rhs_ty);
-          // TODO: type conversion
-          should_compatible(lhs_ty, r);
+          sema_binop_simple(expr->binop, expr->lhs, expr->rhs);
+          assignment_conversion(lhs_ty, expr->rhs);
           t = copy_Type(lhs_ty);
           break;
         }
@@ -704,8 +706,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       Type* else_ty = sema_expr(env, expr->else_);
       should_scalar(cond_ty);
       if (is_arithmetic_ty(then_ty) && is_arithmetic_ty(else_ty)) {
-        // TODO: arithmetic conversion
-        t = copy_Type(then_ty);
+        t = arithmetic_conversion(expr->then_, expr->else_);
         break;
       }
       if (is_pointer_ty(then_ty) && is_pointer_ty(else_ty)) {
@@ -748,11 +749,11 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       }
 
       for (unsigned i = 0; i < num_args; i++) {
-        Expr* a    = get_ExprVec(expr->args, i);
-        Type* a_ty = sema_expr(env, a);
+        Expr* a = get_ExprVec(expr->args, i);
+        sema_expr(env, a);
         Type* p_ty = get_TypeVec(f->params, i);
 
-        should_compatible(a_ty, p_ty);
+        assignment_conversion(p_ty, a);
       }
 
       t = copy_Type(f->ret);
@@ -903,8 +904,8 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
         break;
       }
 
-      Type* ty = sema_expr(env, init->expr);
-      should_compatible(type, ty);
+      sema_expr(env, init->expr);
+      assignment_conversion(type, init->expr);
       break;
     }
     case IN_LIST: {
@@ -1002,8 +1003,8 @@ static void sema_stmt(Env* env, Statement* stmt) {
       if (stmt->expr == NULL) {
         should_compatible(env->ret_ty, void_ty());
       } else {
-        Type* t = sema_expr(env, stmt->expr);
-        should_compatible(env->ret_ty, t);
+        sema_expr(env, stmt->expr);
+        assignment_conversion(env->ret_ty, stmt->expr);
       }
       break;
     }

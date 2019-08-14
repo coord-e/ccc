@@ -275,9 +275,7 @@ static void extract_direct_declarator(DirectDeclarator* decl,
 // extract `Decalrator` and store the result to `name` and `type`
 // if `name` is NULL, this accepts abstract declarator
 static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
-  Type* ty;
-  extract_direct_declarator(decl->direct, base, name, &ty);
-  *type = ptrify(ty, decl->num_ptrs);
+  extract_direct_declarator(decl->direct, ptrify(base, decl->num_ptrs), name, type);
 }
 
 static Type* translate_type_name(TypeName* t) {

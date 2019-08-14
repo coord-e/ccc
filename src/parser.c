@@ -899,6 +899,7 @@ static ExternalDecl* external_declaration(TokenList** t) {
     // TODO: insufficient duplicated parsing of a declarator
     *t                       = save;
     InitDeclaratorList* list = init_declarator_list(t);
+    expect(t, TK_SEMICOLON);
 
     Declaration* decl = new_declaration(spec, list);
 

@@ -778,8 +778,26 @@ static void gen_stmt(Env* env, Statement* stmt) {
   }
 }
 
+static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl) {
+  if (env != NULL) {
+    new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
+  } else {
+    assert(genv != NULL);
+    add_normal_gvar(genv, decl->declarator->name_ref, decl->type);
+  }
+  // TODO: gen_initializer
+}
+
+static void gen_init_decl_list(Env* env, GlobalEnv* genv, InitDeclaratorList* l) {
+  if (is_nil_InitDeclaratorList(l)) {
+    return;
+  }
+  gen_init_declarator(env, genv, head_InitDeclaratorList(l));
+  gen_init_decl_list(env, genv, tail_InitDeclaratorList(l));
+}
+
 static void gen_decl(Env* env, Declaration* decl) {
-  new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
+  gen_init_decl_list(env, NULL, decl->declarators);
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -867,7 +885,7 @@ static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, Tra
     case EX_FUNC_DECL:
       return gen_TranslationUnit(genv, acc, tail);
     case EX_DECL:
-      add_normal_gvar(genv, d->decl->declarator->name_ref, d->decl->type);
+      gen_init_decl_list(NULL, genv, d->decl->declarators);
       return gen_TranslationUnit(genv, acc, tail);
     default:
       CCC_UNREACHABLE;

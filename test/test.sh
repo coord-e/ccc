@@ -380,4 +380,13 @@ expr 5 "(int)sizeof(\"abcd\")"
 expr 97 "(int)\"gyaa\"[2]"
 expr 0 "(int)\"hello\"[5]"
 
+# initializers
+items 10 "int a = 10; return a;"
+items 10  "int i = 10; int a[2] = {i, i}; return a[1];"
+items 30 "int a[3] = {10, 20, 30}; return a[2];"
+items 60 "int a[3] = {10, 20, 30}; int i = 0; int acc = 0; for (; i < 3; i++) acc += a[i]; return acc;"
+items 60 "int a[2][3] = {{10, 20, 30}, {40, 50, 60}}; return a[1][2];"
+items 18 "int a[4][3][2] = {{{1, 2}, {3, 4}, {5, 6}}, {{7, 8}, {9, 10}, {11, 12}}, {{13, 14}, {15, 16}, {17, 18}}}; return a[3][2][1];"
+items 21 "int a[3][2] = {{1, 2}, {3, 4}, {5, 6}}; int j = 0; int acc = 0; for (; j < 3; j++) { int i = 0; for (; i < 2; i++) acc += a[j][i]; } return acc;"
+
 echo OK

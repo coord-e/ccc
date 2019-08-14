@@ -392,13 +392,16 @@ static Expr* indirect(Expr* e) {
   return shallow_copy_node(e);
 }
 
+static Type* sema_expr(Env* env, Expr* expr);
+
 // perform an integer promotion, if required
 // caller has an ownership of returned `Type*`
-static Type* integer_promotion(Expr* opr) {
+static Type* integer_promotion(Env* env, Expr* opr) {
   Type* t = promoted_type(opr->type);
   if (t != NULL) {
     // TODO: shallow release rhs
     *opr = *new_cast_direct(t, indirect(opr));
+    sema_expr(env, opr);
     return copy_Type(t);
   } else {
     return copy_Type(opr->type);
@@ -409,9 +412,9 @@ static Type* integer_promotion(Expr* opr) {
 // and return a "common real type""
 // caller has an ownership of returned `Type*`
 // TODO: shallow release (entire function)
-static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
-  Type* t1 = integer_promotion(e1);
-  Type* t2 = integer_promotion(e2);
+static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2) {
+  Type* t1 = integer_promotion(env, e1);
+  Type* t2 = integer_promotion(env, e2);
 
   // assign types for ease (we need exprs and types to be paired later)
   e1->type = t1;
@@ -425,10 +428,12 @@ static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
     if (compare_rank_ty(t1, t2) > 0) {
       // t2 is lesser
       *e2 = *new_cast_direct(copy_Type(t1), indirect(e2));
+      sema_expr(env, e2);
       return copy_Type(t1);
     } else {
       // t1 is lesser
       *e1 = *new_cast_direct(copy_Type(t2), indirect(e1));
+      sema_expr(env, e1);
       return copy_Type(t2);
     }
   }
@@ -445,24 +450,28 @@ static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
 
   if (compare_rank_ty(unsigned_opr->type, signed_opr->type) >= 0) {
     *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), indirect(signed_opr));
+    sema_expr(env, signed_opr);
     return copy_Type(unsigned_opr->type);
   }
 
   if (is_representable_in_ty(unsigned_opr->type, signed_opr->type)) {
     *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), indirect(unsigned_opr));
+    sema_expr(env, unsigned_opr);
     return copy_Type(signed_opr->type);
   }
 
   Type* t       = to_unsigned_ty(signed_opr->type);
   *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
   *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
+  sema_expr(env, signed_opr);
+  sema_expr(env, unsigned_opr);
   return copy_Type(t);
 }
 
 // conversion as if by assignment
 // conversion is simplified to a cast expression
 // mainly this performs the complex constraint check of assignment
-static void assignment_conversion(Type* lhs_ty, Expr* rhs) {
+static void assignment_conversion(Env* env, Type* lhs_ty, Expr* rhs) {
   // TODO: check qualifiers
   // TODO: check structs
   // TODO: check _Bool
@@ -491,17 +500,16 @@ static void assignment_conversion(Type* lhs_ty, Expr* rhs) {
 convertible:
   // TODO: shallow release
   *rhs = *new_cast_direct(copy_Type(lhs_ty), indirect(rhs));
+  sema_expr(env, rhs);
 }
 
-static Type* sema_expr(Env* env, Expr* expr);
-
-static Type* sema_binop_simple(BinopKind op, Expr* lhs, Expr* rhs) {
+static Type* sema_binop_simple(Env* env, BinopKind op, Expr* lhs, Expr* rhs) {
   Type* lhs_ty = lhs->type;
   Type* rhs_ty = rhs->type;
 
   Type* conv_ty = NULL;
   if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
-    conv_ty = arithmetic_conversion(lhs, rhs);
+    conv_ty = arithmetic_conversion(env, lhs, rhs);
   }
 
   switch (op) {
@@ -601,7 +609,7 @@ static Type* sema_binop(Env* env, Expr* expr) {
       }
       // fallthrouth
     default:
-      return sema_binop_simple(op, expr->lhs, expr->rhs);
+      return sema_binop_simple(env, op, expr->lhs, expr->rhs);
   }
 }
 
@@ -613,11 +621,11 @@ static Type* sema_unaop(Env* env, Expr* e) {
     case UNAOP_POSITIVE:
     case UNAOP_INTEGER_NEG: {
       should_arithmetic(ty);
-      return integer_promotion(e->expr);
+      return integer_promotion(env, e->expr);
     }
     case UNAOP_BITWISE_NEG: {
       should_integer(ty);
-      return integer_promotion(e->expr);
+      return integer_promotion(env, e->expr);
     }
     default:
       CCC_UNREACHABLE;
@@ -649,7 +657,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     case ND_ASSIGN: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
       sema_expr(env, expr->rhs);
-      assignment_conversion(lhs_ty, expr->rhs);
+      assignment_conversion(env, lhs_ty, expr->rhs);
       t = copy_Type(lhs_ty);
       break;
     }
@@ -679,8 +687,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
         default: {
           should_arithmetic(lhs_ty);
           should_arithmetic(rhs_ty);
-          sema_binop_simple(expr->binop, expr->lhs, expr->rhs);
-          assignment_conversion(lhs_ty, expr->rhs);
+          sema_binop_simple(env, expr->binop, expr->lhs, expr->rhs);
+          assignment_conversion(env, lhs_ty, expr->rhs);
           t = copy_Type(lhs_ty);
           break;
         }
@@ -710,7 +718,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       Type* else_ty = sema_expr(env, expr->else_);
       should_scalar(cond_ty);
       if (is_arithmetic_ty(then_ty) && is_arithmetic_ty(else_ty)) {
-        t = arithmetic_conversion(expr->then_, expr->else_);
+        t = arithmetic_conversion(env, expr->then_, expr->else_);
         break;
       }
       if (is_pointer_ty(then_ty) && is_pointer_ty(else_ty)) {
@@ -757,7 +765,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
         sema_expr(env, a);
         Type* p_ty = get_TypeVec(f->params, i);
 
-        assignment_conversion(p_ty, a);
+        assignment_conversion(env, p_ty, a);
       }
 
       t = copy_Type(f->ret);
@@ -908,7 +916,7 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
       }
 
       sema_expr(env, init->expr);
-      assignment_conversion(type, init->expr);
+      assignment_conversion(env, type, init->expr);
       break;
     }
     case IN_LIST: {
@@ -1007,7 +1015,7 @@ static void sema_stmt(Env* env, Statement* stmt) {
         should_compatible(env->ret_ty, void_ty());
       } else {
         sema_expr(env, stmt->expr);
-        assignment_conversion(env->ret_ty, stmt->expr);
+        assignment_conversion(env, env->ret_ty, stmt->expr);
       }
       break;
     }

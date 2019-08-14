@@ -444,5 +444,7 @@ int main(int argc, char** argv) {
   return (int)sizeof(strs) + (int)strs[3][2];
 }
 EOF
+items 10 "int a = 10, *b = &a; return *b;"
+items 10 "int a = 10, b[3] = {1, 2, a}; return b[2];"
 
 echo OK

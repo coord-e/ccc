@@ -250,10 +250,10 @@ static void extract_direct_declarator(DirectDeclarator* decl,
   switch (decl->kind) {
     case DE_DIRECT_ABSTRACT:
       assert(name == NULL);
-      *type = base;
+      *type = copy_Type(base);
       return;
     case DE_DIRECT:
-      *type = base;
+      *type = copy_Type(base);
       if (name != NULL) {
         *name = decl->name;
       }

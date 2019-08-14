@@ -353,3 +353,29 @@ unsigned sizeof_ty(const Type* t) {
 Type* int_of_size_ty(unsigned size) {
   return new_int_Type(to_data_size(size), true);
 }
+
+// integer conversions
+
+// t1 > t2 -> positive
+// t1 < t2 -> negative
+// t1 = t2 -> zero
+int compare_rank_ty(const Type* t1, const Type* t2) {
+  assert(is_integer_ty(t1));
+  assert(is_integer_ty(t2));
+
+  // TODO: handle _Bool
+  return t1->size - t2->size;
+}
+
+bool is_representable_in_ty(const Type* t1, const Type* t2) {
+  assert(is_integer_ty(t1));
+  assert(is_integer_ty(t2));
+
+  if (t1->is_signed && !t2->is_signed) {
+    return false;
+  } else if (!t2->is_signed && t2->is_signed) {
+    return t1->size * 2 <= t2->size;
+  } else {
+    return t1->size <= t2->size;
+  }
+}

@@ -689,6 +689,7 @@ bool is_abstract_declarator(Declarator* d) {
 
 Initializer* new_Initializer(InitializerKind kind) {
   Initializer* init = calloc(1, sizeof(Initializer));
+  init->kind        = kind;
   init->expr        = NULL;
   init->list        = NULL;
   return init;

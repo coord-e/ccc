@@ -677,6 +677,7 @@ static Type* sema_expr(Env* env, Expr* e) {
   }
 }
 
+// `type` will be consumed
 static Initializer* build_empty_initializer(Type* type) {
   if (is_scalar_ty(type)) {
     Initializer* empty = new_Initializer(IN_EXPR);
@@ -698,7 +699,7 @@ static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l)
 
   for (unsigned i = 0; i < type->length; i++) {
     if (is_nil_InitializerList(cur)) {
-      Initializer* empty = build_empty_initializer(type->element);
+      Initializer* empty = build_empty_initializer(copy_Type(type->element));
       sema_initializer(env, type->element, empty);
 
       cur = snoc_InitializerList(empty, cur);
@@ -816,7 +817,7 @@ static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDe
   }
 
   if (is_global && decl->initializer == NULL) {
-    decl->initializer = build_empty_initializer(decl->type);
+    decl->initializer = build_empty_initializer(copy_Type(decl->type));
   }
 
   if (decl->initializer != NULL) {

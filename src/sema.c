@@ -670,6 +670,18 @@ static Type* sema_expr(Env* env, Expr* e) {
   }
 }
 
+static Initializer* build_empty_initializer(Type* type) {
+  if (is_scalar_ty(type)) {
+    Initializer* empty = new_Initializer(IN_EXPR);
+    empty->expr        = new_node_num(0);
+    return empty;
+  } else {
+    Initializer* empty = new_Initializer(IN_LIST);
+    empty->list        = nil_InitializerList();
+    return empty;
+  }
+}
+
 static void sema_initializer(Env* env, Type* type, Initializer* init);
 
 static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l) {
@@ -679,14 +691,7 @@ static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l)
 
   for (unsigned i = 0; i < type->length; i++) {
     if (is_nil_InitializerList(cur)) {
-      Initializer* empty;
-      if (is_scalar_ty(type->element)) {
-        empty       = new_Initializer(IN_EXPR);
-        empty->expr = new_node_num(0);
-      } else {
-        empty       = new_Initializer(IN_LIST);
-        empty->list = nil_InitializerList();
-      }
+      Initializer* empty = build_empty_initializer(type->element);
       sema_initializer(env, type->element, empty);
 
       cur = snoc_InitializerList(empty, cur);
@@ -789,9 +794,7 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
   }
 }
 
-// if `env` is not NULL, the variable is declared locally
-// otherwise, `genv` must not be NULL and the variable is declared globally
-static void sema_init_declarator(Env* env, GlobalEnv* genv, Type* base_ty, InitDeclarator* decl) {
+static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDeclarator* decl) {
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
@@ -799,30 +802,32 @@ static void sema_init_declarator(Env* env, GlobalEnv* genv, Type* base_ty, InitD
   should_complete(ty);
   decl->type = copy_Type(ty);
 
-  if (env != NULL) {
-    add_var(env, name, ty);
+  if (is_global) {
+    add_global(env->global, name, ty);
   } else {
-    assert(genv != NULL);
-    add_global(genv, name, ty);
+    add_var(env, name, ty);
+  }
+
+  if (is_global && decl->initializer == NULL) {
+    decl->initializer = build_empty_initializer(decl->type);
   }
 
   if (decl->initializer != NULL) {
-    sema_initializer(env != NULL ? env : fake_env(genv), decl->type, decl->initializer);
+    sema_initializer(env, decl->type, decl->initializer);
   }
 }
 
-// same condition as for `sema_init_declarator` applies
-static void sema_init_decl_list(Env* env, GlobalEnv* genv, Type* base_ty, InitDeclaratorList* l) {
+static void sema_init_decl_list(Env* env, bool is_global, Type* base_ty, InitDeclaratorList* l) {
   if (is_nil_InitDeclaratorList(l)) {
     return;
   }
-  sema_init_declarator(env, genv, base_ty, head_InitDeclaratorList(l));
-  sema_init_decl_list(env, genv, base_ty, tail_InitDeclaratorList(l));
+  sema_init_declarator(env, is_global, base_ty, head_InitDeclaratorList(l));
+  sema_init_decl_list(env, is_global, base_ty, tail_InitDeclaratorList(l));
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
   Type* base_ty = translate_base_type(decl->spec->base_type);
-  sema_init_decl_list(env, NULL, base_ty, decl->declarators);
+  sema_init_decl_list(env, false, base_ty, decl->declarators);
 }
 
 static void sema_items(Env* env, BlockItemList* l);
@@ -1011,7 +1016,8 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
     case EX_DECL: {
       Declaration* decl = d->decl;
       Type* base_ty     = translate_base_type(decl->spec->base_type);
-      sema_init_decl_list(NULL, global, base_ty, decl->declarators);
+      // TODO: check if the declaration is `extern`
+      sema_init_decl_list(fake_env(global), true, base_ty, decl->declarators);
       break;
     }
     default:

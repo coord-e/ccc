@@ -437,10 +437,12 @@ static void codegen_global_expr(FILE* p, GlobalExpr* expr) {
   }
 }
 
-static void codegen_global_init(FILE* p, GlobalInitializer* init) {
-  for (unsigned i = 0; i < length_GlobalInitializer(init); i++) {
-    codegen_global_expr(p, get_GlobalInitializer(init, i));
+static void codegen_global_init(FILE* p, GlobalInitializer* l) {
+  if (is_nil_GlobalInitializer(l)) {
+    return;
   }
+  codegen_global_expr(p, head_GlobalInitializer(l));
+  codegen_global_init(p, tail_GlobalInitializer(l));
 }
 
 static void codegen_globals(FILE* p, GlobalVarVec* vs) {

@@ -56,12 +56,30 @@ static void release_Function(Function* f) {
 
 DEFINE_LIST(release_Function, Function*, FunctionList)
 
-static GlobalVar* new_GlobalVar(GlobalVarKind kind, char* name) {
+static GlobalVar* new_GlobalVar(char* name, GlobalInitializer* init) {
   GlobalVar* v = calloc(1, sizeof(GlobalVar));
-  v->kind      = kind;
   v->name      = name;
+  v->init      = init;
   return v;
 }
+
+static GlobalExpr* new_GlobalExpr(GlobalExprKind kind) {
+  GlobalExpr* expr = calloc(1, sizeof(GlobalExpr));
+  expr->kind       = kind;
+  return expr;
+}
+
+static void release_GlobalExpr(GlobalExpr* expr) {
+  if (expr == NULL) {
+    return;
+  }
+
+  free(expr->lhs);
+  free(expr->string);
+  free(expr);
+}
+
+DEFINE_LIST(release_GlobalExpr, GlobalExpr*, GlobalInitializer)
 
 static void release_GlobalVar(GlobalVar* v) {
   if (v == NULL) {
@@ -92,16 +110,15 @@ static void release_GlobalEnv(GlobalEnv* env) {
   free(env);
 }
 
-static void add_normal_gvar(GlobalEnv* env, const char* name, Type* t) {
-  GlobalVar* gv = new_GlobalVar(GV_NORMAL, strdup(name));
-  gv->size      = sizeof_ty(t);
+static void add_normal_gvar(GlobalEnv* env, const char* name, GlobalInitializer* init) {
+  GlobalVar* gv = new_GlobalVar(strdup(name), init);
   push_GlobalVarVec(env->globals, gv);
 }
 
 static void add_string_gvar(GlobalEnv* env, const char* name, const char* str) {
-  GlobalVar* gv = new_GlobalVar(GV_STRING, strdup(name));
-  gv->string    = strdup(str);
-  push_GlobalVarVec(env->globals, gv);
+  GlobalExpr* expr = new_GlobalExpr(GE_STRING);
+  expr->string     = strdup(str);
+  add_normal_gvar(env, name, single_GlobalInitializer(expr));
 }
 
 typedef struct {
@@ -778,6 +795,44 @@ static void gen_stmt(Env* env, Statement* stmt) {
   }
 }
 
+static GlobalExpr* translate_initializer_expr(Expr* expr, Type* t) {
+  switch (expr->kind) {
+    case ND_NUM: {
+      GlobalExpr* e = new_GlobalExpr(GE_NUM);
+      e->num        = expr->num;
+      e->size       = to_data_size(sizeof_ty(expr->type));
+      return e;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static GlobalInitializer* translate_initializer(Initializer* init, Type* type) {
+  switch (init->kind) {
+    case IN_EXPR: {
+      GlobalExpr* e = translate_initializer_expr(init->expr, type);
+      return single_GlobalInitializer(e);
+    }
+    case IN_LIST: {
+      GlobalInitializer* new_init = nil_GlobalInitializer();
+      GlobalInitializer* gen_cur  = new_init;
+      InitializerList* read_cur   = init->list;
+      while (!is_nil_InitializerList(read_cur)) {
+        Initializer* e = head_InitializerList(read_cur);
+
+        GlobalInitializer* elem = translate_initializer(e, type->element);
+        gen_cur                 = append_GlobalInitializer(gen_cur, elem);
+
+        read_cur = tail_InitializerList(read_cur);
+      }
+      return new_init;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void gen_local_scalar_initializer(Env* env, Reg target, Initializer* init, Type* type) {
   assert(is_scalar_ty(type));
 
@@ -836,11 +891,13 @@ static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl)
     }
   } else {
     assert(genv != NULL);
-    add_normal_gvar(genv, decl->declarator->name_ref, decl->type);
 
-    if (decl->initializer != NULL) {
-      error("global initializer not supported");
-    }
+    // TODO: check `extern` definitions
+    // NOTE: `sema` ensured that all global declaration except `extern` has an initializer
+    assert(decl->initializer != NULL);
+
+    GlobalInitializer* gi = translate_initializer(decl->initializer, decl->type);
+    add_normal_gvar(genv, decl->declarator->name_ref, gi);
   }
 }
 

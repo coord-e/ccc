@@ -16,6 +16,7 @@ typedef struct {
   UIMap* named_labels;
   unsigned label_count;
   Statement* current_switch;
+  bool is_global_only;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
@@ -32,6 +33,14 @@ static Env* init_Env(GlobalEnv* global, Type* ret) {
   env->named_labels   = new_UIMap(32);
   env->label_count    = 0;
   env->current_switch = NULL;
+  env->is_global_only = false;
+  return env;
+}
+
+static Env* fake_env(GlobalEnv* global) {
+  Env* env            = calloc(1, sizeof(Env));
+  env->global         = global;
+  env->is_global_only = true;
   return env;
 }
 
@@ -103,7 +112,7 @@ static void set_default(Env* env, Statement* s) {
 
 static Type* get_var(Env* env, const char* name) {
   Type* ty;
-  if (!lookup_TypeMap(env->vars, name, &ty)) {
+  if (env->is_global_only || !lookup_TypeMap(env->vars, name, &ty)) {
     if (!lookup_TypeMap(env->global->names, name, &ty)) {
       error("undeclared identifier \"%s\"", name);
     }
@@ -798,7 +807,7 @@ static void sema_init_declarator(Env* env, GlobalEnv* genv, Type* base_ty, InitD
   }
 
   if (decl->initializer != NULL) {
-    sema_initializer(env, decl->type, decl->initializer);
+    sema_initializer(env != NULL ? env : fake_env(genv), decl->type, decl->initializer);
   }
 }
 

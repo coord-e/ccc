@@ -436,5 +436,13 @@ int main() {
   return (int)*ptr;
 }
 EOF
+items 3 "int a[] = {1, 2, 3}; return a[2];"
+try_ 137 <<EOF
+char *strs[] = {"hello", "world", "my", "initializers"};
+
+int main(int argc, char** argv) {
+  return (int)sizeof(strs) + (int)strs[3][2];
+}
+EOF
 
 echo OK

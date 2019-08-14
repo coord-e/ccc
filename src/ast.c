@@ -243,7 +243,9 @@ static void print_DirectDeclarator(FILE* p, DirectDeclarator* d) {
     case DE_ARRAY:
       print_DirectDeclarator(p, d->decl);
       fputs("[", p);
-      print_expr(p, d->length);
+      if (d->length != NULL) {
+        print_expr(p, d->length);
+      }
       fputs("]", p);
       break;
     default:

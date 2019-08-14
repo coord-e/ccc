@@ -697,7 +697,7 @@ static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l)
 
   InitializerList* cur = l;
 
-  for (unsigned i = 0; i < type->length; i++) {
+  for (unsigned i = 0; i < length_of_ty(type); i++) {
     if (is_nil_InitializerList(cur)) {
       Initializer* empty = build_empty_initializer(copy_Type(type->element));
       sema_initializer(env, type->element, empty);
@@ -734,7 +734,7 @@ static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
   assert(type->kind == TY_ARRAY);
 
   // string literal initializer
-  if (init->str_len > type->length) {
+  if (init->str_len > length_of_ty(type)) {
     error("initializer-string for char array is too long");
   }
 
@@ -743,7 +743,7 @@ static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
   InitializerList* list = nil_InitializerList();
   InitializerList* cur  = list;
 
-  for (unsigned i = 0; i < type->length; i++) {
+  for (unsigned i = 0; i < length_of_ty(type); i++) {
     Initializer* c_init = new_Initializer(IN_EXPR);
     // TODO: remove this explicit cast by conversion
     c_init->expr = new_cast_direct(char_ty(), new_node_num(*p));

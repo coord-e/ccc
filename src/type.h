@@ -82,6 +82,7 @@ bool is_scalar_ty(const Type*);
 bool is_array_ty(const Type*);
 bool is_function_ty(const Type*);
 bool is_complete_ty(const Type*);
+unsigned length_of_ty(const Type*);
 
 unsigned sizeof_ty(const Type*);
 Type* int_of_size_ty(unsigned);

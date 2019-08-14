@@ -673,7 +673,7 @@ static Type* sema_expr(Env* env, Expr* e) {
 static Initializer* build_empty_initializer(Type* type) {
   if (is_scalar_ty(type)) {
     Initializer* empty = new_Initializer(IN_EXPR);
-    empty->expr        = new_node_num(0);
+    empty->expr        = new_cast_direct(type, new_node_num(0));
     return empty;
   } else {
     Initializer* empty = new_Initializer(IN_LIST);

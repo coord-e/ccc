@@ -795,7 +795,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
   }
 }
 
-static GlobalExpr* translate_initializer_expr(Expr* expr, Type* t) {
+static GlobalExpr* translate_initializer_expr(Expr* expr) {
   switch (expr->kind) {
     case ND_NUM: {
       GlobalExpr* e = new_GlobalExpr(GE_NUM);
@@ -803,15 +803,26 @@ static GlobalExpr* translate_initializer_expr(Expr* expr, Type* t) {
       e->size       = to_data_size(sizeof_ty(expr->type));
       return e;
     }
+    case ND_STRING: {
+      GlobalExpr* e = new_GlobalExpr(GE_STRING);
+      e->string     = strdup(expr->string);
+      return e;
+    }
+    case ND_CAST: {
+      // TODO: strictly consider types in constant evaluation
+      GlobalExpr* e = translate_initializer_expr(expr->expr);
+      e->size       = to_data_size(sizeof_ty(expr->cast_type));
+      return e;
+    }
     default:
       CCC_UNREACHABLE;
   }
 }
 
-static GlobalInitializer* translate_initializer(Initializer* init, Type* type) {
+static GlobalInitializer* translate_initializer(Initializer* init) {
   switch (init->kind) {
     case IN_EXPR: {
-      GlobalExpr* e = translate_initializer_expr(init->expr, type);
+      GlobalExpr* e = translate_initializer_expr(init->expr);
       return single_GlobalInitializer(e);
     }
     case IN_LIST: {
@@ -821,7 +832,7 @@ static GlobalInitializer* translate_initializer(Initializer* init, Type* type) {
       while (!is_nil_InitializerList(read_cur)) {
         Initializer* e = head_InitializerList(read_cur);
 
-        GlobalInitializer* elem = translate_initializer(e, type->element);
+        GlobalInitializer* elem = translate_initializer(e);
         gen_cur                 = append_GlobalInitializer(gen_cur, elem);
 
         read_cur = tail_InitializerList(read_cur);
@@ -896,7 +907,7 @@ static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl)
     // NOTE: `sema` ensured that all global declaration except `extern` has an initializer
     assert(decl->initializer != NULL);
 
-    GlobalInitializer* gi = translate_initializer(decl->initializer, decl->type);
+    GlobalInitializer* gi = translate_initializer(decl->initializer);
     add_normal_gvar(genv, decl->declarator->name_ref, gi);
   }
 }

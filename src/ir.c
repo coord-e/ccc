@@ -778,33 +778,60 @@ static void gen_stmt(Env* env, Statement* stmt) {
   }
 }
 
-static void gen_local_initializer(Env* env, unsigned var, Initializer* init, Type* type) {
+static void gen_local_scalar_initializer(Env* env, Reg target, Initializer* init, Type* type) {
+  assert(is_scalar_ty(type));
+
+  Expr* expr;
+  switch (init->kind) {
+    case IN_EXPR:
+      expr = init->expr;
+      break;
+    case IN_LIST:
+      // NOTE: this structure of `init` is ensured in `sema`
+      expr = head_InitializerList(init->list)->expr;
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+  Reg r = gen_expr(env, expr);
+  new_store(env, target, r, datasize_of_node(expr));
+}
+
+static void gen_local_initializer(Env* env, Reg target, Initializer* init, Type* type);
+
+static void gen_local_array_initializer(Env* env, Reg target, Initializer* init, Type* type) {
+  if (init->kind != IN_LIST) {
+    error("array initializer must be an initializer list");
+  }
+
+  InitializerList* cur = init->list;
+  unsigned offset      = 0;
+  while (!is_nil_InitializerList(cur)) {
+    Initializer* ci = head_InitializerList(cur);
+    Reg r           = new_binop(env, BINOP_ADD, target, new_imm(env, offset, target.size));
+    gen_local_initializer(env, r, ci, type->element);
+    cur = tail_InitializerList(cur);
+    offset += sizeof_ty(type->element);
+  }
+}
+
+static void gen_local_initializer(Env* env, Reg target, Initializer* init, Type* type) {
   if (is_scalar_ty(type)) {
-    Expr* target;
-    switch (init->kind) {
-      case IN_EXPR:
-        target = init->expr;
-        break;
-      case IN_LIST:
-        // NOTE: this structure of `init` is ensured in `sema`
-        target = head_InitializerList(init->list)->expr;
-        break;
-      default:
-        CCC_UNREACHABLE;
-    }
-    Reg r = gen_expr(env, target);
-    new_stack_store(env, var, r, datasize_of_node(target));
+    gen_local_scalar_initializer(env, target, init, type);
+  } else if (is_array_ty(type)) {
+    gen_local_array_initializer(env, target, init, type);
   } else {
-    error("hmm");
+    CCC_UNREACHABLE;
   }
 }
 
 static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl) {
   if (env != NULL) {
     unsigned var = new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
+    Reg r        = new_stack_addr(env, var);
 
     if (decl->initializer != NULL) {
-      gen_local_initializer(env, var, decl->initializer, decl->type);
+      gen_local_initializer(env, r, decl->initializer, decl->type);
     }
   } else {
     assert(genv != NULL);

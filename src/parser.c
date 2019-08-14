@@ -44,6 +44,32 @@ static bool try
 static Expr* expr(TokenList** t);
 static Expr* assign(TokenList** t);
 
+static DirectDeclarator* try_direct_declarator(TokenList** t, bool is_abstract) {
+  if (!is_abstract && head_of(t) != TK_IDENT) {
+    return NULL;
+  }
+
+  DirectDeclarator* base = new_DirectDeclarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
+  if (!is_abstract) {
+    base->name     = strdup(expect(t, TK_IDENT).ident);
+    base->name_ref = base->name;
+  }
+
+  DirectDeclarator* d = base;
+
+  while (head_of(t) == TK_LBRACKET) {
+    consume(t);
+    DirectDeclarator* ary = new_DirectDeclarator(DE_ARRAY);
+    ary->decl             = d;
+    ary->length           = assign(t);
+    ary->name_ref         = base->name;
+    expect(t, TK_RBRACKET);
+
+    d = ary;
+  }
+  return d;
+}
+
 static Declarator* try_declarator(TokenList** t, bool is_abstract) {
   TokenList* save = *t;
 
@@ -53,31 +79,13 @@ static Declarator* try_declarator(TokenList** t, bool is_abstract) {
     num_ptrs++;
   }
 
-  if (!is_abstract && head_of(t) != TK_IDENT) {
+  DirectDeclarator* d = try_direct_declarator(t, is_abstract);
+  if (d == NULL) {
     *t = save;
     return NULL;
   }
 
-  Declarator* base = new_Declarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
-  base->num_ptrs   = num_ptrs;
-  if (!is_abstract) {
-    base->name     = strdup(expect(t, TK_IDENT).ident);
-    base->name_ref = base->name;
-  }
-
-  Declarator* d = base;
-
-  while (head_of(t) == TK_LBRACKET) {
-    consume(t);
-    Declarator* ary = new_Declarator(DE_ARRAY);
-    ary->decl       = d;
-    ary->length     = assign(t);
-    ary->name_ref   = base->name;
-    expect(t, TK_RBRACKET);
-
-    d = ary;
-  }
-  return d;
+  return new_Declarator(d, num_ptrs);
 }
 
 static Declarator* declarator(TokenList** t, bool is_abstract) {
@@ -154,13 +162,111 @@ static TypeName* try_type_name(TokenList** t) {
   return new_TypeName(s, dor);
 }
 
+static InitializerList* try_initializer_list(TokenList** t);
+
+static Initializer* try_initializer(TokenList** t) {
+  if (head_of(t) != TK_LBRACE) {
+    Initializer* init = new_Initializer(IN_EXPR);
+    init->expr        = assign(t);
+    return init;
+  }
+
+  expect(t, TK_LBRACE);
+  InitializerList* list = try_initializer_list(t);
+  if (list == NULL) {
+    return NULL;
+  }
+  expect(t, TK_RBRACE);
+
+  Initializer* init = new_Initializer(IN_LIST);
+  init->list        = list;
+  return init;
+}
+
+static Initializer* initializer(TokenList** t) {
+  Initializer* init = try_initializer(t);
+  if (init == NULL) {
+    error("could not parse initializer");
+  }
+  return init;
+}
+
+static InitializerList* try_initializer_list(TokenList** t) {
+  TokenList* save = *t;
+
+  InitializerList* cur  = nil_InitializerList();
+  InitializerList* list = cur;
+
+  if (head_of(t) == TK_RBRACE) {
+    return list;
+  }
+
+  do {
+    Initializer* init = try_initializer(t);
+    if (init == NULL) {
+      *t = save;
+      return NULL;
+    }
+
+    cur = snoc_InitializerList(init, cur);
+  } while (try (t, TK_COMMA));
+
+  return list;
+}
+
+static InitDeclarator* try_init_declarator(TokenList** t) {
+  Declarator* decl = try_declarator(t, false);
+  if (decl == NULL) {
+    return NULL;
+  }
+
+  Initializer* init = NULL;
+  if (head_of(t) == TK_EQUAL) {
+    consume(t);
+    init = initializer(t);
+  }
+
+  return new_InitDeclarator(decl, init);
+}
+
+static InitDeclaratorList* try_init_declarator_list(TokenList** t) {
+  TokenList* save = *t;
+
+  InitDeclaratorList* cur  = nil_InitDeclaratorList();
+  InitDeclaratorList* list = cur;
+
+  if (head_of(t) == TK_SEMICOLON) {
+    return list;
+  }
+
+  do {
+    InitDeclarator* init = try_init_declarator(t);
+    if (init == NULL) {
+      *t = save;
+      return NULL;
+    }
+
+    cur = snoc_InitDeclaratorList(init, cur);
+  } while (try (t, TK_COMMA));
+
+  return list;
+}
+
+static InitDeclaratorList* init_declarator_list(TokenList** t) {
+  InitDeclaratorList* list = try_init_declarator_list(t);
+  if (list == NULL) {
+    error("could not parse the init declarator list");
+  }
+  return list;
+}
+
 static Declaration* try_declaration(TokenList** t) {
   DeclarationSpecifiers* s = try_declaration_specifiers(t);
   if (s == NULL) {
     return NULL;
   }
 
-  Declarator* dor = try_declarator(t, false);
+  InitDeclaratorList* dor = try_init_declarator_list(t);
   if (dor == NULL) {
     return NULL;
   }
@@ -793,12 +899,17 @@ static ParamList* parameter_list(TokenList** t) {
 
 static ExternalDecl* external_declaration(TokenList** t) {
   DeclarationSpecifiers* spec = declaration_specifiers(t);
-  Declarator* d               = declarator(t, false);
+
+  TokenList* save = *t;
+  Declarator* d   = declarator(t, false);
 
   if (head_of(t) != TK_LPAREN) {
+    // TODO: insufficient duplicated parsing of a declarator
+    *t                       = save;
+    InitDeclaratorList* list = init_declarator_list(t);
     expect(t, TK_SEMICOLON);
 
-    Declaration* decl = new_declaration(spec, d);
+    Declaration* decl = new_declaration(spec, list);
 
     ExternalDecl* edecl = new_external_decl(EX_DECL);
     edecl->decl         = decl;

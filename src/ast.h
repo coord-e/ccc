@@ -40,23 +40,68 @@ typedef enum {
   DE_DIRECT_ABSTRACT,
   DE_DIRECT,
   DE_ARRAY,
-} DeclaratorKind;
+} DirectDeclKind;
 
-typedef struct Declarator Declarator;
+typedef struct DirectDeclarator DirectDeclarator;
 
-struct Declarator {
-  DeclaratorKind kind;
+struct DirectDeclarator {
+  DirectDeclKind kind;
   char* name_ref;  // not owned, NULL if this is abstract declarator
 
-  char* name;         // for DE_DIRECT, owned
-  unsigned num_ptrs;  // for DE_DIRECT, DE_DIRECT_ABSTRACT
+  char* name;  // for DE_DIRECT, owned
 
-  Declarator* decl;  // for DE_ARRAY, owned
-  Expr* length;      // for DE_ARRAY, owned
+  DirectDeclarator* decl;  // for DE_ARRAY, owned
+  Expr* length;            // for DE_ARRAY, owned
 };
 
-Declarator* new_Declarator(DeclaratorKind);
+DirectDeclarator* new_DirectDeclarator(DirectDeclKind);
+bool is_abstract_direct_declarator(DirectDeclarator*);
+
+typedef struct {
+  DirectDeclarator* direct;
+  unsigned num_ptrs;
+} Declarator;
+
+Declarator* new_Declarator(DirectDeclarator* direct, unsigned num_ptrs);
 bool is_abstract_declarator(Declarator*);
+
+typedef struct Initializer Initializer;
+
+DECLARE_LIST(Initializer*, InitializerList)
+
+typedef enum {
+  IN_EXPR,
+  IN_LIST,
+} InitializerKind;
+
+struct Initializer {
+  InitializerKind kind;
+  Expr* expr;             // for IN_EXPR, owned
+  InitializerList* list;  // for IN_LIST, owned
+};
+
+Initializer* new_Initializer(InitializerKind);
+
+typedef struct {
+  Declarator* declarator;    // owned
+  Initializer* initializer;  // owned, nullable
+
+  // will filled in `sema`
+  // NOTE: computed from declarator and declaration-specifier from declaration
+  Type* type;  // owned
+} InitDeclarator;
+
+DECLARE_LIST(InitDeclarator*, InitDeclaratorList)
+
+// NOTE: the second parameter can be NULL
+InitDeclarator* new_InitDeclarator(Declarator*, Initializer*);
+
+typedef struct {
+  DeclarationSpecifiers* spec;      // owned
+  InitDeclaratorList* declarators;  // owned
+} Declaration;
+
+Declaration* new_declaration(DeclarationSpecifiers* spec, InitDeclaratorList* list);
 
 typedef struct {
   DeclarationSpecifiers* spec;  // owned
@@ -64,12 +109,7 @@ typedef struct {
 
   // will filled in `sema`
   Type* type;  // owned
-} Declaration;
-
-Declaration* new_declaration(DeclarationSpecifiers* spec, Declarator* s);
-
-// type-name is declaration whose declarator is an abstract declarator
-typedef Declaration TypeName;
+} TypeName;
 
 TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s);
 

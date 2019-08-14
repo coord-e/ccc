@@ -380,4 +380,61 @@ expr 5 "(int)sizeof(\"abcd\")"
 expr 97 "(int)\"gyaa\"[2]"
 expr 0 "(int)\"hello\"[5]"
 
+# initializers
+items 10 "int a = 10; return a;"
+items 10  "int i = 10; int a[2] = {i, i}; return a[1];"
+items 30 "int a[3] = {10, 20, 30}; return a[2];"
+items 60 "int a[3] = {10, 20, 30}; int i = 0; int acc = 0; for (; i < 3; i++) acc += a[i]; return acc;"
+items 60 "int a[2][3] = {{10, 20, 30}, {40, 50, 60}}; return a[1][2];"
+items 3 "int a[4][1] = {{1}, {2}, {3}, {4}}; return a[2][0];"
+items 24 "int a[4][3][2] = {{{1, 2}, {3, 4}, {5, 6}}, {{7, 8}, {9, 10}, {11, 12}}, {{13, 14}, {15, 16}, {17, 18}}, {{19, 20}, {21, 22}, {23, 24}}}; return a[3][2][1];"
+items 21 "int a[3][2] = {{1, 2}, {3, 4}, {5, 6}}; int j = 0; int acc = 0; for (; j < 3; j++) { int i = 0; for (; i < 2; i++) acc += a[j][i]; } return acc;"
+items 108 "char s[6] = \"hello\"; return (int)s[3];"
+items 108 "char s[6] = {\"hello\"}; return (int)s[3];"
+items 108 "char *s = {\"hello\"}; return (int)s[3];"
+items 100 "char s[2][6] = {\"hello\", \"world\"}; return (int)s[1][4];"
+items 0 "char s[6] = {\"hello\"}; return (int)s[5];"
+items 0 "char s[10] = \"omg\"; return (int)s[3];"
+items 0 "int a[10] = {}; return a[5];"
+items 0 "int a[2][4] = {}; return a[1][2];"
+items 0 "int a[2][4] = {{1,2}, {2}}; return a[1][2];"
+try_ 21 <<EOF
+int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+
+int main(int argc, char** argv) {
+  int acc = 0;
+  int i = 0;
+  for (; i < 2; i++) {
+    int j = 0;
+    for (; j < 3; j++) {
+      acc += a[i][j];
+    }
+  }
+  return acc;
+}
+EOF
+try_ 0 <<EOF
+long a[2][4];
+
+int main(int argc, char** argv) {
+  return (int)a[1][3];
+}
+EOF
+try_ 114 <<EOF
+char *strings[4] = {"str1", "str2", "str3", "str4"};
+
+int main(int argc, char** argv) {
+  return (int)strings[3][2];
+}
+EOF
+try_ 10 <<EOF
+long v;
+long* ptr = &v;
+
+int main() {
+  v = (long)10;
+  return (int)*ptr;
+}
+EOF
+
 echo OK

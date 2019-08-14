@@ -403,24 +403,63 @@ static void codegen_functions(FILE* p, FunctionList* l) {
   codegen_functions(p, tail_FunctionList(l));
 }
 
+static void codegen_global_expr(FILE* p, GlobalExpr* expr) {
+  switch (expr->kind) {
+    case GE_ADD:
+      emit(p, ".quad %s + %ld", expr->lhs, expr->rhs);
+      break;
+    case GE_SUB:
+      emit(p, ".quad %s - %ld", expr->lhs, expr->rhs);
+      break;
+    case GE_NUM:
+      switch (expr->size) {
+        case SIZE_BYTE:
+          emit(p, ".byte %ld", expr->num);
+          break;
+        case SIZE_WORD:
+          emit(p, ".word %ld", expr->num);
+          break;
+        case SIZE_DWORD:
+          emit(p, ".int %ld", expr->num);
+          break;
+        case SIZE_QWORD:
+          emit(p, ".quad %ld", expr->num);
+          break;
+        default:
+          CCC_UNREACHABLE;
+      }
+      break;
+    case GE_STRING:
+      emit(p, ".string \"%s\"", expr->string);
+      break;
+    case GE_NAME:
+      emit(p, ".quad %s", expr->name);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void codegen_global_init(FILE* p, GlobalInitializer* l) {
+  if (is_nil_GlobalInitializer(l)) {
+    return;
+  }
+  codegen_global_expr(p, head_GlobalInitializer(l));
+  codegen_global_init(p, tail_GlobalInitializer(l));
+}
+
 static void codegen_globals(FILE* p, GlobalVarVec* vs) {
   for (unsigned i = 0; i < length_GlobalVarVec(vs); i++) {
     GlobalVar* v = get_GlobalVarVec(vs, i);
-    switch (v->kind) {
-      case GV_NORMAL:
-        emit(p, ".comm %s,%d", v->name, v->size);
-        break;
-      case GV_STRING:
-        emit_label(p, v->name);
-        emit(p, ".string \"%s\"", v->string);
-        break;
-    }
+    emit_label(p, v->name);
+    codegen_global_init(p, v->init);
   }
 }
 
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
-  emit(p, ".text");
+  emit(p, ".data");
   codegen_globals(p, ir->globals);
+  emit(p, ".text");
   codegen_functions(p, ir->functions);
 }

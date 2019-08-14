@@ -16,6 +16,7 @@ typedef struct {
   UIMap* named_labels;
   unsigned label_count;
   Statement* current_switch;
+  bool is_global_only;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
@@ -32,6 +33,14 @@ static Env* init_Env(GlobalEnv* global, Type* ret) {
   env->named_labels   = new_UIMap(32);
   env->label_count    = 0;
   env->current_switch = NULL;
+  env->is_global_only = false;
+  return env;
+}
+
+static Env* fake_env(GlobalEnv* global) {
+  Env* env            = calloc(1, sizeof(Env));
+  env->global         = global;
+  env->is_global_only = true;
   return env;
 }
 
@@ -103,7 +112,7 @@ static void set_default(Env* env, Statement* s) {
 
 static Type* get_var(Env* env, const char* name) {
   Type* ty;
-  if (!lookup_TypeMap(env->vars, name, &ty)) {
+  if (env->is_global_only || !lookup_TypeMap(env->vars, name, &ty)) {
     if (!lookup_TypeMap(env->global->names, name, &ty)) {
       error("undeclared identifier \"%s\"", name);
     }
@@ -234,34 +243,39 @@ static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic warning "-Wswitch"
 }
 
-// extract `Decalrator` and store the result to `name` and `type`
-// if `name` is NULL, this accepts abstract declarator
-static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
+static void extract_direct_declarator(DirectDeclarator* decl,
+                                      Type* base,
+                                      char** name,
+                                      Type** type) {
   switch (decl->kind) {
     case DE_DIRECT_ABSTRACT:
       assert(name == NULL);
-      *type = ptrify(base, decl->num_ptrs);
+      *type = base;
       return;
     case DE_DIRECT:
-      *type = ptrify(base, decl->num_ptrs);
+      *type = base;
       if (name != NULL) {
         *name = decl->name;
       }
       return;
     case DE_ARRAY: {
-      Type* ty;
-      extract_declarator(decl->decl, base, name, &ty);
       int length = eval_constant(decl->length);
       if (length <= 0) {
         error("invalid size of array: %d", length);
       }
 
-      *type = array_ty(ty, length);
+      extract_direct_declarator(decl->decl, array_ty(base, length), name, type);
       return;
     }
     default:
       CCC_UNREACHABLE;
   }
+}
+
+// extract `Decalrator` and store the result to `name` and `type`
+// if `name` is NULL, this accepts abstract declarator
+static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
+  extract_direct_declarator(decl->direct, ptrify(base, decl->num_ptrs), name, type);
 }
 
 static Type* translate_type_name(TypeName* t) {
@@ -663,15 +677,165 @@ static Type* sema_expr(Env* env, Expr* e) {
   }
 }
 
-static void sema_decl(Env* env, Declaration* decl) {
-  Type* base_ty = translate_base_type(decl->spec->base_type);
+// `type` will be consumed
+static Initializer* build_empty_initializer(Type* type) {
+  if (is_scalar_ty(type)) {
+    Initializer* empty = new_Initializer(IN_EXPR);
+    empty->expr        = new_cast_direct(type, new_node_num(0));
+    return empty;
+  } else {
+    Initializer* empty = new_Initializer(IN_LIST);
+    empty->list        = nil_InitializerList();
+    return empty;
+  }
+}
+
+static void sema_initializer(Env* env, Type* type, Initializer* init);
+
+static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l) {
+  assert(is_array_ty(type));
+
+  InitializerList* cur = l;
+
+  for (unsigned i = 0; i < type->length; i++) {
+    if (is_nil_InitializerList(cur)) {
+      Initializer* empty = build_empty_initializer(copy_Type(type->element));
+      sema_initializer(env, type->element, empty);
+
+      cur = snoc_InitializerList(empty, cur);
+      cur = tail_InitializerList(cur);  // set to be NULL again
+    } else {
+      Initializer* head = head_InitializerList(cur);
+      sema_initializer(env, type->element, head);
+
+      cur = tail_InitializerList(cur);
+    }
+  }
+}
+
+static void sema_scalar_initializer_list(Env* env, Type* type, InitializerList* l) {
+  if (is_nil_InitializerList(l)) {
+    error("scalar initializer cannot be empty");
+  }
+
+  Initializer* init = head_InitializerList(l);
+  if (init->kind != IN_EXPR) {
+    error("too many braces around scalar initializer");
+  }
+
+  sema_initializer(env, type, init);
+
+  if (!is_nil_InitializerList(tail_InitializerList(l))) {
+    error("excess elements in scalar initializer");
+  }
+}
+
+static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
+  assert(type->kind == TY_ARRAY);
+
+  // string literal initializer
+  if (init->str_len > type->length) {
+    error("initializer-string for char array is too long");
+  }
+
+  // rewrite `= "hello"` to `= {'h', 'e', 'l', 'l', 'o', 0}`
+  char* p               = init->string;
+  InitializerList* list = nil_InitializerList();
+  InitializerList* cur  = list;
+
+  for (unsigned i = 0; i < type->length; i++) {
+    Initializer* c_init = new_Initializer(IN_EXPR);
+    // TODO: remove this explicit cast by conversion
+    c_init->expr = new_cast_direct(char_ty(), new_node_num(*p));
+    cur          = snoc_InitializerList(c_init, cur);
+
+    p++;
+  }
+
+  Initializer* new_init = new_Initializer(IN_LIST);
+  new_init->list        = list;
+  return new_init;
+}
+
+static bool is_char_array_ty(Type* type) {
+  return type->kind == TY_ARRAY && is_character_ty(type->element);
+}
+
+static void sema_string_initializer(Env* env, Type* type, Initializer* init, Expr* expr) {
+  // TODO: release rhs of the assignment
+  *init = *build_string_initializer(env, type, expr);
+  sema_initializer(env, type, init);
+}
+
+static void sema_initializer(Env* env, Type* type, Initializer* init) {
+  switch (init->kind) {
+    case IN_EXPR: {
+      if (is_char_array_ty(type) && init->expr->kind == ND_STRING) {
+        sema_string_initializer(env, type, init, init->expr);
+        break;
+      }
+
+      Type* ty = sema_expr(env, init->expr);
+      should_compatible(type, ty);
+      break;
+    }
+    case IN_LIST: {
+      // check string initializer
+      if (!is_nil_InitializerList(init->list)) {
+        Initializer* head = head_InitializerList(init->list);
+        if (is_char_array_ty(type) && is_single_InitializerList(init->list) &&
+            head->kind == IN_EXPR && head->expr->kind == ND_STRING) {
+          sema_string_initializer(env, type, init, head->expr);
+          break;
+        }
+      }
+
+      if (is_scalar_ty(type)) {
+        sema_scalar_initializer_list(env, type, init->list);
+      } else {
+        sema_aggr_initializer_list(env, type, init->list);
+      }
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDeclarator* decl) {
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
   // TODO: check linkage
   should_complete(ty);
   decl->type = copy_Type(ty);
-  add_var(env, name, ty);
+
+  if (is_global) {
+    add_global(env->global, name, ty);
+  } else {
+    add_var(env, name, ty);
+  }
+
+  if (is_global && decl->initializer == NULL) {
+    decl->initializer = build_empty_initializer(copy_Type(decl->type));
+  }
+
+  if (decl->initializer != NULL) {
+    sema_initializer(env, decl->type, decl->initializer);
+  }
+}
+
+static void sema_init_decl_list(Env* env, bool is_global, Type* base_ty, InitDeclaratorList* l) {
+  if (is_nil_InitDeclaratorList(l)) {
+    return;
+  }
+  sema_init_declarator(env, is_global, base_ty, head_InitDeclaratorList(l));
+  sema_init_decl_list(env, is_global, base_ty, tail_InitDeclaratorList(l));
+}
+
+static void sema_decl(Env* env, Declaration* decl) {
+  Type* base_ty = translate_base_type(decl->spec->base_type);
+  sema_init_decl_list(env, false, base_ty, decl->declarators);
 }
 
 static void sema_items(Env* env, BlockItemList* l);
@@ -860,13 +1024,8 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
     case EX_DECL: {
       Declaration* decl = d->decl;
       Type* base_ty     = translate_base_type(decl->spec->base_type);
-      char* name;
-      Type* ty;
-      extract_declarator(decl->declarator, base_ty, &name, &ty);
-      // TODO: check linkage
-      should_complete(ty);
-      decl->type = copy_Type(ty);
-      add_global(global, name, ty);
+      // TODO: check if the declaration is `extern`
+      sema_init_decl_list(fake_env(global), true, base_ty, decl->declarators);
       break;
     }
     default:

@@ -103,7 +103,7 @@ void print_Type(FILE* p, Type* ty) {
       }
       break;
     case TY_PTR:
-      fprintf(p, "*");
+      fprintf(p, "* ");
       print_Type(p, ty->ptr_to);
       break;
     case TY_FUNC:
@@ -113,8 +113,8 @@ void print_Type(FILE* p, Type* ty) {
       print_Type(p, ty->ret);
       break;
     case TY_ARRAY:
+      fprintf(p, "[%d] ", ty->length);
       print_Type(p, ty->element);
-      fprintf(p, "[%d]", ty->length);
       break;
     default:
       CCC_UNREACHABLE;
@@ -283,6 +283,10 @@ bool is_pointer_ty(const Type* t) {
 
 bool is_array_ty(const Type* t) {
   return t->kind == TY_ARRAY;
+}
+
+bool is_character_ty(const Type* t) {
+  return t->kind == TY_INT && t->size == SIZE_BYTE;
 }
 
 bool is_function_ty(const Type* t) {

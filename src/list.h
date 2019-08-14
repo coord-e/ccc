@@ -19,6 +19,7 @@
   Name* tail_##Name(const Name* list);                                                             \
   Name* last_##Name(Name* list);                                                                   \
   bool is_nil_##Name(const Name* list);                                                            \
+  bool is_single_##Name(const Name* list);                                                         \
   unsigned length_##Name(const Name* list);                                                        \
   void remove_##Name(Name* list);                                                                  \
   void insert_##Name(T value, Name* list);                                                         \
@@ -82,6 +83,7 @@
     return last_##Name(list->tail);                                                                \
   }                                                                                                \
   bool is_nil_##Name(const Name* list) { return list->is_nil; }                                    \
+  bool is_single_##Name(const Name* list) { return list->is_nil ? false : list->tail->is_nil; }    \
   unsigned length_##Name(const Name* list) {                                                       \
     if (list->is_nil) {                                                                            \
       return 0;                                                                                    \

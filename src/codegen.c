@@ -458,7 +458,8 @@ static void codegen_globals(FILE* p, GlobalVarVec* vs) {
 
 void codegen(FILE* p, IR* ir) {
   emit(p, ".intel_syntax noprefix");
-  emit(p, ".text");
+  emit(p, ".data");
   codegen_globals(p, ir->globals);
+  emit(p, ".text");
   codegen_functions(p, ir->functions);
 }

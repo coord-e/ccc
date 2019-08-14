@@ -144,17 +144,30 @@ typedef struct {
 DECLARE_LIST(Function*, FunctionList)
 
 typedef enum {
-  GV_NORMAL,
-  GV_STRING,
-} GlobalVarKind;
+  GE_ADD,
+  GE_SUB,
+  GE_NUM,
+  GE_STRING,
+} GlobalExprKind;
+
+// represent the constant data in asm
+typedef struct {
+  GlobalExprKind kind;
+
+  char* lhs;  // for GE_ADD, GE_SUB, owned
+  long rhs;   // ditto
+
+  long num;       // for GE_NUM
+  DataSize size;  // for GE_NUM
+
+  char* string;  // for GE_STRING
+} GlobalExpr;
+
+DECLARE_VECTOR(GlobalExpr, GlobalInitializer)
 
 typedef struct {
-  GlobalVarKind kind;
   char* name;  // owned
-
-  unsigned size;  // for GV_NORMAL
-
-  char* string;  // for GV_STRING
+  GlobalInitializer* init;
 } GlobalVar;
 
 DECLARE_VECTOR(GlobalVar*, GlobalVarVec)

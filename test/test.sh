@@ -447,4 +447,17 @@ EOF
 items 10 "int a = 10, *b = &a; return *b;"
 items 10 "int a = 10, b[3] = {1, 2, a}; return b[2];"
 
+# implicit conversions
+items 10 "long a = 10; return a;"
+items 10 "int a = (char)10; return a;"
+expr 4 "sizeof 4"
+try_ 10 <<EOF
+void* malloc(int);
+int main() {
+  char* b = malloc(2);
+  b[1] = 10;
+  return b[1];
+}
+EOF
+
 echo OK

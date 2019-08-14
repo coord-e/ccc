@@ -370,6 +370,32 @@ static Expr* build_decay(Expr* opr) {
   }
 }
 
+// calculate the resulting type of integer promotion
+// return NULL if no conversion is required
+static Type* promoted_type(Type* opr) {
+  if (!is_integer_ty(opr)) {
+    return NULL;
+  }
+  Type* int_ = int_ty();
+  if (compare_rank_ty(opr, int_) <= 0) {
+    if (is_representable_in_ty(opr, int_)) {
+      return int_;
+    } else {
+      return into_unsigned_ty(int_);
+    }
+  }
+  return NULL;
+}
+
+// perform an integer promotion, if required
+static void integer_promotion(Expr* opr) {
+  Type* t = promoted_type(opr->type);
+  if (t != NULL) {
+    // TODO: shallow release rhs
+    *opr = *new_cast_direct(t, opr);
+  }
+}
+
 static Type* sema_expr(Env* env, Expr* expr);
 
 static Type* sema_binop_simple(BinopKind op, Type* lhs, Type* rhs) {

@@ -85,6 +85,8 @@ bool is_function_ty(const Type*);
 bool is_complete_ty(const Type*);
 unsigned length_of_ty(const Type*);
 void set_length_ty(Type*, unsigned length);
+// check if t1 is representable in t2
+bool is_representable_in_ty(const Type* t1, const Type* t2);
 
 unsigned sizeof_ty(const Type*);
 Type* int_of_size_ty(unsigned);

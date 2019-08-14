@@ -249,14 +249,12 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
       }
       return;
     case DE_ARRAY: {
-      Type* ty;
-      extract_declarator(decl->decl, base, name, &ty);
       int length = eval_constant(decl->length);
       if (length <= 0) {
         error("invalid size of array: %d", length);
       }
 
-      *type = array_ty(ty, length);
+      extract_declarator(decl->decl, array_ty(base, length), name, type);
       return;
     }
     default:

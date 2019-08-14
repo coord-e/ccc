@@ -372,6 +372,7 @@ static Expr* build_decay(Expr* opr) {
 
 // calculate the resulting type of integer promotion
 // return NULL if no conversion is required
+// caller has an ownership of returned `Type*`
 static Type* promoted_type(Type* opr) {
   if (!is_integer_ty(opr)) {
     return NULL;
@@ -388,12 +389,70 @@ static Type* promoted_type(Type* opr) {
 }
 
 // perform an integer promotion, if required
-static void integer_promotion(Expr* opr) {
+// caller has an ownership of returned `Type*`
+static Type* integer_promotion(Expr* opr) {
   Type* t = promoted_type(opr->type);
   if (t != NULL) {
     // TODO: shallow release rhs
     *opr = *new_cast_direct(t, opr);
+    return copy_Type(t);
+  } else {
+    return copy_Type(opr->type);
   }
+}
+
+// perform an arithmetic conversion on two operands
+// and return a "common real type""
+// caller has an ownership of returned `Type*`
+// TODO: shallow release (entire function)
+static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
+  Type* t1 = integer_promotion(e1);
+  Type* t2 = integer_promotion(e2);
+
+  // assign types for ease (we need exprs and types to be paired later)
+  e1->type = t1;
+  e2->type = t2;
+
+  if (equal_to_Type(t1, t2)) {
+    return copy_Type(t1);
+  }
+
+  if (t1->is_signed == t2->is_signed) {
+    if (compare_rank_ty(t1, t2) > 0) {
+      // t2 is lesser
+      *e2 = *new_cast_direct(copy_Type(t1), e2);
+      return copy_Type(t1);
+    } else {
+      // t1 is lesser
+      *e1 = *new_cast_direct(copy_Type(t2), e1);
+      return copy_Type(t2);
+    }
+  }
+
+  Expr* signed_opr;
+  Expr* unsigned_opr;
+  if (t1->is_signed) {
+    signed_opr   = e1;
+    unsigned_opr = e2;
+  } else {
+    signed_opr   = e2;
+    unsigned_opr = e1;
+  }
+
+  if (compare_rank_ty(unsigned_opr->type, signed_opr->type) >= 0) {
+    *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), signed_opr);
+    return copy_Type(unsigned_opr->type);
+  }
+
+  if (is_representable_in_ty(unsigned_opr->type, signed_opr->type)) {
+    *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), unsigned_opr);
+    return copy_Type(signed_opr->type);
+  }
+
+  Type* t       = to_unsigned_ty(signed_opr->type);
+  *signed_opr   = *new_cast_direct(t, signed_opr);
+  *unsigned_opr = *new_cast_direct(copy_Type(t), unsigned_opr);
+  return copy_Type(t);
 }
 
 static Type* sema_expr(Env* env, Expr* expr);

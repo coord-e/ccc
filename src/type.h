@@ -89,4 +89,9 @@ void set_length_ty(Type*, unsigned length);
 unsigned sizeof_ty(const Type*);
 Type* int_of_size_ty(unsigned);
 
+// t1 > t2 -> positive
+// t1 < t2 -> negative
+// t1 = t2 -> zero
+int compare_rank_ty(const Type* t1, const Type* t2);
+
 #endif

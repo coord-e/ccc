@@ -397,6 +397,7 @@ items 0 "char s[6] = {\"hello\"}; return (int)s[5];"
 items 0 "char s[10] = \"omg\"; return (int)s[3];"
 items 0 "int a[10] = {}; return a[5];"
 items 0 "int a[2][4] = {}; return a[1][2];"
+items 0 "int a[2][4] = {{1,2}, {2}}; return a[1][2];"
 try_ 21 <<EOF
 int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
 
@@ -424,6 +425,15 @@ char *strings[4] = {"str1", "str2", "str3", "str4"};
 
 int main(int argc, char** argv) {
   return (int)strings[3][2];
+}
+EOF
+try_ 10 <<EOF
+long v;
+long* ptr = &v;
+
+int main() {
+  v = (long)10;
+  return (int)*ptr;
 }
 EOF
 

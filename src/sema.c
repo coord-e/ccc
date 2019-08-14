@@ -681,7 +681,12 @@ static void sema_scalar_initializer_list(Env* env, Type* type, InitializerList* 
     error("scalar initializer cannot be empty");
   }
 
-  sema_initializer(env, type, head_InitializerList(l));
+  Initializer* init = head_InitializerList(l);
+  if (init->kind != IN_EXPR) {
+    error("too many braces around scalar initializer");
+  }
+
+  sema_initializer(env, type, init);
 
   if (!is_nil_InitializerList(tail_InitializerList(l))) {
     error("excess elements in scalar initializer");
@@ -693,7 +698,8 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
     case IN_EXPR: {
       Type* ty = sema_expr(env, init->expr);
       should_compatible(type, ty);
-    } break;
+      break;
+    }
     case IN_LIST:
       if (is_scalar_ty(type)) {
         sema_scalar_initializer_list(env, type, init->list);

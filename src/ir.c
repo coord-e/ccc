@@ -778,14 +778,42 @@ static void gen_stmt(Env* env, Statement* stmt) {
   }
 }
 
+static void gen_local_initializer(Env* env, unsigned var, Initializer* init, Type* type) {
+  if (is_scalar_ty(type)) {
+    Expr* target;
+    switch (init->kind) {
+      case IN_EXPR:
+        target = init->expr;
+        break;
+      case IN_LIST:
+        // NOTE: this structure of `init` is ensured in `sema`
+        target = head_InitializerList(init->list)->expr;
+        break;
+      default:
+        CCC_UNREACHABLE;
+    }
+    Reg r = gen_expr(env, target);
+    new_stack_store(env, var, r, datasize_of_node(target));
+  } else {
+    error("hmm");
+  }
+}
+
 static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl) {
   if (env != NULL) {
-    new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
+    unsigned var = new_var(env, decl->declarator->name_ref, sizeof_ty(decl->type));
+
+    if (decl->initializer != NULL) {
+      gen_local_initializer(env, var, decl->initializer, decl->type);
+    }
   } else {
     assert(genv != NULL);
     add_normal_gvar(genv, decl->declarator->name_ref, decl->type);
+
+    if (decl->initializer != NULL) {
+      error("global initializer not supported");
+    }
   }
-  // TODO: gen_initializer
 }
 
 static void gen_init_decl_list(Env* env, GlobalEnv* genv, InitDeclaratorList* l) {

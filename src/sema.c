@@ -815,6 +815,18 @@ static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDe
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
+
+  if (ty->kind == TY_ARRAY && !ty->is_length_known && decl->initializer != NULL) {
+    // enable to guess the length of array!
+    if (decl->initializer->kind != IN_LIST) {
+      error("invalid initializer");
+    }
+
+    // TODO: it is expensive to calculate the length of list
+    unsigned length = length_InitializerList(decl->initializer->list);
+    set_length_ty(ty, length);
+  }
+
   // TODO: check linkage
   should_complete(ty);
   decl->type = copy_Type(ty);

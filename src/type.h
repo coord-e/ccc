@@ -84,6 +84,7 @@ bool is_array_ty(const Type*);
 bool is_function_ty(const Type*);
 bool is_complete_ty(const Type*);
 unsigned length_of_ty(const Type*);
+void set_length_ty(Type*, unsigned length);
 
 unsigned sizeof_ty(const Type*);
 Type* int_of_size_ty(unsigned);

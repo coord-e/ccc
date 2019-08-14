@@ -326,6 +326,13 @@ unsigned length_of_ty(const Type* ty) {
   return ty->length;
 }
 
+void set_length_ty(Type* ty, unsigned length) {
+  assert(ty->kind == TY_ARRAY);
+  assert(!ty->is_length_known);
+  ty->is_length_known = true;
+  ty->length          = length;
+}
+
 unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
     case TY_VOID:

@@ -397,5 +397,34 @@ items 0 "char s[6] = {\"hello\"}; return (int)s[5];"
 items 0 "char s[10] = \"omg\"; return (int)s[3];"
 items 0 "int a[10] = {}; return a[5];"
 items 0 "int a[2][4] = {}; return a[1][2];"
+try_ 21 <<EOF
+int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+
+int main(int argc, char** argv) {
+  int acc = 0;
+  int i = 0;
+  for (; i < 2; i++) {
+    int j = 0;
+    for (; j < 3; j++) {
+      acc += a[i][j];
+    }
+  }
+  return acc;
+}
+EOF
+try_ 0 <<EOF
+long a[2][4];
+
+int main(int argc, char** argv) {
+  return (int)a[1][3];
+}
+EOF
+try_ 114 <<EOF
+char *strings[4] = {"str1", "str2", "str3", "str4"};
+
+int main(int argc, char** argv) {
+  return (int)strings[3][2];
+}
+EOF
 
 echo OK

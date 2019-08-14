@@ -51,7 +51,7 @@ struct DirectDeclarator {
   char* name;  // for DE_DIRECT, owned
 
   DirectDeclarator* decl;  // for DE_ARRAY, owned
-  Expr* length;            // for DE_ARRAY, owned
+  Expr* length;            // for DE_ARRAY, owned, NULL if omitted
 };
 
 DirectDeclarator* new_DirectDeclarator(DirectDeclKind);

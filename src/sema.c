@@ -259,12 +259,20 @@ static void extract_direct_declarator(DirectDeclarator* decl,
       }
       return;
     case DE_ARRAY: {
-      int length = eval_constant(decl->length);
-      if (length <= 0) {
-        error("invalid size of array: %d", length);
+      Type* t;
+      if (decl->length != NULL) {
+        int length = eval_constant(decl->length);
+        if (length <= 0) {
+          error("invalid size of array: %d", length);
+        }
+
+        t         = array_ty(base, true);
+        t->length = length;
+      } else {
+        t = array_ty(base, false);
       }
 
-      extract_direct_declarator(decl->decl, array_ty(base, length), name, type);
+      extract_direct_declarator(decl->decl, t, name, type);
       return;
     }
     default:
@@ -601,7 +609,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       t = int_ty();
       break;
     case ND_STRING:
-      t = array_ty(char_ty(), expr->str_len + 1);
+      t         = array_ty(char_ty(), true);
+      t->length = expr->str_len + 1;
       break;
     case ND_CALL: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
@@ -697,7 +706,7 @@ static void sema_aggr_initializer_list(Env* env, Type* type, InitializerList* l)
 
   InitializerList* cur = l;
 
-  for (unsigned i = 0; i < type->length; i++) {
+  for (unsigned i = 0; i < length_of_ty(type); i++) {
     if (is_nil_InitializerList(cur)) {
       Initializer* empty = build_empty_initializer(copy_Type(type->element));
       sema_initializer(env, type->element, empty);
@@ -734,7 +743,7 @@ static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
   assert(type->kind == TY_ARRAY);
 
   // string literal initializer
-  if (init->str_len > type->length) {
+  if (init->str_len > length_of_ty(type)) {
     error("initializer-string for char array is too long");
   }
 
@@ -743,7 +752,7 @@ static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
   InitializerList* list = nil_InitializerList();
   InitializerList* cur  = list;
 
-  for (unsigned i = 0; i < type->length; i++) {
+  for (unsigned i = 0; i < length_of_ty(type); i++) {
     Initializer* c_init = new_Initializer(IN_EXPR);
     // TODO: remove this explicit cast by conversion
     c_init->expr = new_cast_direct(char_ty(), new_node_num(*p));
@@ -806,6 +815,18 @@ static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDe
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
+
+  if (ty->kind == TY_ARRAY && !ty->is_length_known && decl->initializer != NULL) {
+    // enable to guess the length of array!
+    if (decl->initializer->kind != IN_LIST) {
+      error("invalid initializer");
+    }
+
+    // TODO: it is expensive to calculate the length of list
+    unsigned length = length_InitializerList(decl->initializer->list);
+    set_length_ty(ty, length);
+  }
+
   // TODO: check linkage
   should_complete(ty);
   decl->type = copy_Type(ty);

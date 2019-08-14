@@ -691,20 +691,71 @@ static void sema_scalar_initializer_list(Env* env, Type* type, InitializerList* 
   }
 }
 
+static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
+  assert(type->kind == TY_ARRAY);
+
+  // string literal initializer
+  if (init->str_len > type->length) {
+    error("initializer-string for char array is too long");
+  }
+
+  // rewrite `= "hello"` to `= {'h', 'e', 'l', 'l', 'o', 0}`
+  char* p               = init->string;
+  InitializerList* list = nil_InitializerList();
+  InitializerList* cur  = list;
+
+  for (unsigned i = 0; i < type->length; i++) {
+    Initializer* c_init = new_Initializer(IN_EXPR);
+    // TODO: remove this explicit cast by conversion
+    c_init->expr = new_cast_direct(char_ty(), new_node_num(*p));
+    cur          = snoc_InitializerList(c_init, cur);
+
+    p++;
+  }
+
+  Initializer* new_init = new_Initializer(IN_LIST);
+  new_init->list        = list;
+  return new_init;
+}
+
+static bool is_char_array_ty(Type* type) {
+  return type->kind == TY_ARRAY && is_character_ty(type->element);
+}
+
+static void sema_string_initializer(Env* env, Type* type, Initializer* init, Expr* expr) {
+  // TODO: release rhs of the assignment
+  *init = *build_string_initializer(env, type, expr);
+  sema_initializer(env, type, init);
+}
+
 static void sema_initializer(Env* env, Type* type, Initializer* init) {
   switch (init->kind) {
     case IN_EXPR: {
+      if (is_char_array_ty(type) && init->expr->kind == ND_STRING) {
+        sema_string_initializer(env, type, init, init->expr);
+        break;
+      }
+
       Type* ty = sema_expr(env, init->expr);
       should_compatible(type, ty);
       break;
     }
-    case IN_LIST:
+    case IN_LIST: {
+      // check string initializer
+      Initializer* head = head_InitializerList(init->list);
+      if (is_char_array_ty(type) && is_single_InitializerList(init->list) &&
+          head->kind == IN_EXPR && head->expr->kind == ND_STRING) {
+        sema_string_initializer(env, type, init, head->expr);
+        break;
+      }
+
       if (is_scalar_ty(type)) {
         sema_scalar_initializer_list(env, type, init->list);
       } else {
         sema_aggr_initializer_list(env, type, init->list);
       }
       break;
+    }
     default:
       CCC_UNREACHABLE;
   }

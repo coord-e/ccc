@@ -285,6 +285,10 @@ bool is_array_ty(const Type* t) {
   return t->kind == TY_ARRAY;
 }
 
+bool is_character_ty(const Type* t) {
+  return t->kind == TY_INT && t->size == SIZE_BYTE;
+}
+
 bool is_function_ty(const Type* t) {
   return t->kind == TY_FUNC;
 }

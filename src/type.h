@@ -74,6 +74,7 @@ Type* into_unsigned_ty(Type*);
 
 bool is_arithmetic_ty(const Type*);
 bool is_integer_ty(const Type*);
+bool is_character_ty(const Type*);
 bool is_real_ty(const Type*);
 bool is_compatible_ty(const Type*, const Type*);
 bool is_pointer_ty(const Type*);

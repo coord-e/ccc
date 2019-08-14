@@ -389,5 +389,9 @@ items 60 "int a[2][3] = {{10, 20, 30}, {40, 50, 60}}; return a[1][2];"
 items 3 "int a[4][1] = {{1}, {2}, {3}, {4}}; return a[2][0];"
 items 24 "int a[4][3][2] = {{{1, 2}, {3, 4}, {5, 6}}, {{7, 8}, {9, 10}, {11, 12}}, {{13, 14}, {15, 16}, {17, 18}}, {{19, 20}, {21, 22}, {23, 24}}}; return a[3][2][1];"
 items 21 "int a[3][2] = {{1, 2}, {3, 4}, {5, 6}}; int j = 0; int acc = 0; for (; j < 3; j++) { int i = 0; for (; i < 2; i++) acc += a[j][i]; } return acc;"
+items 108 "char s[6] = \"hello\"; return (int)s[3];"
+items 108 "char s[6] = {\"hello\"}; return (int)s[3];"
+items 108 "char *s = {\"hello\"}; return (int)s[3];"
+items 100 "char s[2][6] = {\"hello\", \"world\"}; return (int)s[1][4];"
 
 echo OK

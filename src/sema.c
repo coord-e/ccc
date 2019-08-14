@@ -388,13 +388,17 @@ static Type* promoted_type(Type* opr) {
   return NULL;
 }
 
+static Expr* indirect(Expr* e) {
+  return shallow_copy_node(e);
+}
+
 // perform an integer promotion, if required
 // caller has an ownership of returned `Type*`
 static Type* integer_promotion(Expr* opr) {
   Type* t = promoted_type(opr->type);
   if (t != NULL) {
     // TODO: shallow release rhs
-    *opr = *new_cast_direct(t, opr);
+    *opr = *new_cast_direct(t, indirect(opr));
     return copy_Type(t);
   } else {
     return copy_Type(opr->type);
@@ -420,11 +424,11 @@ static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
   if (t1->is_signed == t2->is_signed) {
     if (compare_rank_ty(t1, t2) > 0) {
       // t2 is lesser
-      *e2 = *new_cast_direct(copy_Type(t1), e2);
+      *e2 = *new_cast_direct(copy_Type(t1), indirect(e2));
       return copy_Type(t1);
     } else {
       // t1 is lesser
-      *e1 = *new_cast_direct(copy_Type(t2), e1);
+      *e1 = *new_cast_direct(copy_Type(t2), indirect(e1));
       return copy_Type(t2);
     }
   }
@@ -440,18 +444,18 @@ static Type* arithmetic_conversion(Expr* e1, Expr* e2) {
   }
 
   if (compare_rank_ty(unsigned_opr->type, signed_opr->type) >= 0) {
-    *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), signed_opr);
+    *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), indirect(signed_opr));
     return copy_Type(unsigned_opr->type);
   }
 
   if (is_representable_in_ty(unsigned_opr->type, signed_opr->type)) {
-    *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), unsigned_opr);
+    *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), indirect(unsigned_opr));
     return copy_Type(signed_opr->type);
   }
 
   Type* t       = to_unsigned_ty(signed_opr->type);
-  *signed_opr   = *new_cast_direct(t, signed_opr);
-  *unsigned_opr = *new_cast_direct(copy_Type(t), unsigned_opr);
+  *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
+  *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
   return copy_Type(t);
 }
 
@@ -486,7 +490,7 @@ static void assignment_conversion(Type* lhs_ty, Expr* rhs) {
 
 convertible:
   // TODO: shallow release
-  *rhs = *new_cast_direct(copy_Type(lhs_ty), rhs);
+  *rhs = *new_cast_direct(copy_Type(lhs_ty), indirect(rhs));
 }
 
 static Type* sema_expr(Env* env, Expr* expr);
@@ -796,9 +800,8 @@ static Type* sema_expr(Env* env, Expr* e) {
   switch (ty->kind) {
     case TY_FUNC:
     case TY_ARRAY: {
-      Expr* copy = shallow_copy_node(e);
       // TODO: shallow release of rhs of this assignment
-      *e = *build_decay(copy);
+      *e = *build_decay(indirect(e));
       return sema_expr(env, e);
     }
     default:

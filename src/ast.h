@@ -79,6 +79,7 @@ typedef enum {
 typedef enum {
   DS_BASE,
   DS_STRUCT,
+  DS_ENUM,
   DS_TYPEDEF_NAME,
 } DeclarationSpecKind;
 
@@ -87,6 +88,7 @@ struct DeclarationSpecifiers {
 
   BaseType base_type;        // for DS_BASE
   StructSpecifier* struct_;  // for DS_STRUCT, owned
+  EnumSpecifier* enum_;      // for DS_ENUM, owned
 
   bool is_typedef;
   char* typedef_name;

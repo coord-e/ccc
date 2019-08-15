@@ -491,4 +491,22 @@ int main (/* no parameters. */) {
 // this is also a comment
 EOF
 
+
+# struct
+try_ 10 <<EOF
+struct A {
+  struct A* ptr;
+  int i;
+};
+
+void* calloc(int, int);
+
+int main(int argc, char** argv) {
+  struct A *a = calloc(1, sizeof(struct A));
+  a->i = 10;
+  a->ptr = a;
+  return a->ptr->ptr->ptr->ptr->ptr->i;
+}
+EOF
+
 echo OK

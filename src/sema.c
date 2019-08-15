@@ -885,8 +885,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
           should_arithmetic(rhs_ty);
           arithmetic_conversion(env, expr->lhs, expr->rhs, true);
           sema_binop_simple(expr->binop, expr->lhs, expr->rhs);
-          assignment_conversion(env, lhs_ty, expr->rhs);
-          t = copy_Type(lhs_ty);
+          assignment_conversion(env, expr->lhs->type, expr->rhs);
+          t = copy_Type(expr->lhs->type);
           break;
         }
       }

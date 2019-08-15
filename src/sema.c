@@ -76,6 +76,15 @@ static void add_global_tagged_struct(GlobalEnv* env, const char* name, Type* ty)
   insert_TypeMap(env->tagged_structs, name, ty);
 }
 
+static bool lookup_tagged_struct(Env* env, const char* name, Type** t) {
+  if (!lookup_TypeMap(env->tagged_structs, name, t)) {
+    if (!lookup_TypeMap(env->global->tagged_structs, name, t)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static unsigned new_label_id(Env* env) {
   return env->label_count++;
 }
@@ -312,12 +321,28 @@ static void translate_struct_declarations(Env* env,
 
 static Type* translate_struct_specifier(Env* env, StructSpecifier* spec) {
   switch (spec->kind) {
-    case SS_NAME:
-      return struct_ty(strdup(spec->tag), NULL, NULL);
+    case SS_NAME: {
+      Type* ty;
+      if (lookup_tagged_struct(env, spec->tag, &ty)) {
+        return copy_Type(ty);
+      } else {
+        return struct_ty(strdup(spec->tag), NULL, NULL);
+      }
+    }
     case SS_DECL: {
       StructTranslationEnv* senv = init_StructTranslationEnv();
       translate_struct_declarations(env, senv, spec->declarations);
-      return struct_ty(spec->tag == NULL ? NULL : strdup(spec->tag), senv->fields, senv->field_map);
+      if (spec->tag != NULL) {
+        Type* type = struct_ty(strdup(spec->tag), senv->fields, senv->field_map);
+        if (env->is_global_only) {
+          add_global_tagged_struct(env->global, spec->tag, copy_Type(type));
+        } else {
+          add_tagged_struct(env, spec->tag, copy_Type(type));
+        }
+        return type;
+      } else {
+        return struct_ty(NULL, senv->fields, senv->field_map);
+      }
     }
     default:
       CCC_UNREACHABLE;

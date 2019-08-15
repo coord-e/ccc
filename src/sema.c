@@ -506,7 +506,6 @@ static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2, bool e1_is_lval
 static void assignment_conversion(Env* env, Type* lhs_ty, Expr* rhs) {
   // TODO: check qualifiers
   // TODO: check structs
-  // TODO: check _Bool
   // TODO: check null pointer constant
   Type* rhs_ty = rhs->type;
 
@@ -522,6 +521,10 @@ static void assignment_conversion(Env* env, Type* lhs_ty, Expr* rhs) {
     if (lhs_ty->ptr_to->kind == TY_VOID || rhs_ty->ptr_to->kind == TY_VOID) {
       goto convertible;
     }
+  }
+
+  if (lhs_ty->kind == TY_BOOL && is_pointer_ty(rhs_ty)) {
+    goto convertible;
   }
 
   print_Type(stderr, rhs_ty);

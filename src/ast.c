@@ -242,8 +242,7 @@ void release_AST(AST* t) {
 // printer functions
 static void print_expr(FILE* p, Expr* expr);
 
-static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
-  BaseType b = s->base_type;
+static void print_BaseType(FILE* p, BaseType b) {
   if (b & BT_SIGNED) {
     fputs("signed ", p);
     b &= ~BT_SIGNED;  // clear
@@ -273,6 +272,53 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
       break;
     case BT_SHORT:
       fputs("short", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_Declarator(FILE* p, Declarator* d);
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d);
+
+DECLARE_LIST_PRINTER(DeclaratorList)
+DEFINE_LIST_PRINTER(print_Declarator, ",", "", DeclaratorList)
+
+static void print_StructDeclaration(FILE* p, StructDeclaration* decl) {
+  print_DeclarationSpecifiers(p, decl->spec);
+  fputs(" ", p);
+  print_DeclaratorList(p, decl->declarators);
+}
+
+DECLARE_LIST_PRINTER(StructDeclarationList)
+DEFINE_LIST_PRINTER(print_StructDeclaration, ";\n", ";\n", StructDeclarationList)
+
+static void print_StructSpecifier(FILE* p, StructSpecifier* s) {
+  switch (s->kind) {
+    case SS_NAME:
+      fprintf(p, "struct %s", s->tag);
+      break;
+    case SS_DECL:
+      fputs("struct ", p);
+      if (s->tag != NULL) {
+        fputs(s->tag, p);
+      }
+      fputs("{\n", p);
+      print_StructDeclarationList(p, s->declarations);
+      fputs("\n}", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d) {
+  switch (d->kind) {
+    case DS_BASE:
+      print_BaseType(p, d->base_type);
+      break;
+    case DS_STRUCT:
+      print_StructSpecifier(p, d->struct_);
       break;
     default:
       CCC_UNREACHABLE;

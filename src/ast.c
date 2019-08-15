@@ -326,6 +326,9 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d) {
     case DS_STRUCT:
       print_StructSpecifier(p, d->struct_);
       break;
+    case DS_TYPEDEF_NAME:
+      fprintf(p, "%s", d->typedef_name);
+      break;
     default:
       CCC_UNREACHABLE;
   }

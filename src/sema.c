@@ -7,6 +7,7 @@ DEFINE_MAP(release_Type, Type*, TypeMap)
 
 typedef struct {
   TypeMap* names;
+  TypeMap* tagged_structs;
 } GlobalEnv;
 
 typedef struct {
@@ -17,11 +18,13 @@ typedef struct {
   unsigned label_count;
   Statement* current_switch;
   bool is_global_only;
+  TypeMap* tagged_structs;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
-  GlobalEnv* env = calloc(1, sizeof(GlobalEnv));
-  env->names     = new_TypeMap(64);
+  GlobalEnv* env      = calloc(1, sizeof(GlobalEnv));
+  env->names          = new_TypeMap(64);
+  env->tagged_structs = new_TypeMap(64);
   return env;
 }
 
@@ -34,6 +37,7 @@ static Env* init_Env(GlobalEnv* global, Type* ret) {
   env->label_count    = 0;
   env->current_switch = NULL;
   env->is_global_only = false;
+  env->tagged_structs = new_TypeMap(16);
   return env;
 }
 
@@ -46,11 +50,13 @@ static Env* fake_env(GlobalEnv* global) {
 
 static void release_Env(Env* env) {
   release_TypeMap(env->vars);
+  release_TypeMap(env->tagged_structs);
   free(env);
 }
 
 static void release_GlobalEnv(GlobalEnv* env) {
   release_TypeMap(env->names);
+  release_TypeMap(env->tagged_structs);
   free(env);
 }
 
@@ -60,6 +66,14 @@ static void add_var(Env* env, const char* name, Type* ty) {
 
 static void add_global(GlobalEnv* env, const char* name, Type* ty) {
   insert_TypeMap(env->names, name, ty);
+}
+
+static void add_tagged_struct(Env* env, const char* name, Type* ty) {
+  insert_TypeMap(env->tagged_structs, name, ty);
+}
+
+static void add_global_tagged_struct(GlobalEnv* env, const char* name, Type* ty) {
+  insert_TypeMap(env->tagged_structs, name, ty);
 }
 
 static unsigned new_label_id(Env* env) {
@@ -245,6 +259,17 @@ static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic warning "-Wswitch"
 }
 
+static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* spec) {
+  switch (spec->kind) {
+    case DS_BASE:
+      return translate_base_type(spec->base_type);
+    case DS_STRUCT:
+      error("unimplemented");
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void extract_direct_declarator(DirectDeclarator* decl,
                                       Type* base,
                                       char** name,
@@ -288,8 +313,8 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
   extract_direct_declarator(decl->direct, ptrify(base, decl->num_ptrs), name, type);
 }
 
-static Type* translate_type_name(TypeName* t) {
-  Type* base_ty = translate_base_type(t->spec->base_type);
+static Type* translate_type_name(Env* env, TypeName* t) {
+  Type* base_ty = translate_declaration_specifiers(env, t->spec);
   Type* res;
   extract_declarator(t->declarator, base_ty, NULL, &res);
   return res;
@@ -688,7 +713,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     case ND_CAST: {
       Type* ty = sema_expr(env, expr->expr);
       if (expr->cast_type == NULL) {
-        expr->cast_type = translate_type_name(expr->cast_to);
+        expr->cast_type = translate_type_name(env, expr->cast_to);
       }
       // TODO: Check floating type
       should_scalar(ty);
@@ -831,7 +856,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       break;
     }
     case ND_SIZEOF_TYPE: {
-      Type* ty = translate_type_name(expr->sizeof_);
+      Type* ty = translate_type_name(env, expr->sizeof_);
 
       // TODO: shallow release of rhs of this assignment
       *expr = *new_node_num(sizeof_ty(ty));
@@ -1045,7 +1070,7 @@ static void sema_init_decl_list(Env* env, bool is_global, Type* base_ty, InitDec
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
-  Type* base_ty = translate_base_type(decl->spec->base_type);
+  Type* base_ty = translate_declaration_specifiers(env, decl->spec);
   sema_init_decl_list(env, false, base_ty, decl->declarators);
 }
 
@@ -1159,7 +1184,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
-    Type* base_ty    = translate_base_type(d->spec->base_type);
+    Type* base_ty    = translate_declaration_specifiers(env, d->spec);
     if (base_ty->kind == TY_VOID) {
       if (length_TypeVec(params) != 0 || !is_nil_ParamList(tail_ParamList(cur))) {
         error("void must be the first and only parameter if specified");
@@ -1191,7 +1216,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 }
 
 static void sema_function(GlobalEnv* global, FunctionDef* f) {
-  Type* base_ty = translate_base_type(f->spec->base_type);
+  Type* base_ty = translate_declaration_specifiers(fake_env(global), f->spec);
   Type* ret;
   char* name;
   extract_declarator(f->decl, base_ty, &name, &ret);
@@ -1222,7 +1247,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       break;
     case EX_FUNC_DECL: {
       FunctionDecl* f = d->func_decl;
-      Type* base_ty   = translate_base_type(f->spec->base_type);
+      Type* base_ty   = translate_declaration_specifiers(fake_env(global), f->spec);
       Type* ret;
       char* name;
       extract_declarator(f->decl, base_ty, &name, &ret);
@@ -1234,7 +1259,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
     }
     case EX_DECL: {
       Declaration* decl = d->decl;
-      Type* base_ty     = translate_base_type(decl->spec->base_type);
+      Type* base_ty     = translate_declaration_specifiers(fake_env(global), decl->spec);
       // TODO: check if the declaration is `extern`
       sema_init_decl_list(fake_env(global), true, base_ty, decl->declarators);
       break;

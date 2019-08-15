@@ -796,6 +796,25 @@ static Type* sema_unaop(Env* env, Expr* e) {
   }
 }
 
+// `ty` and return type is moved
+static Type* try_complete(Env* env, Type* ty) {
+  if (is_complete_ty(ty)) {
+    return ty;
+  }
+
+  if (ty->kind == TY_STRUCT) {
+    assert(ty->tag != NULL);
+
+    Type* comp;
+    if (lookup_tagged_struct(env, ty->tag, &comp)) {
+      release_Type(ty);
+      return copy_Type(comp);
+    }
+  }
+
+  return ty;
+}
+
 // returned `Type*` is reference to a data is owned by `expr`
 Type* sema_expr_raw(Env* env, Expr* expr) {
   Type* t;
@@ -986,8 +1005,8 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
   if (expr->type != NULL) {
     release_Type(expr->type);
   }
-  expr->type = t;
-  return t;
+  expr->type = try_complete(env, t);
+  return expr->type;
 }
 
 static Type* sema_expr(Env* env, Expr* e) {

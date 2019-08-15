@@ -448,6 +448,9 @@ void set_length_ty(Type* ty, unsigned length) {
 }
 
 unsigned sizeof_ty(const Type* t) {
+  if (!is_complete_ty(t)) {
+    error("unable to obtain the size of incomplete type");
+  }
   switch (t->kind) {
     case TY_VOID:
       return 1;

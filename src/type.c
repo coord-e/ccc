@@ -109,6 +109,9 @@ Type* copy_Type(const Type* ty) {
   if (ty->element != NULL) {
     new->element = copy_Type(ty->element);
   }
+  if (ty->tag != NULL) {
+    new->tag = strdup(ty->tag);
+  }
   if (ty->fields != NULL) {
     unsigned len = length_StringVec(ty->fields);
     new->fields  = new_StringVec(len);

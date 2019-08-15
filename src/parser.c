@@ -168,6 +168,7 @@ static Enumerator* enumerator(Env* env) {
   char* name  = strdup(expect(env, TK_IDENT).ident);
   Expr* value = NULL;
   if (head_of(env) == TK_EQUAL) {
+    consume(env);
     value = conditional(env);
   }
 
@@ -178,13 +179,11 @@ static EnumeratorList* enumerator_list(Env* env) {
   EnumeratorList* list = nil_EnumeratorList();
   EnumeratorList* cur  = list;
 
-  if (head_of(env) == TK_RBRACE) {
-    return list;
-  }
-
-  do {
+  while (head_of(env) != TK_RBRACE) {
     cur = snoc_EnumeratorList(enumerator(env), cur);
-  } while (try (env, TK_COMMA));
+    try
+      (env, TK_COMMA);
+  }
 
   return list;
 }

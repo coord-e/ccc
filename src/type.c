@@ -129,7 +129,7 @@ DECLARE_VECTOR_PRINTER(TypeVec)
 
 static void print_Field(FILE* p, Field* f) {
   print_Type(p, f->type);
-  fprintf(p, " %d", f->offset);
+  fprintf(p, ", offset %d;\n", f->offset);
 }
 
 DECLARE_MAP_PRINTER(FieldMap)

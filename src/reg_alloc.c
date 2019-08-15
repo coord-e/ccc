@@ -296,10 +296,10 @@ static void assign_reg_num(Env* env, BBList* l) {
   assign_reg_num(env, tail_BBList(l));
 }
 
-static void reg_alloc_function(unsigned num_regs, unsigned global_inst_count, Function* ir) {
+static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, Function* ir) {
   RegIntervals* ivs = ir->intervals;
   Env* env =
-      init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, global_inst_count, ivs);
+      init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, *global_inst_count, ivs);
   UIList* ordered_regs = sort_intervals(ivs);
 
   walk_regs(env, ordered_regs);
@@ -319,11 +319,14 @@ static void reg_alloc_function(unsigned num_regs, unsigned global_inst_count, Fu
     }
   }
   ir->real_reg_count = count_BitSet(ir->used_regs);
+  ir->stack_count    = env->stack_count;
+  ir->inst_count     = env->local_count;
+  *global_inst_count = env->global_count;
 
   release_Env(env);
 }
 
-static void reg_alloc_functions(unsigned num_regs, unsigned inst_count, FunctionList* l) {
+static void reg_alloc_functions(unsigned num_regs, unsigned* inst_count, FunctionList* l) {
   if (is_nil_FunctionList(l)) {
     return;
   }
@@ -334,5 +337,5 @@ static void reg_alloc_functions(unsigned num_regs, unsigned inst_count, Function
 }
 
 void reg_alloc(unsigned num_regs, IR* ir) {
-  reg_alloc_functions(num_regs, ir->inst_count, ir->functions);
+  reg_alloc_functions(num_regs, &ir->inst_count, ir->functions);
 }

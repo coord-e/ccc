@@ -209,6 +209,8 @@ static Type* translate_base_type(BaseType t) {
   switch (t) {
     case BT_VOID:
       return void_ty();
+    case BT_BOOL:
+      return bool_ty();
     case BT_SIGNED + BT_CHAR:
       return into_signed_ty(char_ty());
     case BT_CHAR:
@@ -304,6 +306,20 @@ static Expr* new_cast_direct(Type* ty, Expr* opr) {
 static Expr* new_lval_cast(Type* ty, Expr* opr) {
   Expr* ptr_opr_c = new_cast_direct(ptr_to_ty(ty), new_node_addr(opr));
   return new_node_deref(ptr_opr_c);
+}
+
+static Expr* build_conversion_to(Type* ty, Expr* opr, bool is_lval) {
+  Expr* target;
+  if (ty->kind == TY_BOOL) {
+    target = new_node_binop(BINOP_NE, opr, new_node_num(0));
+  } else {
+    target = opr;
+  }
+  if (is_lval) {
+    return new_lval_cast(ty, target);
+  } else {
+    return new_cast_direct(ty, target);
+  }
 }
 
 // p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
@@ -405,11 +421,7 @@ static Type* integer_promotion(Env* env, Expr* opr, bool is_lval) {
   Type* t = promoted_type(opr->type);
   if (t != NULL) {
     // TODO: shallow release rhs
-    if (is_lval) {
-      *opr = *new_lval_cast(t, indirect(opr));
-    } else {
-      *opr = *new_cast_direct(t, indirect(opr));
-    }
+    *opr = *build_conversion_to(t, indirect(opr), is_lval);
     sema_expr(env, opr);
     return copy_Type(t);
   } else {
@@ -437,16 +449,12 @@ static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2, bool e1_is_lval
   if (t1->is_signed == t2->is_signed) {
     if (compare_rank_ty(t1, t2) > 0) {
       // t2 is lesser
-      *e2 = *new_cast_direct(copy_Type(t1), indirect(e2));
+      *e2 = *build_conversion_to(copy_Type(t1), indirect(e2), false);
       sema_expr(env, e2);
       return copy_Type(t1);
     } else {
       // t1 is lesser
-      if (e1_is_lval) {
-        *e1 = *new_lval_cast(copy_Type(t2), indirect(e1));
-      } else {
-        *e1 = *new_cast_direct(copy_Type(t2), indirect(e1));
-      }
+      *e1 = *build_conversion_to(copy_Type(t2), indirect(e1), e1_is_lval);
       sema_expr(env, e1);
       return copy_Type(t2);
     }
@@ -466,37 +474,26 @@ static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2, bool e1_is_lval
   }
 
   if (compare_rank_ty(unsigned_opr->type, signed_opr->type) >= 0) {
-    if (e1_is_signed && e1_is_lval) {
-      *signed_opr = *new_lval_cast(copy_Type(unsigned_opr->type), indirect(signed_opr));
-    } else {
-      *signed_opr = *new_cast_direct(copy_Type(unsigned_opr->type), indirect(signed_opr));
-    }
+    *signed_opr = *build_conversion_to(copy_Type(unsigned_opr->type), indirect(signed_opr),
+                                       e1_is_signed && e1_is_lval);
     sema_expr(env, signed_opr);
     return copy_Type(unsigned_opr->type);
   }
 
   if (is_representable_in_ty(unsigned_opr->type, signed_opr->type)) {
-    if (e1_is_signed && e1_is_lval) {
-      *unsigned_opr = *new_cast_direct(copy_Type(signed_opr->type), indirect(unsigned_opr));
-    } else {
-      *unsigned_opr = *new_lval_cast(copy_Type(signed_opr->type), indirect(unsigned_opr));
-    }
+    *unsigned_opr = *build_conversion_to(copy_Type(signed_opr->type), indirect(unsigned_opr),
+                                         !(e1_is_signed && e1_is_lval));
     sema_expr(env, unsigned_opr);
     return copy_Type(signed_opr->type);
   }
 
   Type* t = to_unsigned_ty(signed_opr->type);
   if (e1_is_lval) {
-    if (e1_is_signed) {
-      *signed_opr   = *new_lval_cast(t, indirect(signed_opr));
-      *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
-    } else {
-      *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
-      *unsigned_opr = *new_lval_cast(copy_Type(t), indirect(unsigned_opr));
-    }
+    *signed_opr   = *build_conversion_to(t, indirect(signed_opr), e1_is_signed);
+    *unsigned_opr = *build_conversion_to(copy_Type(t), indirect(unsigned_opr), !e1_is_signed);
   } else {
-    *signed_opr   = *new_cast_direct(t, indirect(signed_opr));
-    *unsigned_opr = *new_cast_direct(copy_Type(t), indirect(unsigned_opr));
+    *signed_opr   = *build_conversion_to(t, indirect(signed_opr), false);
+    *unsigned_opr = *build_conversion_to(copy_Type(t), indirect(unsigned_opr), false);
   }
   sema_expr(env, signed_opr);
   sema_expr(env, unsigned_opr);
@@ -534,7 +531,7 @@ static void assignment_conversion(Env* env, Type* lhs_ty, Expr* rhs) {
 
 convertible:
   // TODO: shallow release
-  *rhs = *new_cast_direct(copy_Type(lhs_ty), indirect(rhs));
+  *rhs = *build_conversion_to(copy_Type(lhs_ty), indirect(rhs), false);
   sema_expr(env, rhs);
 }
 

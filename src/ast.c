@@ -219,6 +219,9 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
     case BT_INT:
       fputs("int", p);
       break;
+    case BT_BOOL:
+      fputs("_Bool", p);
+      break;
     case BT_LONG:
       fputs("long", p);
       break;

@@ -71,6 +71,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_SIGNED, cur);
   } else if (IS_SAME(init, "unsigned")) {
     return add_token(TK_UNSIGNED, cur);
+  } else if (IS_SAME(init, "_Bool")) {
+    return add_token(TK_BOOL, cur);
   } else if (IS_SAME(init, "sizeof")) {
     return add_token(TK_SIZEOF, cur);
   } else if (IS_SAME(init, "switch")) {
@@ -334,7 +336,7 @@ TokenList* tokenize(char* p) {
           // call of `add_number` updates p
           cur = add_number(&p, cur);
           continue;
-        } else if (isalpha(*p)) {
+        } else if (is_ident_char(*p)) {
           // call of `add_ident` updates p
           cur = add_ident(&p, cur);
           continue;
@@ -523,6 +525,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_UNSIGNED:
       fprintf(p, "(UNSIGNED)");
+      break;
+    case TK_BOOL:
+      fprintf(p, "(BOOL)");
       break;
     case TK_SIZEOF:
       fprintf(p, "(SIZEOF)");

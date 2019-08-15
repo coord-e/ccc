@@ -123,6 +123,10 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
         consume(t);
         s->base_type += BT_INT;
         break;
+      case TK_BOOL:
+        consume(t);
+        s->base_type += BT_BOOL;
+        break;
       case TK_CHAR:
         consume(t);
         s->base_type += BT_CHAR;

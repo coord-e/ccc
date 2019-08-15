@@ -79,6 +79,9 @@ void print_Type(FILE* p, Type* ty) {
     case TY_VOID:
       fprintf(p, "void");
       break;
+    case TY_BOOL:
+      fprintf(p, "_Bool");
+      break;
     case TY_INT:
       if (ty->is_signed) {
         fprintf(p, "signed ");
@@ -134,6 +137,7 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
   switch (a->kind) {
     case TY_VOID:
+    case TY_BOOL:
       return true;
     case TY_INT:
       return a->size == b->size && a->is_signed == b->is_signed;
@@ -192,6 +196,10 @@ Type* short_ty() {
 
 Type* void_ty() {
   return new_Type(TY_VOID);
+}
+
+Type* bool_ty() {
+  return new_Type(TY_BOOL);
 }
 
 Type* ptr_to_ty(Type* ty) {
@@ -253,24 +261,11 @@ Type* into_unsigned_ty(Type* t) {
 }
 
 bool is_arithmetic_ty(const Type* ty) {
-  switch (ty->kind) {
-    case TY_VOID:
-      return false;
-    case TY_INT:
-      return true;
-    case TY_PTR:
-      return false;
-    case TY_FUNC:
-      return false;
-    case TY_ARRAY:
-      return false;
-    default:
-      CCC_UNREACHABLE;
-  }
+  return is_integer_ty(ty);  // || is_floating_ty(ty);
 }
 
 bool is_real_ty(const Type* ty) {
-  return is_integer_ty(ty);
+  return is_integer_ty(ty);  // || is_real_floating_ty(ty);
 }
 
 bool is_compatible_ty(const Type* t1, const Type* t2) {
@@ -278,7 +273,7 @@ bool is_compatible_ty(const Type* t1, const Type* t2) {
 }
 
 bool is_integer_ty(const Type* t) {
-  return t->kind == TY_INT;
+  return t->kind == TY_INT || t->kind == TY_BOOL;
 }
 
 bool is_pointer_ty(const Type* t) {
@@ -306,6 +301,8 @@ bool is_complete_ty(const Type* ty) {
     case TY_VOID:
       return false;
     case TY_INT:
+      return true;
+    case TY_BOOL:
       return true;
     case TY_PTR:
       return true;
@@ -337,6 +334,8 @@ unsigned sizeof_ty(const Type* t) {
   switch (t->kind) {
     case TY_VOID:
       return 1;
+    case TY_BOOL:
+      return 1;
     case TY_INT:
       return from_data_size(t->size);
     case TY_PTR:
@@ -363,13 +362,30 @@ int compare_rank_ty(const Type* t1, const Type* t2) {
   assert(is_integer_ty(t1));
   assert(is_integer_ty(t2));
 
-  // TODO: handle _Bool
+  if (t1->kind == TY_BOOL && t2->kind == TY_BOOL) {
+    return 0;
+  } else if (t1->kind == TY_BOOL && t2->kind != TY_BOOL) {
+    return -1;
+  } else if (t1->kind != TY_BOOL && t2->kind == TY_BOOL) {
+    return 1;
+  }
+
   return t1->size - t2->size;
 }
 
 bool is_representable_in_ty(const Type* t1, const Type* t2) {
   assert(is_integer_ty(t1));
   assert(is_integer_ty(t2));
+
+  if (equal_to_Type(t1, t2)) {
+    return true;
+  }
+
+  if (t1->kind == TY_BOOL && t2->kind != TY_BOOL) {
+    return true;
+  } else if (t1->kind != TY_BOOL && t2->kind == TY_BOOL) {
+    return false;
+  }
 
   if (t1->is_signed && !t2->is_signed) {
     return false;

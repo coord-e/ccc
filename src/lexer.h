@@ -63,6 +63,7 @@ typedef enum {
   TK_VOID,
   TK_SIGNED,
   TK_UNSIGNED,
+  TK_BOOL,  // _Bool
   TK_SIZEOF,
   TK_SWITCH,
   TK_GOTO,

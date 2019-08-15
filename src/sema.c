@@ -295,6 +295,10 @@ static Type* translate_type_name(TypeName* t) {
   return res;
 }
 
+static bool is_null_pointer_constant(Expr* e) {
+  return e->kind == ND_NUM && e->num == 0;
+}
+
 // `new_node_cast`, but supply targetted `Type*` directly
 static Expr* new_cast_direct(Type* ty, Expr* opr) {
   Expr* e      = new_node_cast(NULL, opr);
@@ -506,7 +510,6 @@ static Type* arithmetic_conversion(Env* env, Expr* e1, Expr* e2, bool e1_is_lval
 static void assignment_conversion(Env* env, Type* lhs_ty, Expr* rhs) {
   // TODO: check qualifiers
   // TODO: check structs
-  // TODO: check null pointer constant
   Type* rhs_ty = rhs->type;
 
   if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
@@ -521,6 +524,10 @@ static void assignment_conversion(Env* env, Type* lhs_ty, Expr* rhs) {
     if (lhs_ty->ptr_to->kind == TY_VOID || rhs_ty->ptr_to->kind == TY_VOID) {
       goto convertible;
     }
+  }
+
+  if (is_pointer_ty(lhs_ty) && is_null_pointer_constant(rhs)) {
+    goto convertible;
   }
 
   if (lhs_ty->kind == TY_BOOL && is_pointer_ty(rhs_ty)) {
@@ -538,8 +545,11 @@ convertible:
   sema_expr(env, rhs);
 }
 
-static Type* sema_binop_simple(BinopKind op, Type* lhs_ty, Type* rhs_ty) {
-  // NOTE: arithmetic conversion should be performed
+static Type* sema_binop_simple(BinopKind op, Expr* lhs, Expr* rhs) {
+  // NOTE: arithmetic conversion should be performed before `sema_binop_simple`
+
+  Type* lhs_ty = lhs->type;
+  Type* rhs_ty = rhs->type;
 
   switch (op) {
     case BINOP_ADD:
@@ -559,6 +569,14 @@ static Type* sema_binop_simple(BinopKind op, Type* lhs_ty, Type* rhs_ty) {
     case BINOP_NE:
       if (is_arithmetic_ty(lhs_ty) && is_arithmetic_ty(rhs_ty)) {
         return copy_Type(lhs_ty);
+      }
+      if (is_pointer_ty(lhs_ty) && is_null_pointer_constant(rhs)) {
+        *rhs = *build_conversion_to(copy_Type(lhs_ty), indirect(rhs), false);
+        return int_ty();
+      }
+      if (is_pointer_ty(rhs_ty) && is_null_pointer_constant(lhs)) {
+        *lhs = *build_conversion_to(copy_Type(rhs_ty), indirect(lhs), false);
+        return int_ty();
       }
       should_pointer(lhs_ty);
       should_pointer(rhs_ty);
@@ -641,7 +659,7 @@ static Type* sema_binop(Env* env, Expr* expr) {
       if (is_arithmetic_ty(lhs) && is_arithmetic_ty(rhs)) {
         arithmetic_conversion(env, expr->lhs, expr->rhs, false);
       }
-      return sema_binop_simple(op, lhs, rhs);
+      return sema_binop_simple(op, expr->lhs, expr->rhs);
   }
 }
 
@@ -720,7 +738,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
           should_arithmetic(lhs_ty);
           should_arithmetic(rhs_ty);
           arithmetic_conversion(env, expr->lhs, expr->rhs, true);
-          sema_binop_simple(expr->binop, lhs_ty, rhs_ty);
+          sema_binop_simple(expr->binop, expr->lhs, expr->rhs);
           assignment_conversion(env, lhs_ty, expr->rhs);
           t = copy_Type(lhs_ty);
           break;
@@ -756,9 +774,18 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       }
       if (is_pointer_ty(then_ty) && is_pointer_ty(else_ty)) {
         should_compatible(then_ty, else_ty);
-        // TODO: handle null pointer constant
         // TODO: composite type
         t = copy_Type(then_ty);
+        break;
+      }
+      if (is_pointer_ty(then_ty) && is_null_pointer_constant(expr->else_)) {
+        *expr->else_ = *build_conversion_to(copy_Type(then_ty), indirect(expr->else_), false);
+        t            = copy_Type(then_ty);
+        break;
+      }
+      if (is_pointer_ty(else_ty) && is_null_pointer_constant(expr->then_)) {
+        *expr->then_ = *build_conversion_to(copy_Type(else_ty), indirect(expr->then_), false);
+        t            = copy_Type(else_ty);
         break;
       }
       // TODO: handle void

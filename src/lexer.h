@@ -67,6 +67,7 @@ typedef enum {
   TK_UNSIGNED,
   TK_BOOL,  // _Bool
   TK_STRUCT,
+  TK_TYPEDEF,
   TK_SIZEOF,
   TK_SWITCH,
   TK_GOTO,

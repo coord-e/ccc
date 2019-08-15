@@ -316,12 +316,18 @@ static void print_StructSpecifier(FILE* p, StructSpecifier* s) {
 }
 
 static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d) {
+  if (d->is_typedef) {
+    fputs("typedef ", p);
+  }
   switch (d->kind) {
     case DS_BASE:
       print_BaseType(p, d->base_type);
       break;
     case DS_STRUCT:
       print_StructSpecifier(p, d->struct_);
+      break;
+    case DS_TYPEDEF_NAME:
+      fprintf(p, "%s", d->typedef_name);
       break;
     default:
       CCC_UNREACHABLE;

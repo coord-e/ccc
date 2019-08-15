@@ -4,101 +4,143 @@
 #include <string.h>
 
 #include "error.h"
+#include "map.h"
 #include "ops.h"
 #include "parser.h"
 #include "util.h"
 
-static void consume(TokenList** t) {
-  *t = tail_TokenList(*t);
+typedef enum {
+  NAME_TYPEDEF,
+  NAME_VARIABLE,
+} NameKind;
+
+DECLARE_MAP(NameKind, NameMap)
+static void release_NameKind(NameKind k) {}
+static NameKind copy_NameKind(NameKind k) {
+  return k;
+}
+DEFINE_MAP(copy_NameKind, release_NameKind, NameKind, NameMap)
+
+typedef struct {
+  TokenList* cur;
+  NameMap* names;
+} Env;
+
+static Env* init_Env(TokenList* t) {
+  Env* env   = calloc(1, sizeof(Env));
+  env->cur   = t;
+  env->names = new_NameMap(64);
+  return env;
 }
 
-static Token consuming(TokenList** t) {
-  TokenList* p = *t;
-  consume(t);
+static void add_name(Env* env, const char* name, NameKind kind) {
+  insert_NameMap(env->names, name, kind);
+}
+
+static void release_Env(Env* env) {
+  release_NameMap(env->names);
+  free(env);
+}
+
+static bool is_typedef_name(Env* env, const char* name) {
+  NameKind k;
+  if (!lookup_NameMap(env->names, name, &k)) {
+    return false;
+  }
+  return k == NAME_TYPEDEF;
+}
+
+static void consume(Env* env) {
+  env->cur = tail_TokenList(env->cur);
+}
+
+static Token consuming(Env* env) {
+  TokenList* p = env->cur;
+  consume(env);
   return head_TokenList(p);
 }
 
-static Token expect(TokenList** t, TokenKind k) {
-  Token r = consuming(t);
+static Token expect(Env* env, TokenKind k) {
+  Token r = consuming(env);
   if (r.kind != k) {
     error("unexpected token");
   }
   return r;
 }
 
-static TokenKind head_of(TokenList** t) {
-  return head_TokenList(*t).kind;
+static TokenKind head_of(Env* env) {
+  return head_TokenList(env->cur).kind;
 }
 
-// if head_of(t) == k, consume it and return true.
+// if head_of(env) == k, consume it and return true.
 // otherwise, nothing is consumed and false is returned.
 static bool try
-  (TokenList** t, TokenKind k) {
-    if (head_of(t) == k) {
-      consume(t);
+  (Env* env, TokenKind k) {
+    if (head_of(env) == k) {
+      consume(env);
       return true;
     }
     return false;
   }
 
-static Expr* expr(TokenList** t);
-static Expr* assign(TokenList** t);
+static Expr* expr(Env* env);
+static Expr* assign(Env* env);
 
-static DirectDeclarator* try_direct_declarator(TokenList** t, bool is_abstract) {
-  if (!is_abstract && head_of(t) != TK_IDENT) {
+static DirectDeclarator* try_direct_declarator(Env* env, bool is_abstract) {
+  if (!is_abstract && head_of(env) != TK_IDENT) {
     return NULL;
   }
 
   DirectDeclarator* base = new_DirectDeclarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
   if (!is_abstract) {
-    base->name     = strdup(expect(t, TK_IDENT).ident);
+    base->name     = strdup(expect(env, TK_IDENT).ident);
     base->name_ref = base->name;
   }
 
   DirectDeclarator* d = base;
 
-  while (head_of(t) == TK_LBRACKET) {
-    consume(t);
+  while (head_of(env) == TK_LBRACKET) {
+    consume(env);
 
     Expr* length;
-    if (head_of(t) == TK_RBRACKET) {
+    if (head_of(env) == TK_RBRACKET) {
       // length omitted
       length = NULL;
     } else {
-      length = assign(t);
+      length = assign(env);
     }
 
     DirectDeclarator* ary = new_DirectDeclarator(DE_ARRAY);
     ary->decl             = d;
     ary->length           = length;
     ary->name_ref         = base->name;
-    expect(t, TK_RBRACKET);
+    expect(env, TK_RBRACKET);
 
     d = ary;
   }
   return d;
 }
 
-static Declarator* try_declarator(TokenList** t, bool is_abstract) {
-  TokenList* save = *t;
+static Declarator* try_declarator(Env* env, bool is_abstract) {
+  TokenList* save = env->cur;
 
   unsigned num_ptrs = 0;
-  while (head_of(t) == TK_STAR) {
-    consume(t);
+  while (head_of(env) == TK_STAR) {
+    consume(env);
     num_ptrs++;
   }
 
-  DirectDeclarator* d = try_direct_declarator(t, is_abstract);
+  DirectDeclarator* d = try_direct_declarator(env, is_abstract);
   if (d == NULL) {
-    *t = save;
+    env->cur = save;
     return NULL;
   }
 
   return new_Declarator(d, num_ptrs);
 }
 
-static Declarator* declarator(TokenList** t, bool is_abstract) {
-  Declarator* d = try_declarator(t, is_abstract);
+static Declarator* declarator(Env* env, bool is_abstract) {
+  Declarator* d = try_declarator(env, is_abstract);
   if (d == NULL) {
     error("could not parse the declarator.");
   }
@@ -106,54 +148,54 @@ static Declarator* declarator(TokenList** t, bool is_abstract) {
   return d;
 }
 
-static DeclaratorList* declarator_list(TokenList** t) {
+static DeclaratorList* declarator_list(Env* env) {
   DeclaratorList* list = nil_DeclaratorList();
   DeclaratorList* cur  = list;
 
-  if (head_of(t) == TK_SEMICOLON) {
+  if (head_of(env) == TK_SEMICOLON) {
     return list;
   }
   do {
-    cur = snoc_DeclaratorList(declarator(t, false), cur);
-  } while (try (t, TK_COMMA));
+    cur = snoc_DeclaratorList(declarator(env, false), cur);
+  } while (try (env, TK_COMMA));
 
   return list;
 }
 
-static DeclarationSpecifiers* declaration_specifiers(TokenList** t);
+static DeclarationSpecifiers* declaration_specifiers(Env* env);
 
-static StructDeclaration* struct_declaration(TokenList** t) {
-  DeclarationSpecifiers* spec = declaration_specifiers(t);
-  DeclaratorList* declarators = declarator_list(t);
-  expect(t, TK_SEMICOLON);
+static StructDeclaration* struct_declaration(Env* env) {
+  DeclarationSpecifiers* spec = declaration_specifiers(env);
+  DeclaratorList* declarators = declarator_list(env);
+  expect(env, TK_SEMICOLON);
   return new_StructDeclaration(spec, declarators);
 }
 
-static StructDeclarationList* struct_declaration_list(TokenList** t) {
+static StructDeclarationList* struct_declaration_list(Env* env) {
   StructDeclarationList* list = nil_StructDeclarationList();
   StructDeclarationList* cur  = list;
 
-  while (head_of(t) != TK_RBRACE) {
-    cur = snoc_StructDeclarationList(struct_declaration(t), cur);
+  while (head_of(env) != TK_RBRACE) {
+    cur = snoc_StructDeclarationList(struct_declaration(env), cur);
   }
 
   return list;
 }
 
-static StructSpecifier* struct_specifier(TokenList** t) {
-  expect(t, TK_STRUCT);
+static StructSpecifier* struct_specifier(Env* env) {
+  expect(env, TK_STRUCT);
 
   char* tag = NULL;
-  if (head_of(t) == TK_IDENT) {
-    tag = strdup(expect(t, TK_IDENT).ident);
+  if (head_of(env) == TK_IDENT) {
+    tag = strdup(expect(env, TK_IDENT).ident);
   }
 
-  if (head_of(t) == TK_LBRACE) {
+  if (head_of(env) == TK_LBRACE) {
     // SS_DECL
-    consume(t);
+    consume(env);
     StructSpecifier* s = new_StructSpecifier(SS_DECL, tag);
-    s->declarations    = struct_declaration_list(t);
-    expect(t, TK_RBRACE);
+    s->declarations    = struct_declaration_list(env);
+    expect(env, TK_RBRACE);
     return s;
   } else {
     // SS_NAME
@@ -165,86 +207,114 @@ static StructSpecifier* struct_specifier(TokenList** t) {
   }
 }
 
-static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
+static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
   BaseType bt              = 0;
   StructSpecifier* struct_ = NULL;
+  bool is_typedef          = false;
+  char* typedef_name       = NULL;
+
+  TokenList* save = env->cur;
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
+      case TK_TYPEDEF:
+        consume(env);
+        is_typedef = true;
+        break;
       case TK_SIGNED:
-        consume(t);
+        consume(env);
         bt |= BT_SIGNED;
         break;
       case TK_UNSIGNED:
-        consume(t);
+        consume(env);
         bt |= BT_UNSIGNED;
         break;
       case TK_INT:
-        consume(t);
+        consume(env);
         bt += BT_INT;
         break;
       case TK_BOOL:
-        consume(t);
+        consume(env);
         bt += BT_BOOL;
         break;
       case TK_CHAR:
-        consume(t);
+        consume(env);
         bt += BT_CHAR;
         break;
       case TK_LONG:
-        consume(t);
+        consume(env);
         bt += BT_LONG;
         break;
       case TK_SHORT:
-        consume(t);
+        consume(env);
         bt += BT_SHORT;
         break;
       case TK_VOID:
-        consume(t);
+        consume(env);
         bt += BT_VOID;
         break;
       case TK_STRUCT:
         if (struct_ != NULL) {
-          error("too many data types in declaration specifiers");
+          error("too many struct types in declaration specifiers");
         }
-        struct_ = struct_specifier(t);
+        struct_ = struct_specifier(env);
         break;
-      default:
-        if (bt != 0 && struct_ != NULL) {
-          error("too many data types in declaration specifiers");
+      case TK_IDENT: {
+        char* ident = head_TokenList(env->cur).ident;
+        if (is_typedef_name(env, ident)) {
+          if (typedef_name != NULL) {
+            error("too many typedef names in declaration specifiers");
+          }
+          consume(env);
+          typedef_name = ident;
+          break;
         }
-        if (bt == 0 && struct_ == NULL) {
+      }
+        // fallthrough
+      default:
+        if (bt == 0 && struct_ == NULL && typedef_name == NULL) {
+          env->cur = save;
           return NULL;
+        }
+        if ((bool)bt + (bool)struct_ + (bool)typedef_name != 1) {
+          error("too many data types in declaration specifiers");
         }
         if (bt != 0) {
           DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_BASE);
           s->base_type             = bt;
+          s->is_typedef            = is_typedef;
           return s;
-        } else {
-          assert(struct_ != NULL);
+        } else if (struct_ != NULL) {
           DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_STRUCT);
           s->struct_               = struct_;
+          s->is_typedef            = is_typedef;
+          return s;
+        } else {
+          assert(typedef_name != NULL);
+          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_TYPEDEF_NAME);
+          s->typedef_name          = strdup(typedef_name);
+          s->is_typedef            = is_typedef;
           return s;
         }
     }
   }
 }
 
-static DeclarationSpecifiers* declaration_specifiers(TokenList** t) {
-  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+static DeclarationSpecifiers* declaration_specifiers(Env* env) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(env);
   if (s == NULL) {
     error("could not parse declaration specifiers.");
   }
   return s;
 }
 
-static TypeName* try_type_name(TokenList** t) {
-  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+static TypeName* try_type_name(Env* env) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(env);
   if (s == NULL) {
     return NULL;
   }
 
-  Declarator* dor = try_declarator(t, true);
+  Declarator* dor = try_declarator(env, true);
   if (dor == NULL) {
     return NULL;
   }
@@ -252,141 +322,145 @@ static TypeName* try_type_name(TokenList** t) {
   return new_TypeName(s, dor);
 }
 
-static InitializerList* try_initializer_list(TokenList** t);
+static InitializerList* try_initializer_list(Env* env);
 
-static Initializer* try_initializer(TokenList** t) {
-  if (head_of(t) != TK_LBRACE) {
+static Initializer* try_initializer(Env* env) {
+  if (head_of(env) != TK_LBRACE) {
     Initializer* init = new_Initializer(IN_EXPR);
-    init->expr        = assign(t);
+    init->expr        = assign(env);
     return init;
   }
 
-  expect(t, TK_LBRACE);
-  InitializerList* list = try_initializer_list(t);
+  expect(env, TK_LBRACE);
+  InitializerList* list = try_initializer_list(env);
   if (list == NULL) {
     return NULL;
   }
-  expect(t, TK_RBRACE);
+  expect(env, TK_RBRACE);
 
   Initializer* init = new_Initializer(IN_LIST);
   init->list        = list;
   return init;
 }
 
-static Initializer* initializer(TokenList** t) {
-  Initializer* init = try_initializer(t);
+static Initializer* initializer(Env* env) {
+  Initializer* init = try_initializer(env);
   if (init == NULL) {
     error("could not parse initializer");
   }
   return init;
 }
 
-static InitializerList* try_initializer_list(TokenList** t) {
-  TokenList* save = *t;
+static InitializerList* try_initializer_list(Env* env) {
+  TokenList* save = env->cur;
 
   InitializerList* cur  = nil_InitializerList();
   InitializerList* list = cur;
 
-  if (head_of(t) == TK_RBRACE) {
+  if (head_of(env) == TK_RBRACE) {
     return list;
   }
 
   do {
-    Initializer* init = try_initializer(t);
+    Initializer* init = try_initializer(env);
     if (init == NULL) {
-      *t = save;
+      env->cur = save;
       return NULL;
     }
 
     cur = snoc_InitializerList(init, cur);
-  } while (try (t, TK_COMMA));
+  } while (try (env, TK_COMMA));
 
   return list;
 }
 
-static InitDeclarator* try_init_declarator(TokenList** t) {
-  Declarator* decl = try_declarator(t, false);
+static InitDeclarator* try_init_declarator(Env* env, bool is_typedef) {
+  Declarator* decl = try_declarator(env, false);
   if (decl == NULL) {
     return NULL;
   }
 
+  if (decl->direct->name_ref != NULL) {
+    add_name(env, decl->direct->name_ref, is_typedef ? NAME_TYPEDEF : NAME_VARIABLE);
+  }
+
   Initializer* init = NULL;
-  if (head_of(t) == TK_EQUAL) {
-    consume(t);
-    init = initializer(t);
+  if (head_of(env) == TK_EQUAL) {
+    consume(env);
+    init = initializer(env);
   }
 
   return new_InitDeclarator(decl, init);
 }
 
-static InitDeclaratorList* try_init_declarator_list(TokenList** t) {
-  TokenList* save = *t;
+static InitDeclaratorList* try_init_declarator_list(Env* env, bool is_typedef) {
+  TokenList* save = env->cur;
 
   InitDeclaratorList* cur  = nil_InitDeclaratorList();
   InitDeclaratorList* list = cur;
 
-  if (head_of(t) == TK_SEMICOLON) {
+  if (head_of(env) == TK_SEMICOLON) {
     return list;
   }
 
   do {
-    InitDeclarator* init = try_init_declarator(t);
+    InitDeclarator* init = try_init_declarator(env, is_typedef);
     if (init == NULL) {
-      *t = save;
+      env->cur = save;
       return NULL;
     }
 
     cur = snoc_InitDeclaratorList(init, cur);
-  } while (try (t, TK_COMMA));
+  } while (try (env, TK_COMMA));
 
   return list;
 }
 
-static InitDeclaratorList* init_declarator_list(TokenList** t) {
-  InitDeclaratorList* list = try_init_declarator_list(t);
+static InitDeclaratorList* init_declarator_list(Env* env, bool is_typedef) {
+  InitDeclaratorList* list = try_init_declarator_list(env, is_typedef);
   if (list == NULL) {
     error("could not parse the init declarator list");
   }
   return list;
 }
 
-static Declaration* try_declaration(TokenList** t) {
-  DeclarationSpecifiers* s = try_declaration_specifiers(t);
+static Declaration* try_declaration(Env* env) {
+  DeclarationSpecifiers* s = try_declaration_specifiers(env);
   if (s == NULL) {
     return NULL;
   }
 
-  InitDeclaratorList* dor = try_init_declarator_list(t);
+  InitDeclaratorList* dor = try_init_declarator_list(env, s->is_typedef);
   if (dor == NULL) {
     return NULL;
   }
 
   Declaration* d = new_declaration(s, dor);
 
-  if (consuming(t).kind != TK_SEMICOLON) {
+  if (consuming(env).kind != TK_SEMICOLON) {
     return NULL;
   }
 
   return d;
 }
 
-static Expr* term(TokenList** t) {
-  if (head_of(t) == TK_LPAREN) {
-    consume(t);
-    Expr* node = expr(t);
-    if (head_of(t) == TK_RPAREN) {
-      consume(t);
+static Expr* term(Env* env) {
+  if (head_of(env) == TK_LPAREN) {
+    consume(env);
+    Expr* node = expr(env);
+    if (head_of(env) == TK_RPAREN) {
+      consume(env);
       return node;
     } else {
       error("unmatched parentheses.");
     }
   } else {
-    if (head_of(t) == TK_NUMBER) {
-      return new_node_num(consuming(t).number);
-    } else if (head_of(t) == TK_IDENT) {
-      return new_node_var(consuming(t).ident);
-    } else if (head_of(t) == TK_STRING) {
-      Token tk = consuming(t);
+    if (head_of(env) == TK_NUMBER) {
+      return new_node_num(consuming(env).number);
+    } else if (head_of(env) == TK_IDENT) {
+      return new_node_var(consuming(env).ident);
+    } else if (head_of(env) == TK_STRING) {
+      Token tk = consuming(env);
       return new_node_string(tk.string, tk.length);
     } else {
       error("unexpected token.");
@@ -394,30 +468,30 @@ static Expr* term(TokenList** t) {
   }
 }
 
-static ExprVec* argument_list(TokenList** t) {
+static ExprVec* argument_list(Env* env) {
   ExprVec* args = new_ExprVec(1);
 
-  if (head_of(t) == TK_RPAREN) {
+  if (head_of(env) == TK_RPAREN) {
     return args;
   }
 
   do {
-    push_ExprVec(args, assign(t));
-  } while (try (t, TK_COMMA));
+    push_ExprVec(args, assign(env));
+  } while (try (env, TK_COMMA));
 
   return args;
 }
 
-static Expr* postfix(TokenList** t) {
-  Expr* node = term(t);
+static Expr* postfix(Env* env) {
+  Expr* node = term(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_LPAREN:
         // function call
-        consume(t);
-        ExprVec* args = argument_list(t);
-        expect(t, TK_RPAREN);
+        consume(env);
+        ExprVec* args = argument_list(env);
+        expect(env, TK_RPAREN);
 
         Expr* call = new_node(ND_CALL, NULL, NULL);
         call->lhs  = node;
@@ -427,30 +501,30 @@ static Expr* postfix(TokenList** t) {
       case TK_LBRACKET:
         // array subscript
         // e[i] -> *(e + i)
-        consume(t);
-        Expr* idx = expr(t);
+        consume(env);
+        Expr* idx = expr(env);
         Expr* n   = new_node_deref(new_node_binop(BINOP_ADD, node, idx));
-        expect(t, TK_RBRACKET);
+        expect(env, TK_RBRACKET);
         node = n;
         break;
       case TK_DOT:
-        consume(t);
-        node = new_node_member(node, expect(t, TK_IDENT).ident);
+        consume(env);
+        node = new_node_member(node, expect(env, TK_IDENT).ident);
         break;
       case TK_ARROW:
-        consume(t);
+        consume(env);
         // `e->ident` is converted to `(e*).ident`
-        node = new_node_member(new_node_deref(node), expect(t, TK_IDENT).ident);
+        node = new_node_member(new_node_deref(node), expect(env, TK_IDENT).ident);
         break;
       case TK_DOUBLE_PLUS: {
-        consume(t);
+        consume(env);
         // `e++` is converted to `(e+=1)-1`
         Expr* a = new_node_compound_assign(BINOP_ADD, node, new_node_num(1));
         node    = new_node_binop(BINOP_SUB, a, new_node_num(1));
         break;
       }
       case TK_DOUBLE_MINUS: {
-        consume(t);
+        consume(env);
         // `e--` is converted to `(e-=1)+1`
         Expr* a = new_node_compound_assign(BINOP_SUB, node, new_node_num(1));
         node    = new_node_binop(BINOP_ADD, a, new_node_num(1));
@@ -462,88 +536,88 @@ static Expr* postfix(TokenList** t) {
   }
 }
 
-static Expr* unary(TokenList** t) {
-  switch (head_of(t)) {
+static Expr* unary(Env* env) {
+  switch (head_of(env)) {
     case TK_PLUS:
-      consume(t);
-      return new_node_unaop(UNAOP_POSITIVE, postfix(t));
+      consume(env);
+      return new_node_unaop(UNAOP_POSITIVE, postfix(env));
     case TK_MINUS:
-      consume(t);
-      return new_node_unaop(UNAOP_INTEGER_NEG, postfix(t));
+      consume(env);
+      return new_node_unaop(UNAOP_INTEGER_NEG, postfix(env));
     case TK_TILDE:
-      consume(t);
-      return new_node_unaop(UNAOP_BITWISE_NEG, postfix(t));
+      consume(env);
+      return new_node_unaop(UNAOP_BITWISE_NEG, postfix(env));
     case TK_EXCL:
-      consume(t);
+      consume(env);
       // `!e` is equivalent to `(0 == e)` (section 6.5.3.3)
-      return new_node_binop(BINOP_EQ, new_node_num(0), postfix(t));
+      return new_node_binop(BINOP_EQ, new_node_num(0), postfix(env));
     case TK_STAR:
-      consume(t);
-      return new_node_deref(postfix(t));
+      consume(env);
+      return new_node_deref(postfix(env));
     case TK_AND:
-      consume(t);
-      return new_node_addr(postfix(t));
+      consume(env);
+      return new_node_addr(postfix(env));
     case TK_DOUBLE_PLUS:
-      consume(t);
+      consume(env);
       // `++e` is equivalent to `e+=1`
-      return new_node_compound_assign(BINOP_ADD, postfix(t), new_node_num(1));
+      return new_node_compound_assign(BINOP_ADD, postfix(env), new_node_num(1));
     case TK_DOUBLE_MINUS:
-      consume(t);
+      consume(env);
       // `--e` is equivalent to `e-=1`
-      return new_node_compound_assign(BINOP_SUB, postfix(t), new_node_num(1));
+      return new_node_compound_assign(BINOP_SUB, postfix(env), new_node_num(1));
     case TK_SIZEOF:
-      consume(t);
-      if (head_of(t) == TK_LPAREN) {
-        TokenList* save = *t;
-        consume(t);
-        TypeName* ty = try_type_name(t);
+      consume(env);
+      if (head_of(env) == TK_LPAREN) {
+        TokenList* save = env->cur;
+        consume(env);
+        TypeName* ty = try_type_name(env);
         if (ty != NULL) {
-          expect(t, TK_RPAREN);
+          expect(env, TK_RPAREN);
           return new_node_sizeof_type(ty);
         }
-        *t = save;
+        env->cur = save;
       }
-      return new_node_sizeof_expr(postfix(t));
+      return new_node_sizeof_expr(postfix(env));
     default:
-      return postfix(t);
+      return postfix(env);
   }
 }
 
-static Expr* cast(TokenList** t) {
-  if (head_of(t) != TK_LPAREN) {
-    return unary(t);
+static Expr* cast(Env* env) {
+  if (head_of(env) != TK_LPAREN) {
+    return unary(env);
   }
 
-  TokenList* save = *t;
-  consume(t);
+  TokenList* save = env->cur;
+  consume(env);
 
-  TypeName* ty = try_type_name(t);
+  TypeName* ty = try_type_name(env);
   if (ty == NULL) {
-    *t = save;
-    return unary(t);
+    env->cur = save;
+    return unary(env);
   }
 
-  expect(t, TK_RPAREN);
+  expect(env, TK_RPAREN);
 
-  return new_node_cast(ty, cast(t));
+  return new_node_cast(ty, cast(env));
 }
 
-static Expr* mul(TokenList** t) {
-  Expr* node = cast(t);
+static Expr* mul(Env* env) {
+  Expr* node = cast(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_STAR:
-        consume(t);
-        node = new_node_binop(BINOP_MUL, node, cast(t));
+        consume(env);
+        node = new_node_binop(BINOP_MUL, node, cast(env));
         break;
       case TK_SLASH:
-        consume(t);
-        node = new_node_binop(BINOP_DIV, node, cast(t));
+        consume(env);
+        node = new_node_binop(BINOP_DIV, node, cast(env));
         break;
       case TK_PERCENT:
-        consume(t);
-        node = new_node_binop(BINOP_REM, node, cast(t));
+        consume(env);
+        node = new_node_binop(BINOP_REM, node, cast(env));
         break;
       default:
         return node;
@@ -551,18 +625,18 @@ static Expr* mul(TokenList** t) {
   }
 }
 
-static Expr* add(TokenList** t) {
-  Expr* node = mul(t);
+static Expr* add(Env* env) {
+  Expr* node = mul(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_PLUS:
-        consume(t);
-        node = new_node_binop(BINOP_ADD, node, mul(t));
+        consume(env);
+        node = new_node_binop(BINOP_ADD, node, mul(env));
         break;
       case TK_MINUS:
-        consume(t);
-        node = new_node_binop(BINOP_SUB, node, mul(t));
+        consume(env);
+        node = new_node_binop(BINOP_SUB, node, mul(env));
         break;
       default:
         return node;
@@ -570,18 +644,18 @@ static Expr* add(TokenList** t) {
   }
 }
 
-static Expr* shift(TokenList** t) {
-  Expr* node = add(t);
+static Expr* shift(Env* env) {
+  Expr* node = add(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_RIGHT:
-        consume(t);
-        node = new_node_binop(BINOP_SHIFT_RIGHT, node, add(t));
+        consume(env);
+        node = new_node_binop(BINOP_SHIFT_RIGHT, node, add(env));
         break;
       case TK_LEFT:
-        consume(t);
-        node = new_node_binop(BINOP_SHIFT_LEFT, node, add(t));
+        consume(env);
+        node = new_node_binop(BINOP_SHIFT_LEFT, node, add(env));
         break;
       default:
         return node;
@@ -589,26 +663,26 @@ static Expr* shift(TokenList** t) {
   }
 }
 
-static Expr* relational(TokenList** t) {
-  Expr* node = shift(t);
+static Expr* relational(Env* env) {
+  Expr* node = shift(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_GT:
-        consume(t);
-        node = new_node_binop(BINOP_GT, node, shift(t));
+        consume(env);
+        node = new_node_binop(BINOP_GT, node, shift(env));
         break;
       case TK_GE:
-        consume(t);
-        node = new_node_binop(BINOP_GE, node, shift(t));
+        consume(env);
+        node = new_node_binop(BINOP_GE, node, shift(env));
         break;
       case TK_LT:
-        consume(t);
-        node = new_node_binop(BINOP_LT, node, shift(t));
+        consume(env);
+        node = new_node_binop(BINOP_LT, node, shift(env));
         break;
       case TK_LE:
-        consume(t);
-        node = new_node_binop(BINOP_LE, node, shift(t));
+        consume(env);
+        node = new_node_binop(BINOP_LE, node, shift(env));
         break;
       default:
         return node;
@@ -616,18 +690,18 @@ static Expr* relational(TokenList** t) {
   }
 }
 
-static Expr* equality(TokenList** t) {
-  Expr* node = relational(t);
+static Expr* equality(Env* env) {
+  Expr* node = relational(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_EQ:
-        consume(t);
-        node = new_node_binop(BINOP_EQ, node, relational(t));
+        consume(env);
+        node = new_node_binop(BINOP_EQ, node, relational(env));
         break;
       case TK_NE:
-        consume(t);
-        node = new_node_binop(BINOP_NE, node, relational(t));
+        consume(env);
+        node = new_node_binop(BINOP_NE, node, relational(env));
         break;
       default:
         return node;
@@ -635,14 +709,14 @@ static Expr* equality(TokenList** t) {
   }
 }
 
-static Expr* bit_and(TokenList** t) {
-  Expr* node = equality(t);
+static Expr* bit_and(Env* env) {
+  Expr* node = equality(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_AND:
-        consume(t);
-        node = new_node_binop(BINOP_AND, node, equality(t));
+        consume(env);
+        node = new_node_binop(BINOP_AND, node, equality(env));
         break;
       default:
         return node;
@@ -650,14 +724,14 @@ static Expr* bit_and(TokenList** t) {
   }
 }
 
-static Expr* bit_xor(TokenList** t) {
-  Expr* node = bit_and(t);
+static Expr* bit_xor(Env* env) {
+  Expr* node = bit_and(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_HAT:
-        consume(t);
-        node = new_node_binop(BINOP_XOR, node, bit_and(t));
+        consume(env);
+        node = new_node_binop(BINOP_XOR, node, bit_and(env));
         break;
       default:
         return node;
@@ -665,14 +739,14 @@ static Expr* bit_xor(TokenList** t) {
   }
 }
 
-static Expr* bit_or(TokenList** t) {
-  Expr* node = bit_xor(t);
+static Expr* bit_or(Env* env) {
+  Expr* node = bit_xor(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_VERTICAL:
-        consume(t);
-        node = new_node_binop(BINOP_OR, node, bit_xor(t));
+        consume(env);
+        node = new_node_binop(BINOP_OR, node, bit_xor(env));
         break;
       default:
         return node;
@@ -680,17 +754,17 @@ static Expr* bit_or(TokenList** t) {
   }
 }
 
-static Expr* logic_and(TokenList** t) {
-  Expr* node = bit_or(t);
+static Expr* logic_and(Env* env) {
+  Expr* node = bit_or(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_DOUBLE_AND:
         // e1 && e2
         // is equivalent to
         // e1 ? (e2 ? 1 : 0) : 0
-        consume(t);
-        node = new_node_cond(node, new_node_cond(bit_or(t), new_node_num(1), new_node_num(0)),
+        consume(env);
+        node = new_node_cond(node, new_node_cond(bit_or(env), new_node_num(1), new_node_num(0)),
                              new_node_num(0));
         break;
       default:
@@ -699,18 +773,18 @@ static Expr* logic_and(TokenList** t) {
   }
 }
 
-static Expr* logic_or(TokenList** t) {
-  Expr* node = logic_and(t);
+static Expr* logic_or(Env* env) {
+  Expr* node = logic_and(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_DOUBLE_VERTICAL:
         // e1 || e2
         // is equivalent to
         // e1 ? 1 : (e2 ? 1 : 0)
-        consume(t);
+        consume(env);
         node = new_node_cond(node, new_node_num(1),
-                             new_node_cond(logic_and(t), new_node_num(1), new_node_num(0)));
+                             new_node_cond(logic_and(env), new_node_num(1), new_node_num(0)));
         break;
       default:
         return node;
@@ -718,71 +792,71 @@ static Expr* logic_or(TokenList** t) {
   }
 }
 
-static Expr* conditional(TokenList** t) {
-  Expr* node = logic_or(t);
+static Expr* conditional(Env* env) {
+  Expr* node = logic_or(env);
 
-  switch (head_of(t)) {
+  switch (head_of(env)) {
     case TK_QUESTION:
-      consume(t);
-      Expr* then_ = expr(t);
-      expect(t, TK_COLON);
-      return new_node_cond(node, then_, conditional(t));
+      consume(env);
+      Expr* then_ = expr(env);
+      expect(env, TK_COLON);
+      return new_node_cond(node, then_, conditional(env));
     default:
       return node;
   }
 }
 
-static Expr* assign(TokenList** t) {
-  Expr* node = conditional(t);
+static Expr* assign(Env* env) {
+  Expr* node = conditional(env);
 
   // `=` has right associativity
-  switch (head_of(t)) {
+  switch (head_of(env)) {
     case TK_EQUAL:
-      consume(t);
-      return new_node_assign(node, assign(t));
+      consume(env);
+      return new_node_assign(node, assign(env));
     case TK_STAR_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_MUL, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_MUL, node, assign(env));
     case TK_SLASH_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_DIV, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_DIV, node, assign(env));
     case TK_PERCENT_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_REM, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_REM, node, assign(env));
     case TK_PLUS_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_ADD, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_ADD, node, assign(env));
     case TK_MINUS_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_SUB, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_SUB, node, assign(env));
     case TK_LEFT_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_SHIFT_LEFT, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_SHIFT_LEFT, node, assign(env));
     case TK_RIGHT_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_SHIFT_RIGHT, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_SHIFT_RIGHT, node, assign(env));
     case TK_AND_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_AND, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_AND, node, assign(env));
     case TK_HAT_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_XOR, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_XOR, node, assign(env));
     case TK_VERTICAL_EQUAL:
-      consume(t);
-      return new_node_compound_assign(BINOP_OR, node, assign(t));
+      consume(env);
+      return new_node_compound_assign(BINOP_OR, node, assign(env));
     default:
       return node;
   }
 }
 
-static Expr* expr(TokenList** t) {
-  Expr* node = assign(t);
+static Expr* expr(Env* env) {
+  Expr* node = assign(env);
 
   for (;;) {
-    switch (head_of(t)) {
+    switch (head_of(env)) {
       case TK_COMMA:
-        consume(t);
-        node = new_node_comma(node, assign(t));
+        consume(env);
+        node = new_node_comma(node, assign(env));
         break;
       default:
         return node;
@@ -790,31 +864,31 @@ static Expr* expr(TokenList** t) {
   }
 }
 
-static BlockItemList* block_item_list(TokenList** t);
+static BlockItemList* block_item_list(Env* env);
 
-static Statement* statement(TokenList** t) {
-  switch (head_of(t)) {
+static Statement* statement(Env* env) {
+  switch (head_of(env)) {
     case TK_RETURN: {
-      consume(t);
+      consume(env);
       Expr* e;
-      if (head_of(t) == TK_SEMICOLON) {
+      if (head_of(env) == TK_SEMICOLON) {
         e = NULL;
       } else {
-        e = expr(t);
+        e = expr(env);
       }
-      expect(t, TK_SEMICOLON);
+      expect(env, TK_SEMICOLON);
       return new_statement(ST_RETURN, e);
     }
     case TK_IF: {
-      consume(t);
-      expect(t, TK_LPAREN);
-      Expr* c = expr(t);
-      expect(t, TK_RPAREN);
-      Statement* then_ = statement(t);
+      consume(env);
+      expect(env, TK_LPAREN);
+      Expr* c = expr(env);
+      expect(env, TK_RPAREN);
+      Statement* then_ = statement(env);
       Statement* else_;
-      if (head_of(t) == TK_ELSE) {
-        consume(t);
-        else_ = statement(t);
+      if (head_of(env) == TK_ELSE) {
+        consume(env);
+        else_ = statement(env);
       } else {
         else_ = new_statement(ST_NULL, NULL);
       }
@@ -824,58 +898,58 @@ static Statement* statement(TokenList** t) {
       return s;
     }
     case TK_WHILE: {
-      consume(t);
-      expect(t, TK_LPAREN);
-      Expr* c = expr(t);
-      expect(t, TK_RPAREN);
-      Statement* body = statement(t);
+      consume(env);
+      expect(env, TK_LPAREN);
+      Expr* c = expr(env);
+      expect(env, TK_RPAREN);
+      Statement* body = statement(env);
       Statement* s    = new_statement(ST_WHILE, c);
       s->body         = body;
       return s;
     }
     case TK_DO: {
-      consume(t);
-      Statement* body = statement(t);
-      expect(t, TK_WHILE);
-      expect(t, TK_LPAREN);
-      Expr* c = expr(t);
-      expect(t, TK_RPAREN);
-      expect(t, TK_SEMICOLON);
+      consume(env);
+      Statement* body = statement(env);
+      expect(env, TK_WHILE);
+      expect(env, TK_LPAREN);
+      Expr* c = expr(env);
+      expect(env, TK_RPAREN);
+      expect(env, TK_SEMICOLON);
       Statement* s = new_statement(ST_DO, c);
       s->body      = body;
       return s;
     }
     case TK_FOR: {
-      consume(t);
-      expect(t, TK_LPAREN);
+      consume(env);
+      expect(env, TK_LPAREN);
 
       Expr* init;
-      if (head_of(t) == TK_SEMICOLON) {
+      if (head_of(env) == TK_SEMICOLON) {
         init = NULL;
       } else {
-        init = expr(t);
+        init = expr(env);
       }
 
-      expect(t, TK_SEMICOLON);
+      expect(env, TK_SEMICOLON);
 
       Expr* before;
-      if (head_of(t) == TK_SEMICOLON) {
+      if (head_of(env) == TK_SEMICOLON) {
         before = new_node_num(1);
       } else {
-        before = expr(t);
+        before = expr(env);
       }
 
-      expect(t, TK_SEMICOLON);
+      expect(env, TK_SEMICOLON);
 
       Expr* after;
-      if (head_of(t) == TK_RPAREN) {
+      if (head_of(env) == TK_RPAREN) {
         after = NULL;
       } else {
-        after = expr(t);
+        after = expr(env);
       }
 
-      expect(t, TK_RPAREN);
-      Statement* body = statement(t);
+      expect(env, TK_RPAREN);
+      Statement* body = statement(env);
 
       Statement* s = new_statement(ST_FOR, NULL);
       s->init      = init;
@@ -885,135 +959,135 @@ static Statement* statement(TokenList** t) {
       return s;
     }
     case TK_BREAK: {
-      consume(t);
-      expect(t, TK_SEMICOLON);
+      consume(env);
+      expect(env, TK_SEMICOLON);
       return new_statement(ST_BREAK, NULL);
     }
     case TK_CONTINUE: {
-      consume(t);
-      expect(t, TK_SEMICOLON);
+      consume(env);
+      expect(env, TK_SEMICOLON);
       return new_statement(ST_CONTINUE, NULL);
     }
     case TK_LBRACE: {
-      consume(t);
+      consume(env);
       Statement* s = new_statement(ST_COMPOUND, NULL);
-      s->items     = block_item_list(t);
-      expect(t, TK_RBRACE);
+      s->items     = block_item_list(env);
+      expect(env, TK_RBRACE);
       return s;
     }
     case TK_SEMICOLON: {
-      consume(t);
+      consume(env);
       return new_statement(ST_NULL, NULL);
     }
     case TK_CASE: {
-      consume(t);
-      Expr* e = conditional(t);
-      expect(t, TK_COLON);
+      consume(env);
+      Expr* e = conditional(env);
+      expect(env, TK_COLON);
       Statement* s = new_statement(ST_CASE, e);
-      s->body      = statement(t);
+      s->body      = statement(env);
       return s;
     }
     case TK_DEFAULT: {
-      consume(t);
-      expect(t, TK_COLON);
+      consume(env);
+      expect(env, TK_COLON);
       Statement* s = new_statement(ST_DEFAULT, NULL);
-      s->body      = statement(t);
+      s->body      = statement(env);
       return s;
     }
     case TK_SWITCH: {
-      consume(t);
-      expect(t, TK_LPAREN);
-      Expr* cond = expr(t);
-      expect(t, TK_RPAREN);
+      consume(env);
+      expect(env, TK_LPAREN);
+      Expr* cond = expr(env);
+      expect(env, TK_RPAREN);
       Statement* s = new_statement(ST_SWITCH, cond);
-      s->body      = statement(t);
+      s->body      = statement(env);
       return s;
     }
     case TK_GOTO: {
-      consume(t);
-      char* name    = expect(t, TK_IDENT).ident;
+      consume(env);
+      char* name    = expect(env, TK_IDENT).ident;
       Statement* s  = new_statement(ST_GOTO, NULL);
       s->label_name = strdup(name);
       return s;
     }
     case TK_IDENT: {
-      if (head_TokenList(tail_TokenList(*t)).kind == TK_COLON) {
-        char* name = expect(t, TK_IDENT).ident;
-        expect(t, TK_COLON);
+      if (head_TokenList(tail_TokenList(env->cur)).kind == TK_COLON) {
+        char* name = expect(env, TK_IDENT).ident;
+        expect(env, TK_COLON);
         Statement* s  = new_statement(ST_LABEL, NULL);
         s->label_name = strdup(name);
-        s->body       = statement(t);
+        s->body       = statement(env);
         return s;
       }
       // fallthough
     }
     default: {
-      Expr* e = expr(t);
-      expect(t, TK_SEMICOLON);
+      Expr* e = expr(env);
+      expect(env, TK_SEMICOLON);
       return new_statement(ST_EXPRESSION, e);
     }
   }
 }
 
-static BlockItem* block_item(TokenList** t) {
-  TokenList* save = *t;
-  Declaration* d  = try_declaration(t);
+static BlockItem* block_item(Env* env) {
+  TokenList* save = env->cur;
+  Declaration* d  = try_declaration(env);
   if (d) {
     return new_block_item(BI_DECL, NULL, d);
   }
 
-  *t = save;
-  return new_block_item(BI_STMT, statement(t), NULL);
+  env->cur = save;
+  return new_block_item(BI_STMT, statement(env), NULL);
 }
 
-static BlockItemList* block_item_list(TokenList** t) {
+static BlockItemList* block_item_list(Env* env) {
   BlockItemList* cur  = nil_BlockItemList();
   BlockItemList* list = cur;
 
-  while (head_of(t) != TK_END && head_of(t) != TK_RBRACE) {
-    cur = snoc_BlockItemList(block_item(t), cur);
+  while (head_of(env) != TK_END && head_of(env) != TK_RBRACE) {
+    cur = snoc_BlockItemList(block_item(env), cur);
   }
   return list;
 }
 
-static ParamList* parameter_list(TokenList** t) {
+static ParamList* parameter_list(Env* env) {
   ParamList* cur  = nil_ParamList();
   ParamList* list = cur;
 
-  if (head_of(t) == TK_RPAREN) {
+  if (head_of(env) == TK_RPAREN) {
     return list;
   }
 
   do {
-    DeclarationSpecifiers* s = declaration_specifiers(t);
-    Declarator* d            = try_declarator(t, false);
+    DeclarationSpecifiers* s = declaration_specifiers(env);
+    Declarator* d            = try_declarator(env, false);
     if (d == NULL) {
-      d = declarator(t, true);
+      d = declarator(env, true);
     }
     cur = snoc_ParamList(new_ParameterDecl(s, d), cur);
-  } while (try (t, TK_COMMA));
+  } while (try (env, TK_COMMA));
 
   return list;
 }
 
-static ExternalDecl* external_declaration(TokenList** t) {
-  DeclarationSpecifiers* spec = declaration_specifiers(t);
+static ExternalDecl* external_declaration(Env* env) {
+  DeclarationSpecifiers* spec = declaration_specifiers(env);
 
-  TokenList* save = *t;
-  Declarator* d   = try_declarator(t, false);
+  TokenList* save = env->cur;
+  Declarator* d   = try_declarator(env, false);
   if (d == NULL) {
-    expect(t, TK_SEMICOLON);
+    expect(env, TK_SEMICOLON);
     Declaration* decl   = new_declaration(spec, nil_InitDeclaratorList());
     ExternalDecl* edecl = new_external_decl(EX_DECL);
     edecl->decl         = decl;
     return edecl;
   }
 
-  if (head_of(t) != TK_LPAREN) {
+  if (head_of(env) != TK_LPAREN) {
     // TODO: insufficient duplicated parsing of a declarator
-    *t                       = save;
-    InitDeclaratorList* list = init_declarator_list(t);
-    expect(t, TK_SEMICOLON);
+    env->cur                 = save;
+    InitDeclaratorList* list = init_declarator_list(env, spec->is_typedef);
+    expect(env, TK_SEMICOLON);
 
     Declaration* decl = new_declaration(spec, list);
 
@@ -1022,23 +1096,23 @@ static ExternalDecl* external_declaration(TokenList** t) {
     return edecl;
   }
 
-  expect(t, TK_LPAREN);
-  ParamList* params = parameter_list(t);
-  expect(t, TK_RPAREN);
-  if (head_of(t) == TK_LBRACE) {
-    consume(t);
+  expect(env, TK_LPAREN);
+  ParamList* params = parameter_list(env);
+  expect(env, TK_RPAREN);
+  if (head_of(env) == TK_LBRACE) {
+    consume(env);
     FunctionDef* def = new_function_def();
     def->spec        = spec;
     def->decl        = d;
     def->params      = params;
-    def->items       = block_item_list(t);
-    expect(t, TK_RBRACE);
+    def->items       = block_item_list(env);
+    expect(env, TK_RBRACE);
 
     ExternalDecl* edecl = new_external_decl(EX_FUNC);
     edecl->func         = def;
     return edecl;
   } else {
-    expect(t, TK_SEMICOLON);
+    expect(env, TK_SEMICOLON);
 
     FunctionDecl* decl = new_function_decl();
     decl->spec         = spec;
@@ -1051,17 +1125,20 @@ static ExternalDecl* external_declaration(TokenList** t) {
   }
 }
 
-static TranslationUnit* translation_unit(TokenList** t) {
+static TranslationUnit* translation_unit(Env* env) {
   TranslationUnit* cur  = nil_TranslationUnit();
   TranslationUnit* list = cur;
 
-  while (head_of(t) != TK_END) {
-    cur = snoc_TranslationUnit(external_declaration(t), cur);
+  while (head_of(env) != TK_END) {
+    cur = snoc_TranslationUnit(external_declaration(env), cur);
   }
   return list;
 }
 
 // parse tokens into AST
 AST* parse(TokenList* t) {
-  return translation_unit(&t);
+  Env* env              = init_Env(t);
+  TranslationUnit* unit = translation_unit(env);
+  release_Env(env);
+  return unit;
 }

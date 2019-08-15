@@ -85,6 +85,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_DEFAULT, cur);
   } else if (IS_SAME(init, "struct")) {
     return add_token(TK_STRUCT, cur);
+  } else if (IS_SAME(init, "typedef")) {
+    return add_token(TK_TYPEDEF, cur);
   }
 #undef IS_SAME
 
@@ -579,6 +581,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_ARROW:
       fprintf(p, "(->)");
+      break;
+    case TK_TYPEDEF:
+      fprintf(p, "(TYPEDEF)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

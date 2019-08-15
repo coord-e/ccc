@@ -62,6 +62,7 @@ struct DeclarationSpecifiers {
   BaseType base_type;        // for DS_BASE
   StructSpecifier* struct_;  // for DS_STRUCT, owned
 
+  bool is_typedef;
   /* bool is_extern; */
   /* bool is_static; */
   /* bool is_const; */

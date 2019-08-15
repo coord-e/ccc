@@ -168,9 +168,13 @@ static StructSpecifier* struct_specifier(TokenList** t) {
 static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
   BaseType bt              = 0;
   StructSpecifier* struct_ = NULL;
+  bool is_typedef          = false;
 
   for (;;) {
     switch (head_of(t)) {
+      case TK_TYPEDEF:
+        is_typedef = true;
+        break;
       case TK_SIGNED:
         consume(t);
         bt |= BT_SIGNED;
@@ -219,11 +223,13 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
         if (bt != 0) {
           DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_BASE);
           s->base_type             = bt;
+          s->is_typedef            = is_typedef;
           return s;
         } else {
           assert(struct_ != NULL);
           DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_STRUCT);
           s->struct_               = struct_;
+          s->is_typedef            = is_typedef;
           return s;
         }
     }

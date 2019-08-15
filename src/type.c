@@ -226,6 +226,10 @@ Type* size_t_ty() {
   return into_unsigned_ty(long_ty());
 }
 
+Type* ptrdiff_t_ty() {
+  return long_ty();
+}
+
 void make_signed_ty(Type* t) {
   assert(t->kind == TY_INT);
   t->is_signed = true;

@@ -67,6 +67,7 @@ Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, bool is_length_known);
 
 Type* size_t_ty();
+Type* ptrdiff_t_ty();
 
 void make_signed_ty(Type*);
 void make_unsigned_ty(Type*);

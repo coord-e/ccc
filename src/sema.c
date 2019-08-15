@@ -637,8 +637,7 @@ static Type* sema_binop(Env* env, Expr* expr) {
         // TODO: shallow release of rhs of this assignment
         *expr = *build_pointer_diff(expr->lhs, expr->rhs);
 
-        // TODO: how to handle `ptrdiff_t`
-        Type* ty = int_ty();
+        Type* ty = ptrdiff_t_ty();
         sema_expr(env, expr);
         assert(equal_to_Type(expr->type, ty));
 

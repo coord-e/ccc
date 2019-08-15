@@ -173,6 +173,7 @@ static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
   for (;;) {
     switch (head_of(t)) {
       case TK_TYPEDEF:
+        consume(t);
         is_typedef = true;
         break;
       case TK_SIGNED:

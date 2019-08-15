@@ -8,6 +8,7 @@ DEFINE_MAP(copy_Type, release_Type, Type*, TypeMap)
 typedef struct {
   TypeMap* names;
   TypeMap* tagged_structs;
+  TypeMap* typedefs;
 } GlobalEnv;
 
 typedef struct {
@@ -19,12 +20,14 @@ typedef struct {
   Statement* current_switch;
   bool is_global_only;
   TypeMap* tagged_structs;
+  TypeMap* typedefs;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
   GlobalEnv* env      = calloc(1, sizeof(GlobalEnv));
   env->names          = new_TypeMap(64);
   env->tagged_structs = new_TypeMap(64);
+  env->typedefs       = new_TypeMap(64);
   return env;
 }
 
@@ -38,6 +41,7 @@ static Env* init_Env(GlobalEnv* global, Type* ret) {
   env->current_switch = NULL;
   env->is_global_only = false;
   env->tagged_structs = new_TypeMap(16);
+  env->typedefs       = new_TypeMap(16);
   return env;
 }
 
@@ -51,12 +55,14 @@ static Env* fake_env(GlobalEnv* global) {
 static void release_Env(Env* env) {
   release_TypeMap(env->vars);
   release_TypeMap(env->tagged_structs);
+  release_TypeMap(env->typedefs);
   free(env);
 }
 
 static void release_GlobalEnv(GlobalEnv* env) {
   release_TypeMap(env->names);
   release_TypeMap(env->tagged_structs);
+  release_TypeMap(env->typedefs);
   free(env);
 }
 
@@ -83,6 +89,24 @@ static bool lookup_tagged_struct(Env* env, const char* name, Type** t) {
     }
   }
   return true;
+}
+
+static void add_typedef(Env* env, const char* name, Type* ty) {
+  insert_TypeMap(env->typedefs, name, ty);
+}
+
+static void add_global_typedef(GlobalEnv* env, const char* name, Type* ty) {
+  insert_TypeMap(env->typedefs, name, ty);
+}
+
+static Type* get_typedef(Env* env, const char* name) {
+  Type* ty;
+  if (env->is_global_only || !lookup_TypeMap(env->typedefs, name, &ty)) {
+    if (!lookup_TypeMap(env->global->typedefs, name, &ty)) {
+      error("typedef name %s could not found", name);
+    }
+  }
+  return copy_Type(ty);
 }
 
 static unsigned new_label_id(Env* env) {
@@ -313,7 +337,10 @@ static void translate_struct_declarations(Env* env,
   }
 
   StructDeclaration* decl = head_StructDeclarationList(l);
-  Type* base_ty           = translate_declaration_specifiers(env, decl->spec);
+  if (decl->spec->is_typedef) {
+    error("typedef declaration specifier is invalid in structure declaration");
+  }
+  Type* base_ty = translate_declaration_specifiers(env, decl->spec);
   translate_struct_declarators(senv, decl->declarators, base_ty);
 
   translate_struct_declarations(env, senv, tail_StructDeclarationList(l));
@@ -404,6 +431,9 @@ static void extract_declarator(Declarator* decl, Type* base, char** name, Type**
 }
 
 static Type* translate_type_name(Env* env, TypeName* t) {
+  if (t->spec->is_typedef) {
+    error("typedef declaration specifier is invalid in type-name");
+  }
   Type* base_ty = translate_declaration_specifiers(env, t->spec);
   Type* res;
   extract_declarator(t->declarator, base_ty, NULL, &res);
@@ -1148,7 +1178,11 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
   }
 }
 
-static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDeclarator* decl) {
+static void sema_init_declarator(Env* env,
+                                 bool is_global,
+                                 bool is_typedef,
+                                 Type* base_ty,
+                                 InitDeclarator* decl) {
   char* name;
   Type* ty;
   extract_declarator(decl->declarator, base_ty, &name, &ty);
@@ -1168,14 +1202,26 @@ static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDe
   should_complete(ty);
   decl->type = copy_Type(ty);
 
-  if (is_global) {
-    add_global(env->global, name, ty);
-  } else {
-    add_var(env, name, ty);
-  }
+  if (is_typedef) {
+    if (is_global) {
+      add_global_typedef(env->global, name, ty);
+    } else {
+      add_typedef(env, name, ty);
+    }
 
-  if (is_global && decl->initializer == NULL) {
-    decl->initializer = build_empty_initializer(copy_Type(decl->type));
+    if (decl->initializer != NULL) {
+      error("typedef declaration initialized");
+    }
+  } else {
+    if (is_global) {
+      add_global(env->global, name, ty);
+    } else {
+      add_var(env, name, ty);
+    }
+
+    if (is_global && decl->initializer == NULL) {
+      decl->initializer = build_empty_initializer(copy_Type(decl->type));
+    }
   }
 
   if (decl->initializer != NULL) {
@@ -1183,17 +1229,21 @@ static void sema_init_declarator(Env* env, bool is_global, Type* base_ty, InitDe
   }
 }
 
-static void sema_init_decl_list(Env* env, bool is_global, Type* base_ty, InitDeclaratorList* l) {
+static void sema_init_decl_list(Env* env,
+                                bool is_global,
+                                bool is_typedef,
+                                Type* base_ty,
+                                InitDeclaratorList* l) {
   if (is_nil_InitDeclaratorList(l)) {
     return;
   }
-  sema_init_declarator(env, is_global, base_ty, head_InitDeclaratorList(l));
-  sema_init_decl_list(env, is_global, base_ty, tail_InitDeclaratorList(l));
+  sema_init_declarator(env, is_global, is_typedef, base_ty, head_InitDeclaratorList(l));
+  sema_init_decl_list(env, is_global, is_typedef, base_ty, tail_InitDeclaratorList(l));
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
   Type* base_ty = translate_declaration_specifiers(env, decl->spec);
-  sema_init_decl_list(env, false, base_ty, decl->declarators);
+  sema_init_decl_list(env, false, decl->spec->is_typedef, base_ty, decl->declarators);
 }
 
 static void sema_items(Env* env, BlockItemList* l);
@@ -1306,7 +1356,10 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
     ParameterDecl* d = head_ParamList(cur);
-    Type* base_ty    = translate_declaration_specifiers(env, d->spec);
+    if (d->spec->is_typedef) {
+      error("typedef declaration specifier is invalid in parameters");
+    }
+    Type* base_ty = translate_declaration_specifiers(env, d->spec);
     if (base_ty->kind == TY_VOID) {
       if (length_TypeVec(params) != 0 || !is_nil_ParamList(tail_ParamList(cur))) {
         error("void must be the first and only parameter if specified");
@@ -1338,6 +1391,9 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 }
 
 static void sema_function(GlobalEnv* global, FunctionDef* f) {
+  if (f->spec->is_typedef) {
+    error("typedef declaration specifier is invalid in function definition");
+  }
   Type* base_ty = translate_declaration_specifiers(fake_env(global), f->spec);
   Type* ret;
   char* name;
@@ -1369,7 +1425,10 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       break;
     case EX_FUNC_DECL: {
       FunctionDecl* f = d->func_decl;
-      Type* base_ty   = translate_declaration_specifiers(fake_env(global), f->spec);
+      if (f->spec->is_typedef) {
+        error("typedef declaration specifier is invalid in function declaration");
+      }
+      Type* base_ty = translate_declaration_specifiers(fake_env(global), f->spec);
       Type* ret;
       char* name;
       extract_declarator(f->decl, base_ty, &name, &ret);
@@ -1383,7 +1442,8 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       Declaration* decl = d->decl;
       Type* base_ty     = translate_declaration_specifiers(fake_env(global), decl->spec);
       // TODO: check if the declaration is `extern`
-      sema_init_decl_list(fake_env(global), true, base_ty, decl->declarators);
+      sema_init_decl_list(fake_env(global), true, decl->spec->is_typedef, base_ty,
+                          decl->declarators);
       break;
     }
     default:

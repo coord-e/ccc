@@ -957,7 +957,9 @@ static void gen_init_decl_list(Env* env, GlobalEnv* genv, InitDeclaratorList* l)
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
-  gen_init_decl_list(env, NULL, decl->declarators);
+  if (!decl->spec->is_typedef) {
+    gen_init_decl_list(env, NULL, decl->declarators);
+  }
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast) {
@@ -1045,7 +1047,9 @@ static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, Tra
     case EX_FUNC_DECL:
       return gen_TranslationUnit(genv, acc, tail);
     case EX_DECL:
-      gen_init_decl_list(NULL, genv, d->decl->declarators);
+      if (!d->decl->spec->is_typedef) {
+        gen_init_decl_list(NULL, genv, d->decl->declarators);
+      }
       return gen_TranslationUnit(genv, acc, tail);
     default:
       CCC_UNREACHABLE;

@@ -42,6 +42,14 @@ static void release_Env(Env* env) {
   free(env);
 }
 
+static bool is_typedef_name(Env* env, const char* name) {
+  NameKind k;
+  if (!lookup_NameMap(env->names, name, &k)) {
+    return false;
+  }
+  return k == NAME_TYPEDEF;
+}
+
 static void consume(Env* env) {
   env->cur = tail_TokenList(env->cur);
 }

@@ -382,6 +382,8 @@ static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* s
       return translate_base_type(spec->base_type);
     case DS_STRUCT:
       return translate_struct_specifier(env, spec->struct_);
+    case DS_TYPEDEF_NAME:
+      return get_typedef(env, spec->typedef_name);
     default:
       CCC_UNREACHABLE;
   }

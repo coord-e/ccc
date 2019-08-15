@@ -492,6 +492,7 @@ static Reg gen_lhs(Env* env, Expr* node) {
       }
     }
     case ND_MEMBER: {
+      assert(is_complete_ty(node->expr->type));
       Reg r    = gen_lhs(env, node->expr);
       Field* f = get_FieldMap(node->expr->type->field_map, node->member);
       return new_binop(env, BINOP_ADD, r, new_imm(env, f->offset, r.size));

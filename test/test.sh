@@ -515,4 +515,66 @@ int main(int argc, char** argv) {
 }
 EOF
 
+# typedef
+items 4 "typedef int yeah; yeah x = 4; return x;"
+items 0 "typedef struct data data; data* p = 0; return (int)p;"
+try_ 42 <<EOF
+typedef struct S S;
+
+int get_S(S*);
+void incr_S(S*);
+S* new_S(int);
+void release_S(S*);
+
+int main() {
+  S* s = new_S(40);
+  incr_S(s);
+  incr_S(s);
+  int i = get_S(s);
+  release_S(s);
+  return i;
+}
+
+void free(void*);
+void* calloc(int, int);
+
+struct S {
+  int value;
+};
+
+int get_S(S* s) {
+  return s->value;
+}
+
+void incr_S(S* s) {
+  s->value++;
+}
+
+S* new_S(int i) {
+  S* s = calloc(1, sizeof(S));
+  s->value = i;
+  return s;
+}
+
+void release_S(S* s) {
+ free(s);
+}
+EOF
+try_ 10 <<EOF
+typedef int A;
+
+typedef struct {
+  A yeah;
+} T;
+
+typedef T *Tptr;
+
+int main() {
+  T t;
+  Tptr x = &t;
+  x->yeah = 10;
+  return t.yeah;
+}
+EOF
+
 echo OK

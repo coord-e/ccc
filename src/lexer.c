@@ -106,6 +106,23 @@ TokenList* tokenize(char* p) {
       continue;
     }
 
+    if (memcmp(p, "//", 2) == 0) {
+      p += 2;
+      // newline is also consumed
+      while (*(p++) != '\n')
+        ;
+      continue;
+    }
+
+    if (memcmp(p, "/*", 2) == 0) {
+      p += 2;
+      while (memcmp(p, "*/", 2) != 0) {
+        p++;
+      }
+      p += 2;
+      continue;
+    }
+
     switch (*p) {
       case '+':
         p++;

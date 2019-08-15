@@ -2,6 +2,7 @@
 #include "error.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 DataSize to_data_size(unsigned i) {
   switch (i) {
@@ -22,6 +23,41 @@ unsigned from_data_size(DataSize i) {
   return i;
 }
 
+static void release_Field(Field* field) {
+  if (field == NULL) {
+    return;
+  }
+
+  release_Type(field->type);
+  free(field);
+}
+
+static Field* copy_Field(Field* field) {
+  return new_Field(copy_Type(field->type), field->offset);
+}
+
+DEFINE_MAP(copy_Field, release_Field, Field*, FieldMap)
+
+Field* new_Field(Type* ty, unsigned offset) {
+  Field* f  = calloc(1, sizeof(Field));
+  f->type   = ty;
+  f->offset = offset;
+  return f;
+}
+
+static bool equal_to_Field(Field* f1, Field* f2) {
+  if (f1->offset != f2->offset) {
+    return false;
+  }
+
+  return equal_to_Type(f1->type, f2->type);
+}
+
+static void release_string(char* s) {
+  free(s);
+}
+DEFINE_VECTOR(release_string, char*, StringVec)
+
 Type* new_Type(TypeKind kind) {
   Type* ty      = calloc(1, sizeof(Type));
   ty->kind      = kind;
@@ -32,6 +68,9 @@ Type* new_Type(TypeKind kind) {
   ty->params    = NULL;
   ty->element   = NULL;
   ty->length    = 0;
+  ty->tag       = NULL;
+  ty->fields    = NULL;
+  ty->field_map = NULL;
   return ty;
 }
 
@@ -44,6 +83,9 @@ void release_Type(Type* ty) {
   release_Type(ty->ret);
   release_TypeVec(ty->params);
   release_Type(ty->element);
+  release_StringVec(ty->fields);
+  release_FieldMap(ty->field_map);
+  free(ty->tag);
   free(ty);
 }
 
@@ -67,12 +109,31 @@ Type* copy_Type(const Type* ty) {
   if (ty->element != NULL) {
     new->element = copy_Type(ty->element);
   }
+  if (ty->fields != NULL) {
+    unsigned len = length_StringVec(ty->fields);
+    new->fields  = new_StringVec(len);
+    for (unsigned i = 0; i < len; i++) {
+      char* t = get_StringVec(ty->fields, i);
+      push_StringVec(new->fields, strdup(t));
+    }
+  }
+  if (ty->field_map != NULL) {
+    new->field_map = copy_FieldMap(ty->field_map);
+  }
 
   return new;
 }
 
 DEFINE_VECTOR(release_Type, Type*, TypeVec)
 DECLARE_VECTOR_PRINTER(TypeVec)
+
+static void print_Field(FILE* p, Field* f) {
+  print_Type(p, f->type);
+  fprintf(p, " %d", f->offset);
+}
+
+DECLARE_MAP_PRINTER(FieldMap)
+DEFINE_MAP_PRINTER(print_Field, "{\n", ";\n", ": ", "}\n", FieldMap)
 
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
@@ -115,6 +176,15 @@ void print_Type(FILE* p, Type* ty) {
       fprintf(p, ") ");
       print_Type(p, ty->ret);
       break;
+    case TY_STRUCT:
+      fputs("struct ", p);
+      if (ty->tag != NULL) {
+        fprintf(p, "%s ", ty->tag);
+      }
+      if (ty->field_map != NULL) {
+        print_FieldMap(p, ty->field_map);
+      }
+      break;
     case TY_ARRAY:
       if (ty->is_length_known) {
         fprintf(p, "[%d] ", ty->length);
@@ -138,6 +208,36 @@ bool equal_to_Type(const Type* a, const Type* b) {
   switch (a->kind) {
     case TY_VOID:
     case TY_BOOL:
+      return true;
+    case TY_STRUCT:
+      if ((bool)a->tag != (bool)b->tag) {
+        return false;
+      }
+      // if a->tag == NULL, b->tag would be NULL
+      if (a->tag != NULL && strcmp(a->tag, b->tag) != 0) {
+        return false;
+      }
+      if ((bool)a->fields != (bool)b->fields) {
+        return false;
+      }
+      if (a->fields == NULL) {
+        return true;
+      }
+      if (length_StringVec(a->fields) != length_StringVec(b->fields)) {
+        return false;
+      }
+      for (unsigned i = 0; i < length_StringVec(a->fields); i++) {
+        char* k1 = get_StringVec(a->fields, i);
+        char* k2 = get_StringVec(b->fields, i);
+        if (strcmp(k1, k2) != 0) {
+          return false;
+        }
+        Field* f1 = get_FieldMap(a->field_map, k1);
+        Field* f2 = get_FieldMap(b->field_map, k2);
+        if (!equal_to_Field(f1, f2)) {
+          return false;
+        }
+      }
       return true;
     case TY_INT:
       return a->size == b->size && a->is_signed == b->is_signed;
@@ -203,6 +303,14 @@ Type* void_ty() {
 
 Type* bool_ty() {
   return new_Type(TY_BOOL);
+}
+
+Type* struct_ty(char* tag, StringVec* fields, FieldMap* field_map) {
+  Type* t      = new_Type(TY_STRUCT);
+  t->field_map = field_map;
+  t->fields    = fields;
+  t->tag       = tag;
+  return t;
 }
 
 Type* ptr_to_ty(Type* ty) {
@@ -311,6 +419,8 @@ bool is_complete_ty(const Type* ty) {
       return true;
     case TY_BOOL:
       return true;
+    case TY_STRUCT:
+      return ty->fields;
     case TY_PTR:
       return true;
     case TY_FUNC:
@@ -351,6 +461,11 @@ unsigned sizeof_ty(const Type* t) {
       error("attempt to obtain the size of function type");
     case TY_ARRAY:
       return length_of_ty(t) * sizeof_ty(t->element);
+    case TY_STRUCT: {
+      char* last = get_StringVec(t->fields, length_StringVec(t->fields) - 1);
+      Field* f   = get_FieldMap(t->field_map, last);
+      return f->offset + sizeof_ty(f->type);
+    }
     default:
       CCC_UNREACHABLE;
   }

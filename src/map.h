@@ -14,7 +14,7 @@
   DECLARE_VECTOR(Name##Entries*, Name##Table)                                                      \
   typedef struct Name Name;                                                                        \
   Name* new_##Name(unsigned size);                                                                 \
-  Name* copy_##Name(const Name*);                               \
+  Name* copy_##Name(const Name*);                                                                  \
   Name* shallow_copy_##Name(const Name*);                                                          \
   void insert_##Name(Name*, const char* k, T v);                                                   \
   T get_##Name(Name*, const char* k);                                                              \
@@ -128,7 +128,12 @@
     Name##Entries* es = get_##Name##Table(m->table, idx);                                          \
     search_remove_##Name(es, hash);                                                                \
   }                                                                                                \
-  void release_##Name(Name* m) { release_##Name##Table(m->table); }
+  void release_##Name(Name* m) {                                                                   \
+    if (m == NULL) {                                                                               \
+      return;                                                                                      \
+    }                                                                                              \
+    release_##Name##Table(m->table);                                                               \
+  }
 
 #define DECLARE_MAP_PRINTER(Name) void print_##Name(FILE*, Name*);
 

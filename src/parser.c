@@ -437,6 +437,11 @@ static Expr* postfix(TokenList** t) {
         consume(t);
         node = new_node_member(node, expect(t, TK_IDENT).ident);
         break;
+      case TK_ARROW:
+        consume(t);
+        // `e->ident` is converted to `(e*).ident`
+        node = new_node_member(new_node_deref(node), expect(t, TK_IDENT).ident);
+        break;
       case TK_DOUBLE_PLUS: {
         consume(t);
         // `e++` is converted to `(e+=1)-1`

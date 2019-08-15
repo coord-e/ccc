@@ -9,7 +9,33 @@
 #include "type.h"
 #include "vector.h"
 
-typedef struct Expr Expr;
+typedef struct DeclarationSpecifiers DeclarationSpecifiers;
+typedef struct Declarator Declarator;
+
+DECLARE_LIST(Declarator*, DeclaratorList)
+
+typedef struct {
+  DeclarationSpecifiers* spec;  // owned
+  DeclaratorList* declarators;  // owned
+} StructDeclaration;
+
+StructDeclaration* new_StructDeclaration(DeclarationSpecifiers*, DeclaratorList*);
+
+DECLARE_LIST(StructDeclaration*, StructDeclarationList)
+
+typedef enum {
+  SS_DECL,  // with struct-declaration-list
+  SS_NAME,  // otherwise
+} StructSpecKind;
+
+typedef struct {
+  StructSpecKind kind;
+
+  char* tag;                            // owned, nullable in SS_DECL
+  StructDeclarationList* declarations;  // for SS_DECL, owned
+} StructSpecifier;
+
+StructSpecifier* new_StructSpecifier(StructSpecKind, char*);
 
 // use bit flags to express the combination of names
 // this idea is from `cdecl.c` by Rui Ueyama
@@ -25,14 +51,14 @@ typedef enum {
   BT_LONG     = 1 << 14,
 } BaseType;
 
-typedef struct {
+struct DeclarationSpecifiers {
   BaseType base_type;
   /* char* user_type;  // owned */
   /* bool is_typedef; */
   /* bool is_extern; */
   /* bool is_static; */
   /* bool is_const; */
-} DeclarationSpecifiers;
+};
 
 DeclarationSpecifiers* new_DeclarationSpecifiers();
 
@@ -43,6 +69,7 @@ typedef enum {
 } DirectDeclKind;
 
 typedef struct DirectDeclarator DirectDeclarator;
+typedef struct Expr Expr;
 
 struct DirectDeclarator {
   DirectDeclKind kind;
@@ -57,10 +84,10 @@ struct DirectDeclarator {
 DirectDeclarator* new_DirectDeclarator(DirectDeclKind);
 bool is_abstract_direct_declarator(DirectDeclarator*);
 
-typedef struct {
+struct Declarator {
   DirectDeclarator* direct;
   unsigned num_ptrs;
-} Declarator;
+};
 
 Declarator* new_Declarator(DirectDeclarator* direct, unsigned num_ptrs);
 bool is_abstract_declarator(Declarator*);

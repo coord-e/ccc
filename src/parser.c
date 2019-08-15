@@ -133,7 +133,7 @@ static StructDeclarationList* struct_declaration_list(TokenList** t) {
   StructDeclarationList* list = nil_StructDeclarationList();
   StructDeclarationList* cur  = list;
 
-  while (head_of(t) == TK_RBRACE) {
+  while (head_of(t) != TK_RBRACE) {
     cur = snoc_StructDeclarationList(struct_declaration(t), cur);
   }
 
@@ -148,12 +148,12 @@ static StructSpecifier* struct_specifier(TokenList** t) {
     tag = strdup(expect(t, TK_IDENT).ident);
   }
 
-  if (head_of(t) == TK_LPAREN) {
+  if (head_of(t) == TK_LBRACE) {
     // SS_DECL
     consume(t);
     StructSpecifier* s = new_StructSpecifier(SS_DECL, tag);
     s->declarations    = struct_declaration_list(t);
-    expect(t, TK_RPAREN);
+    expect(t, TK_RBRACE);
     return s;
   } else {
     // SS_NAME
@@ -991,7 +991,14 @@ static ExternalDecl* external_declaration(TokenList** t) {
   DeclarationSpecifiers* spec = declaration_specifiers(t);
 
   TokenList* save = *t;
-  Declarator* d   = declarator(t, false);
+  Declarator* d   = try_declarator(t, false);
+  if (d == NULL) {
+    expect(t, TK_SEMICOLON);
+    Declaration* decl   = new_declaration(spec, nil_InitDeclaratorList());
+    ExternalDecl* edecl = new_external_decl(EX_DECL);
+    edecl->decl         = decl;
+    return edecl;
+  }
 
   if (head_of(t) != TK_LPAREN) {
     // TODO: insufficient duplicated parsing of a declarator

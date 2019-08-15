@@ -476,4 +476,19 @@ int main() {
 }
 EOF
 
+# comments
+items 10 "int /* I am a comment */ a = /*hello!*/ 10; return /*wowo*/ a;"
+try_ 42 <<EOF
+// OMG I AM A COMMENT
+
+// weeeeeeeeee
+int main (/* no parameters. */) {
+  // line comment is cool, huh?
+  // /* super-cool c compiler */ yeah
+  return /* this is a magic number -> */ 42;
+}
+
+// this is also a comment
+EOF
+
 echo OK

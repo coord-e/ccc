@@ -51,16 +51,23 @@ typedef enum {
   BT_LONG     = 1 << 14,
 } BaseType;
 
+typedef enum {
+  DS_BASE,
+  DS_STRUCT,
+} DeclarationSpecKind;
+
 struct DeclarationSpecifiers {
-  BaseType base_type;
-  /* char* user_type;  // owned */
-  /* bool is_typedef; */
+  DeclarationSpecKind kind;
+
+  BaseType base_type;        // for DS_BASE
+  StructSpecifier* struct_;  // for DS_STRUCT, owned
+
   /* bool is_extern; */
   /* bool is_static; */
   /* bool is_const; */
 };
 
-DeclarationSpecifiers* new_DeclarationSpecifiers();
+DeclarationSpecifiers* new_DeclarationSpecifiers(DeclarationSpecKind);
 
 typedef enum {
   DE_DIRECT_ABSTRACT,

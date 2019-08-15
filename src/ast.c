@@ -5,14 +5,6 @@
 
 static void release_expr(Expr* e);
 
-static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
-  if (spec == NULL) {
-    return;
-  }
-
-  free(spec);
-}
-
 static void release_DirectDeclarator(DirectDeclarator* d) {
   if (d == NULL) {
     return;
@@ -34,6 +26,17 @@ static void release_Declarator(Declarator* d) {
 }
 
 DEFINE_LIST(release_Declarator, Declarator*, DeclaratorList)
+
+static void release_StructSpecifier(StructSpecifier* s);
+
+static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
+  if (spec == NULL) {
+    return;
+  }
+
+  release_StructSpecifier(spec->struct_);
+  free(spec);
+}
 
 static void release_StructDeclaration(StructDeclaration* sd) {
   if (sd == NULL) {
@@ -161,8 +164,10 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
-DeclarationSpecifiers* new_DeclarationSpecifiers() {
-  return calloc(1, sizeof(DeclarationSpecifiers));
+DeclarationSpecifiers* new_DeclarationSpecifiers(DeclarationSpecKind kind) {
+  DeclarationSpecifiers* spec = calloc(1, sizeof(DeclarationSpecifiers));
+  spec->kind                  = kind;
+  return spec;
 }
 
 StructDeclaration* new_StructDeclaration(DeclarationSpecifiers* spec, DeclaratorList* declarators) {

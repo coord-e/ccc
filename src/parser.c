@@ -106,47 +106,124 @@ static Declarator* declarator(TokenList** t, bool is_abstract) {
   return d;
 }
 
+static DeclaratorList* declarator_list(TokenList** t) {
+  DeclaratorList* list = nil_DeclaratorList();
+  DeclaratorList* cur  = list;
+
+  if (head_of(t) == TK_SEMICOLON) {
+    return list;
+  }
+  do {
+    cur = snoc_DeclaratorList(declarator(t, false), cur);
+  } while (try (t, TK_COMMA));
+
+  return list;
+}
+
+static DeclarationSpecifiers* declaration_specifiers(TokenList** t);
+
+static StructDeclaration* struct_declaration(TokenList** t) {
+  DeclarationSpecifiers* spec = declaration_specifiers(t);
+  DeclaratorList* declarators = declarator_list(t);
+  expect(t, TK_SEMICOLON);
+  return new_StructDeclaration(spec, declarators);
+}
+
+static StructDeclarationList* struct_declaration_list(TokenList** t) {
+  StructDeclarationList* list = nil_StructDeclarationList();
+  StructDeclarationList* cur  = list;
+
+  while (head_of(t) == TK_RBRACE) {
+    cur = snoc_StructDeclarationList(struct_declaration(t), cur);
+  }
+
+  return list;
+}
+
+static StructSpecifier* struct_specifier(TokenList** t) {
+  expect(t, TK_STRUCT);
+
+  char* tag;
+  if (head_of(t) == TK_IDENT) {
+    tag = strdup(expect(t, TK_IDENT).ident);
+  }
+
+  if (head_of(t) == TK_LPAREN) {
+    // SS_DECL
+    consume(t);
+    StructSpecifier* s = new_StructSpecifier(SS_DECL, tag);
+    s->declarations    = struct_declaration_list(t);
+    expect(t, TK_RPAREN);
+    return s;
+  } else {
+    // SS_NAME
+    if (tag == NULL) {
+      error("missing struct tag");
+    }
+
+    return new_StructSpecifier(SS_NAME, tag);
+  }
+}
+
 static DeclarationSpecifiers* try_declaration_specifiers(TokenList** t) {
-  DeclarationSpecifiers* s = new_DeclarationSpecifiers();
+  BaseType bt              = 0;
+  StructSpecifier* struct_ = NULL;
 
   for (;;) {
     switch (head_of(t)) {
       case TK_SIGNED:
         consume(t);
-        s->base_type |= BT_SIGNED;
+        bt |= BT_SIGNED;
         break;
       case TK_UNSIGNED:
         consume(t);
-        s->base_type |= BT_UNSIGNED;
+        bt |= BT_UNSIGNED;
         break;
       case TK_INT:
         consume(t);
-        s->base_type += BT_INT;
+        bt += BT_INT;
         break;
       case TK_BOOL:
         consume(t);
-        s->base_type += BT_BOOL;
+        bt += BT_BOOL;
         break;
       case TK_CHAR:
         consume(t);
-        s->base_type += BT_CHAR;
+        bt += BT_CHAR;
         break;
       case TK_LONG:
         consume(t);
-        s->base_type += BT_LONG;
+        bt += BT_LONG;
         break;
       case TK_SHORT:
         consume(t);
-        s->base_type += BT_SHORT;
+        bt += BT_SHORT;
         break;
       case TK_VOID:
         consume(t);
-        s->base_type += BT_VOID;
+        bt += BT_VOID;
+        break;
+      case TK_STRUCT:
+        if (struct_ != NULL) {
+          error("too many data types in declaration specifiers");
+        }
+        struct_ = struct_specifier(t);
         break;
       default:
-        if (s->base_type == 0) {
+        if (bt != 0 && struct_ != NULL) {
+          error("too many data types in declaration specifiers");
+        }
+        if (bt == 0 && struct_ == NULL) {
           return NULL;
+        }
+        if (bt != 0) {
+          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_BASE);
+          s->base_type             = bt;
+          return s;
         } else {
+          assert(struct_ != NULL);
+          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_STRUCT);
+          s->struct_               = struct_;
           return s;
         }
     }

@@ -83,6 +83,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_CASE, cur);
   } else if (IS_SAME(init, "default")) {
     return add_token(TK_DEFAULT, cur);
+  } else if (IS_SAME(init, "struct")) {
+    return add_token(TK_STRUCT, cur);
   }
 #undef IS_SAME
 
@@ -548,6 +550,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_SIZEOF:
       fprintf(p, "(SIZEOF)");
+      break;
+    case TK_STRUCT:
+      fprintf(p, "(STRUCT)");
       break;
     case TK_SWITCH:
       fprintf(p, "(SWITCH)");

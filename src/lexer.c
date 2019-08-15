@@ -336,7 +336,7 @@ TokenList* tokenize(char* p) {
           // call of `add_number` updates p
           cur = add_number(&p, cur);
           continue;
-        } else if (isalpha(*p)) {
+        } else if (is_ident_char(*p)) {
           // call of `add_ident` updates p
           cur = add_ident(&p, cur);
           continue;

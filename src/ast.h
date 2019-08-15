@@ -9,6 +9,31 @@
 #include "type.h"
 #include "vector.h"
 
+typedef struct Expr Expr;
+
+typedef struct {
+  char* name;
+  Expr* value;  // nullable
+} Enumerator;
+
+Enumerator* new_Enumerator(char* name, Expr* value);
+
+DECLARE_LIST(Enumerator*, EnumeratorList)
+
+typedef enum {
+  ES_DECL,  // with enumerator-list
+  ES_NAME,  // otherwise
+} EnumSpecKind;
+
+typedef struct {
+  EnumSpecKind kind;
+
+  char* tag;              // owned, nullable in SS_DECL
+  EnumeratorList* enums;  // for ES_DECL, owned
+} EnumSpecifier;
+
+EnumSpecifier* new_EnumSpecifier(EnumSpecKind, char* tag);
+
 typedef struct DeclarationSpecifiers DeclarationSpecifiers;
 typedef struct Declarator Declarator;
 
@@ -79,7 +104,6 @@ typedef enum {
 } DirectDeclKind;
 
 typedef struct DirectDeclarator DirectDeclarator;
-typedef struct Expr Expr;
 
 struct DirectDeclarator {
   DirectDeclKind kind;

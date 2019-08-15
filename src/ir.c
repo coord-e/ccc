@@ -491,6 +491,12 @@ static Reg gen_lhs(Env* env, Expr* node) {
         return new_global(env, node->var);
       }
     }
+    case ND_MEMBER: {
+      assert(is_complete_ty(node->expr->type));
+      Reg r    = gen_lhs(env, node->expr);
+      Field* f = get_FieldMap(node->expr->type->field_map, node->member);
+      return new_binop(env, BINOP_ADD, r, new_imm(env, f->offset, r.size));
+    }
     case ND_STRING:
       return new_string(env, node->string);
     case ND_DEREF:
@@ -560,6 +566,7 @@ Reg gen_expr(Env* env, Expr* node) {
     case ND_STRING:
       assert(is_array_ty(node->type));
       error("attempt to perform lvalue conversion on string constant");
+    case ND_MEMBER:
     case ND_VAR: {
       // lvalue conversion is performed here
       if (is_array_ty(node->type)) {
@@ -743,7 +750,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
     case ST_COMPOUND: {
       // compound statement is a block
       UIMap* save = env->vars;
-      UIMap* inst = copy_UIMap(env->vars);
+      UIMap* inst = shallow_copy_UIMap(env->vars);
 
       env->vars = inst;
       gen_block_item_list(env, stmt->items);

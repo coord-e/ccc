@@ -5,14 +5,6 @@
 
 static void release_expr(Expr* e);
 
-static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
-  if (spec == NULL) {
-    return;
-  }
-
-  free(spec);
-}
-
 static void release_DirectDeclarator(DirectDeclarator* d) {
   if (d == NULL) {
     return;
@@ -31,6 +23,41 @@ static void release_Declarator(Declarator* d) {
 
   release_DirectDeclarator(d->direct);
   free(d);
+}
+
+DEFINE_LIST(release_Declarator, Declarator*, DeclaratorList)
+
+static void release_StructSpecifier(StructSpecifier* s);
+
+static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
+  if (spec == NULL) {
+    return;
+  }
+
+  release_StructSpecifier(spec->struct_);
+  free(spec);
+}
+
+static void release_StructDeclaration(StructDeclaration* sd) {
+  if (sd == NULL) {
+    return;
+  }
+
+  release_DeclarationSpecifiers(sd->spec);
+  release_DeclaratorList(sd->declarators);
+  free(sd);
+}
+
+DEFINE_LIST(release_StructDeclaration, StructDeclaration*, StructDeclarationList)
+
+static void release_StructSpecifier(StructSpecifier* s) {
+  if (s == NULL) {
+    return;
+  }
+
+  free(s->tag);
+  release_StructDeclarationList(s->declarations);
+  free(s);
 }
 
 static void release_Initializer(Initializer* init) {
@@ -137,8 +164,24 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
-DeclarationSpecifiers* new_DeclarationSpecifiers() {
-  return calloc(1, sizeof(DeclarationSpecifiers));
+DeclarationSpecifiers* new_DeclarationSpecifiers(DeclarationSpecKind kind) {
+  DeclarationSpecifiers* spec = calloc(1, sizeof(DeclarationSpecifiers));
+  spec->kind                  = kind;
+  return spec;
+}
+
+StructDeclaration* new_StructDeclaration(DeclarationSpecifiers* spec, DeclaratorList* declarators) {
+  StructDeclaration* d = calloc(1, sizeof(StructDeclaration));
+  d->spec              = spec;
+  d->declarators       = declarators;
+  return d;
+}
+
+StructSpecifier* new_StructSpecifier(StructSpecKind kind, char* tag) {
+  StructSpecifier* s = calloc(1, sizeof(StructSpecifier));
+  s->kind            = kind;
+  s->tag             = tag;
+  return s;
 }
 
 ParameterDecl* new_ParameterDecl(DeclarationSpecifiers* spec, Declarator* decl) {
@@ -160,7 +203,10 @@ static void release_ParameterDecl(ParameterDecl* d) {
 
 DEFINE_LIST(release_ParameterDecl, ParameterDecl*, ParamList)
 static void release_unsigned(unsigned i) {}
-DEFINE_MAP(release_unsigned, unsigned, UIMap)
+static unsigned copy_unsigned(unsigned i) {
+  return i;
+}
+DEFINE_MAP(copy_unsigned, release_unsigned, unsigned, UIMap)
 
 static void release_FunctionDef(FunctionDef* def) {
   if (def == NULL) {
@@ -199,8 +245,7 @@ void release_AST(AST* t) {
 // printer functions
 static void print_expr(FILE* p, Expr* expr);
 
-static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
-  BaseType b = s->base_type;
+static void print_BaseType(FILE* p, BaseType b) {
   if (b & BT_SIGNED) {
     fputs("signed ", p);
     b &= ~BT_SIGNED;  // clear
@@ -230,6 +275,53 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* s) {
       break;
     case BT_SHORT:
       fputs("short", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_Declarator(FILE* p, Declarator* d);
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d);
+
+DECLARE_LIST_PRINTER(DeclaratorList)
+DEFINE_LIST_PRINTER(print_Declarator, ",", "", DeclaratorList)
+
+static void print_StructDeclaration(FILE* p, StructDeclaration* decl) {
+  print_DeclarationSpecifiers(p, decl->spec);
+  fputs(" ", p);
+  print_DeclaratorList(p, decl->declarators);
+}
+
+DECLARE_LIST_PRINTER(StructDeclarationList)
+DEFINE_LIST_PRINTER(print_StructDeclaration, ";\n", ";\n", StructDeclarationList)
+
+static void print_StructSpecifier(FILE* p, StructSpecifier* s) {
+  switch (s->kind) {
+    case SS_NAME:
+      fprintf(p, "struct %s", s->tag);
+      break;
+    case SS_DECL:
+      fputs("struct ", p);
+      if (s->tag != NULL) {
+        fputs(s->tag, p);
+      }
+      fputs("{\n", p);
+      print_StructDeclarationList(p, s->declarations);
+      fputs("\n}", p);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d) {
+  switch (d->kind) {
+    case DS_BASE:
+      print_BaseType(p, d->base_type);
+      break;
+    case DS_STRUCT:
+      print_StructSpecifier(p, d->struct_);
       break;
     default:
       CCC_UNREACHABLE;
@@ -397,6 +489,10 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->else_);
       fputs(")", p);
       return;
+    case ND_MEMBER:
+      print_expr(p, expr->expr);
+      fprintf(p, ".%s", expr->member);
+      break;
     case ND_SIZEOF_EXPR:
       fprintf(p, "(sizeof ");
       print_expr(p, expr->expr);
@@ -678,6 +774,13 @@ Expr* new_node_sizeof_type(TypeName* ty) {
 Expr* new_node_sizeof_expr(Expr* e) {
   Expr* node = new_node(ND_SIZEOF_EXPR, NULL, NULL);
   node->expr = e;
+  return node;
+}
+
+Expr* new_node_member(Expr* e, const char* s) {
+  Expr* node   = new_node(ND_MEMBER, NULL, NULL);
+  node->expr   = e;
+  node->member = strdup(s);
   return node;
 }
 

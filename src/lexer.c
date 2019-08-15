@@ -83,6 +83,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_CASE, cur);
   } else if (IS_SAME(init, "default")) {
     return add_token(TK_DEFAULT, cur);
+  } else if (IS_SAME(init, "struct")) {
+    return add_token(TK_STRUCT, cur);
   }
 #undef IS_SAME
 
@@ -124,6 +126,10 @@ TokenList* tokenize(char* p) {
     }
 
     switch (*p) {
+      case '.':
+        cur = add_token(TK_DOT, cur);
+        p++;
+        continue;
       case '+':
         p++;
         switch (*p) {
@@ -144,6 +150,10 @@ TokenList* tokenize(char* p) {
         switch (*p) {
           case '-':
             cur = add_token(TK_DOUBLE_MINUS, cur);
+            p++;
+            continue;
+          case '>':
+            cur = add_token(TK_ARROW, cur);
             p++;
             continue;
           case '=':
@@ -549,6 +559,9 @@ static void print_token(FILE* p, Token t) {
     case TK_SIZEOF:
       fprintf(p, "(SIZEOF)");
       break;
+    case TK_STRUCT:
+      fprintf(p, "(STRUCT)");
+      break;
     case TK_SWITCH:
       fprintf(p, "(SWITCH)");
       break;
@@ -560,6 +573,12 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_DEFAULT:
       fprintf(p, "(DEFAULT)");
+      break;
+    case TK_DOT:
+      fprintf(p, "(.)");
+      break;
+    case TK_ARROW:
+      fprintf(p, "(->)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

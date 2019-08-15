@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "map.h"
 #include "vector.h"
 
 typedef enum {
@@ -23,11 +24,23 @@ typedef enum {
   TY_PTR,
   TY_FUNC,
   TY_ARRAY,
+  TY_STRUCT,
 } TypeKind;
 
 typedef struct Type Type;
 
 DECLARE_VECTOR(Type*, TypeVec)
+
+typedef struct {
+  Type* type;
+  unsigned offset;
+} Field;
+
+DECLARE_MAP(Field*, FieldMap)
+
+Field* new_Field(Type*, unsigned offset);
+
+DECLARE_VECTOR(char*, StringVec)
 
 struct Type {
   TypeKind kind;
@@ -47,6 +60,11 @@ struct Type {
   Type* element;
   bool is_length_known;
   unsigned length;
+
+  // for TY_STRUCT
+  char* tag;            // NULL if not tagged
+  StringVec* fields;    // NULL if incomplete
+  FieldMap* field_map;  // NULL if incomplete
 };
 
 Type* new_Type(TypeKind);
@@ -62,6 +80,7 @@ Type* long_ty();
 Type* short_ty();
 Type* void_ty();
 Type* bool_ty();
+Type* struct_ty(char*, StringVec*, FieldMap*);
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, bool is_length_known);

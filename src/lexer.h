@@ -16,6 +16,8 @@ typedef enum {
   TK_DOUBLE_AND,
   TK_DOUBLE_VERTICAL,
   TK_PERCENT,
+  TK_DOT,
+  TK_ARROW,
   TK_HAT,
   TK_LEFT,    // <<
   TK_RIGHT,   // >>
@@ -64,6 +66,7 @@ typedef enum {
   TK_SIGNED,
   TK_UNSIGNED,
   TK_BOOL,  // _Bool
+  TK_STRUCT,
   TK_SIZEOF,
   TK_SWITCH,
   TK_GOTO,

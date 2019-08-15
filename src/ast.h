@@ -9,7 +9,33 @@
 #include "type.h"
 #include "vector.h"
 
-typedef struct Expr Expr;
+typedef struct DeclarationSpecifiers DeclarationSpecifiers;
+typedef struct Declarator Declarator;
+
+DECLARE_LIST(Declarator*, DeclaratorList)
+
+typedef struct {
+  DeclarationSpecifiers* spec;  // owned
+  DeclaratorList* declarators;  // owned
+} StructDeclaration;
+
+StructDeclaration* new_StructDeclaration(DeclarationSpecifiers*, DeclaratorList*);
+
+DECLARE_LIST(StructDeclaration*, StructDeclarationList)
+
+typedef enum {
+  SS_DECL,  // with struct-declaration-list
+  SS_NAME,  // otherwise
+} StructSpecKind;
+
+typedef struct {
+  StructSpecKind kind;
+
+  char* tag;                            // owned, nullable in SS_DECL
+  StructDeclarationList* declarations;  // for SS_DECL, owned
+} StructSpecifier;
+
+StructSpecifier* new_StructSpecifier(StructSpecKind, char*);
 
 // use bit flags to express the combination of names
 // this idea is from `cdecl.c` by Rui Ueyama
@@ -25,16 +51,23 @@ typedef enum {
   BT_LONG     = 1 << 14,
 } BaseType;
 
-typedef struct {
-  BaseType base_type;
-  /* char* user_type;  // owned */
-  /* bool is_typedef; */
+typedef enum {
+  DS_BASE,
+  DS_STRUCT,
+} DeclarationSpecKind;
+
+struct DeclarationSpecifiers {
+  DeclarationSpecKind kind;
+
+  BaseType base_type;        // for DS_BASE
+  StructSpecifier* struct_;  // for DS_STRUCT, owned
+
   /* bool is_extern; */
   /* bool is_static; */
   /* bool is_const; */
-} DeclarationSpecifiers;
+};
 
-DeclarationSpecifiers* new_DeclarationSpecifiers();
+DeclarationSpecifiers* new_DeclarationSpecifiers(DeclarationSpecKind);
 
 typedef enum {
   DE_DIRECT_ABSTRACT,
@@ -43,6 +76,7 @@ typedef enum {
 } DirectDeclKind;
 
 typedef struct DirectDeclarator DirectDeclarator;
+typedef struct Expr Expr;
 
 struct DirectDeclarator {
   DirectDeclKind kind;
@@ -57,10 +91,10 @@ struct DirectDeclarator {
 DirectDeclarator* new_DirectDeclarator(DirectDeclKind);
 bool is_abstract_direct_declarator(DirectDeclarator*);
 
-typedef struct {
+struct Declarator {
   DirectDeclarator* direct;
   unsigned num_ptrs;
-} Declarator;
+};
 
 Declarator* new_Declarator(DirectDeclarator* direct, unsigned num_ptrs);
 bool is_abstract_declarator(Declarator*);
@@ -130,6 +164,7 @@ typedef enum {
   ND_COMMA,
   ND_SIZEOF_EXPR,
   ND_SIZEOF_TYPE,
+  ND_MEMBER,
 } ExprKind;
 
 DECLARE_VECTOR(Expr*, ExprVec)
@@ -140,7 +175,8 @@ struct Expr {
   Expr* lhs;  // for ND_BINOP, ND_COMMA, ND_COMPOUND_ASSIGN and ND_ASSIGN, owned
   Expr* rhs;  // ditto
 
-  Expr* expr;  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP, ND_SIZEOF_EXPR and ND_CAST, owned
+  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP, ND_SIZEOF_EXPR, ND_MEMBER and ND_CAST, owned
+  Expr* expr;
 
   TypeName* cast_to;  // for ND_CAST, owned, nullable if `cast_type` is not NULL
 
@@ -153,6 +189,7 @@ struct Expr {
   char* string;     // for ND_STRING, owned
   size_t str_len;   // for ND_STRING
   ExprVec* args;    // for ND_CALL, owned
+  char* member;     // for ND_MEMBER, owned
 
   Expr* cond;   // for ND_COND, owned
   Expr* then_;  // for ND_COND, owned
@@ -179,6 +216,7 @@ Expr* new_node_cast(TypeName* ty, Expr* opr);
 Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);
 Expr* new_node_sizeof_type(TypeName*);
 Expr* new_node_sizeof_expr(Expr*);
+Expr* new_node_member(Expr*, const char*);
 Expr* shallow_copy_node(Expr*);
 
 typedef struct Statement Statement;

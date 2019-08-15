@@ -1013,7 +1013,7 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       Type* ty = translate_type_name(env, expr->sizeof_);
 
       // TODO: shallow release of rhs of this assignment
-      *expr = *new_node_num(sizeof_ty(ty));
+      *expr = *new_node_num(sizeof_ty(try_complete(env, ty)));
       // TODO: release previous content of `expr`
 
       t = size_t_ty();
@@ -1200,8 +1200,6 @@ static void sema_init_declarator(Env* env,
     set_length_ty(ty, length);
   }
 
-  // TODO: check linkage
-  should_complete(ty);
   decl->type = copy_Type(ty);
 
   if (is_typedef) {
@@ -1215,6 +1213,9 @@ static void sema_init_declarator(Env* env,
       error("typedef declaration initialized");
     }
   } else {
+    // TODO: check linkage
+    should_complete(ty);
+
     if (is_global) {
       add_global(env->global, name, ty);
     } else {

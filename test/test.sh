@@ -491,8 +491,14 @@ int main (/* no parameters. */) {
 // this is also a comment
 EOF
 
-
 # struct
+items 4 "struct {int a;} x; return sizeof(x);"
+items 12 "struct {char a; int b;} x; x.a=10; x.b = 2; return x.a + x.b;"
+items 22 "struct {long a; int b;} x; struct {long a; int b;} *p = &x; x.a = 10; p->b = 12; return p->a + p->b;"
+items 22 "struct tag {long a; int b;} x; struct tag *p = &x; x.a = 10; p->b = 12; return p->a + p->b;"
+items 8 "struct { struct { int b; int c[5];} a[2]; } x; x.a[0].b = 3; x.a[0].c[1] = 5; return x.a[0].b + x.a[0].c[1];"
+items 48 "struct { long a[2]; int b[8]; } x; return sizeof(x);"
+items 96 "struct { long a[2], b[5], *c; struct { int d; int e; } f[4]; } x; return sizeof(x);"
 try_ 10 <<EOF
 struct A {
   struct A* ptr;

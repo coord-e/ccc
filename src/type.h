@@ -25,11 +25,14 @@ typedef enum {
   TY_FUNC,
   TY_ARRAY,
   TY_STRUCT,
+  TY_ENUM,
 } TypeKind;
 
 typedef struct Type Type;
 
 DECLARE_VECTOR(Type*, TypeVec)
+
+DECLARE_MAP(long, LongMap)
 
 typedef struct {
   Type* type;
@@ -61,10 +64,16 @@ struct Type {
   bool is_length_known;
   unsigned length;
 
+  // for TY_STRUCT and TY_ENUM
+  char* tag;  // NULL if not tagged
+
   // for TY_STRUCT
-  char* tag;            // NULL if not tagged
   StringVec* fields;    // NULL if incomplete
   FieldMap* field_map;  // NULL if incomplete
+
+  // for TY_ENUM
+  StringVec* enums;   // NULL if incomplete
+  LongMap* enum_map;  // NULL if incomplete
 };
 
 Type* new_Type(TypeKind);
@@ -81,6 +90,7 @@ Type* short_ty();
 Type* void_ty();
 Type* bool_ty();
 Type* struct_ty(char*, StringVec*, FieldMap*);
+Type* enum_ty(char*, StringVec*, LongMap*);
 Type* ptr_to_ty(Type*);
 Type* func_ty(Type*, TypeVec*);
 Type* array_ty(Type*, bool is_length_known);

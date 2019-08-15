@@ -23,6 +23,12 @@ unsigned from_data_size(DataSize i) {
   return i;
 }
 
+static void release_long(long l) {}
+static long copy_long(long l) {
+  return l;
+}
+DEFINE_MAP(copy_long, release_long, long, LongMap)
+
 static void release_Field(Field* field) {
   if (field == NULL) {
     return;
@@ -71,6 +77,8 @@ Type* new_Type(TypeKind kind) {
   ty->tag       = NULL;
   ty->fields    = NULL;
   ty->field_map = NULL;
+  ty->enums     = NULL;
+  ty->enum_map  = NULL;
   return ty;
 }
 
@@ -85,6 +93,8 @@ void release_Type(Type* ty) {
   release_Type(ty->element);
   release_StringVec(ty->fields);
   release_FieldMap(ty->field_map);
+  release_StringVec(ty->enums);
+  release_LongMap(ty->enum_map);
   free(ty->tag);
   free(ty);
 }
@@ -123,6 +133,17 @@ Type* copy_Type(const Type* ty) {
   if (ty->field_map != NULL) {
     new->field_map = copy_FieldMap(ty->field_map);
   }
+  if (ty->enums != NULL) {
+    unsigned len = length_StringVec(ty->enums);
+    new->enums   = new_StringVec(len);
+    for (unsigned i = 0; i < len; i++) {
+      char* t = get_StringVec(ty->enums, i);
+      push_StringVec(new->enums, strdup(t));
+    }
+  }
+  if (ty->enum_map != NULL) {
+    new->enum_map = copy_LongMap(ty->enum_map);
+  }
 
   return new;
 }
@@ -137,6 +158,13 @@ static void print_Field(FILE* p, Field* f) {
 
 DECLARE_MAP_PRINTER(FieldMap)
 DEFINE_MAP_PRINTER(print_Field, "{\n", ";\n", ": ", "}\n", FieldMap)
+
+static void print_enumerator(FILE* p, long l) {
+  fprintf(p, "%ld", l);
+}
+
+DECLARE_MAP_PRINTER(LongMap)
+DEFINE_MAP_PRINTER(print_enumerator, "{\n", ",\n", " = ", "}\n", LongMap)
 
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
@@ -188,6 +216,15 @@ void print_Type(FILE* p, Type* ty) {
         print_FieldMap(p, ty->field_map);
       }
       break;
+    case TY_ENUM:
+      fputs("enum ", p);
+      if (ty->tag != NULL) {
+        fprintf(p, "%s ", ty->tag);
+      }
+      if (ty->enum_map != NULL) {
+        print_LongMap(p, ty->enum_map);
+      }
+      break;
     case TY_ARRAY:
       if (ty->is_length_known) {
         fprintf(p, "[%d] ", ty->length);
@@ -208,18 +245,19 @@ bool equal_to_Type(const Type* a, const Type* b) {
     return false;
   }
 
+  if ((bool)a->tag != (bool)b->tag) {
+    return false;
+  }
+  // if a->tag == NULL, b->tag would be NULL
+  if (a->tag != NULL && strcmp(a->tag, b->tag) != 0) {
+    return false;
+  }
+
   switch (a->kind) {
     case TY_VOID:
     case TY_BOOL:
       return true;
     case TY_STRUCT:
-      if ((bool)a->tag != (bool)b->tag) {
-        return false;
-      }
-      // if a->tag == NULL, b->tag would be NULL
-      if (a->tag != NULL && strcmp(a->tag, b->tag) != 0) {
-        return false;
-      }
       if ((bool)a->fields != (bool)b->fields) {
         return false;
       }
@@ -238,6 +276,27 @@ bool equal_to_Type(const Type* a, const Type* b) {
         Field* f1 = get_FieldMap(a->field_map, k1);
         Field* f2 = get_FieldMap(b->field_map, k2);
         if (!equal_to_Field(f1, f2)) {
+          return false;
+        }
+      }
+      return true;
+    case TY_ENUM:
+      if ((bool)a->enums != (bool)b->enums) {
+        return false;
+      }
+      if (a->enums == NULL) {
+        return true;
+      }
+      if (length_StringVec(a->enums) != length_StringVec(b->enums)) {
+        return false;
+      }
+      for (unsigned i = 0; i < length_StringVec(a->enums); i++) {
+        char* k1 = get_StringVec(a->enums, i);
+        char* k2 = get_StringVec(b->enums, i);
+        if (strcmp(k1, k2) != 0) {
+          return false;
+        }
+        if (get_LongMap(a->enum_map, k1) != get_LongMap(b->enum_map, k2)) {
           return false;
         }
       }
@@ -316,6 +375,14 @@ Type* struct_ty(char* tag, StringVec* fields, FieldMap* field_map) {
   return t;
 }
 
+Type* enum_ty(char* tag, StringVec* enums, LongMap* enum_map) {
+  Type* t     = new_Type(TY_ENUM);
+  t->enum_map = enum_map;
+  t->enums    = enums;
+  t->tag      = tag;
+  return t;
+}
+
 Type* ptr_to_ty(Type* ty) {
   Type* t   = new_Type(TY_PTR);
   t->ptr_to = ty;
@@ -391,15 +458,16 @@ bool is_compatible_ty(const Type* a, const Type* b) {
     return false;
   }
 
+  if ((bool)a->tag != (bool)b->tag) {
+    return false;
+  }
+  // if a->tag == NULL, b->tag would be NULL
+  if (a->tag != NULL && strcmp(a->tag, b->tag) != 0) {
+    return false;
+  }
+
   switch (a->kind) {
     case TY_STRUCT:
-      if ((bool)a->tag != (bool)b->tag) {
-        return false;
-      }
-      // if a->tag == NULL, b->tag would be NULL
-      if (a->tag != NULL && strcmp(a->tag, b->tag) != 0) {
-        return false;
-      }
       if (is_complete_ty(a) && is_complete_ty(b)) {
         if (length_StringVec(a->fields) != length_StringVec(b->fields)) {
           return false;
@@ -418,13 +486,30 @@ bool is_compatible_ty(const Type* a, const Type* b) {
         }
       }
       return true;
+    case TY_ENUM:
+      if (is_complete_ty(a) && is_complete_ty(b)) {
+        if (length_StringVec(a->enums) != length_StringVec(b->enums)) {
+          return false;
+        }
+        for (unsigned i = 0; i < length_StringVec(a->enums); i++) {
+          char* k1 = get_StringVec(a->enums, i);
+          char* k2 = get_StringVec(b->enums, i);
+          if (strcmp(k1, k2) != 0) {
+            return false;
+          }
+          if (get_LongMap(a->enum_map, k1) != get_LongMap(b->enum_map, k2)) {
+            return false;
+          }
+        }
+      }
+      return true;
     default:
       return equal_to_Type(a, b);
   }
 }
 
 bool is_integer_ty(const Type* t) {
-  return t->kind == TY_INT || t->kind == TY_BOOL;
+  return t->kind == TY_INT || t->kind == TY_BOOL || t->kind == TY_ENUM;
 }
 
 bool is_pointer_ty(const Type* t) {
@@ -457,6 +542,8 @@ bool is_complete_ty(const Type* ty) {
       return true;
     case TY_STRUCT:
       return ty->fields;
+    case TY_ENUM:
+      return ty->enums;
     case TY_PTR:
       return true;
     case TY_FUNC:
@@ -506,6 +593,8 @@ unsigned sizeof_ty(const Type* t) {
       Field* f   = get_FieldMap(t->field_map, last);
       return f->offset + sizeof_ty(f->type);
     }
+    case TY_ENUM:
+      return 8;
     default:
       CCC_UNREACHABLE;
   }

@@ -203,6 +203,9 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
   BaseType bt              = 0;
   StructSpecifier* struct_ = NULL;
   bool is_typedef          = false;
+  char* typedef_name       = NULL;
+
+  TokenList* save = env->cur;
 
   for (;;) {
     switch (head_of(env)) {
@@ -244,26 +247,44 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
         break;
       case TK_STRUCT:
         if (struct_ != NULL) {
-          error("too many data types in declaration specifiers");
+          error("too many struct types in declaration specifiers");
         }
         struct_ = struct_specifier(env);
         break;
-      default:
-        if (bt != 0 && struct_ != NULL) {
-          error("too many data types in declaration specifiers");
+      case TK_IDENT: {
+        char* ident = head_TokenList(env->cur).ident;
+        if (is_typedef_name(env, ident)) {
+          if (typedef_name != NULL) {
+            error("too many typedef names in declaration specifiers");
+          }
+          consume(env);
+          typedef_name = ident;
+          break;
         }
-        if (bt == 0 && struct_ == NULL) {
+      }
+        // fallthrough
+      default:
+        if (bt == 0 && struct_ == NULL && typedef_name == NULL) {
+          env->cur = save;
           return NULL;
+        }
+        if ((bool)bt + (bool)struct_ + (bool)typedef_name != 1) {
+          error("too many data types in declaration specifiers");
         }
         if (bt != 0) {
           DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_BASE);
           s->base_type             = bt;
           s->is_typedef            = is_typedef;
           return s;
-        } else {
-          assert(struct_ != NULL);
+        } else if (struct_ != NULL) {
           DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_STRUCT);
           s->struct_               = struct_;
+          s->is_typedef            = is_typedef;
+          return s;
+        } else {
+          assert(typedef_name != NULL);
+          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_TYPEDEF_NAME);
+          s->typedef_name          = strdup(typedef_name);
           s->is_typedef            = is_typedef;
           return s;
         }

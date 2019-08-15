@@ -16,6 +16,7 @@ typedef enum {
   TK_DOUBLE_AND,
   TK_DOUBLE_VERTICAL,
   TK_PERCENT,
+  TK_DOT,
   TK_HAT,
   TK_LEFT,    // <<
   TK_RIGHT,   // >>

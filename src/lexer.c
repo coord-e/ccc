@@ -126,6 +126,10 @@ TokenList* tokenize(char* p) {
     }
 
     switch (*p) {
+      case '.':
+        cur = add_token(TK_DOT, cur);
+        p++;
+        continue;
       case '+':
         p++;
         switch (*p) {
@@ -565,6 +569,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_DEFAULT:
       fprintf(p, "(DEFAULT)");
+      break;
+    case TK_DOT:
+      fprintf(p, "(.)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

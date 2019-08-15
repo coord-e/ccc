@@ -489,6 +489,10 @@ static void print_expr(FILE* p, Expr* expr) {
       print_expr(p, expr->else_);
       fputs(")", p);
       return;
+    case ND_MEMBER:
+      print_expr(p, expr->expr);
+      fprintf(p, ".%s", expr->member);
+      break;
     case ND_SIZEOF_EXPR:
       fprintf(p, "(sizeof ");
       print_expr(p, expr->expr);
@@ -770,6 +774,13 @@ Expr* new_node_sizeof_type(TypeName* ty) {
 Expr* new_node_sizeof_expr(Expr* e) {
   Expr* node = new_node(ND_SIZEOF_EXPR, NULL, NULL);
   node->expr = e;
+  return node;
+}
+
+Expr* new_node_member(Expr* e, const char* s) {
+  Expr* node   = new_node(ND_MEMBER, NULL, NULL);
+  node->expr   = e;
+  node->member = strdup(s);
   return node;
 }
 

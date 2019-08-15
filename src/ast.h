@@ -164,6 +164,7 @@ typedef enum {
   ND_COMMA,
   ND_SIZEOF_EXPR,
   ND_SIZEOF_TYPE,
+  ND_MEMBER,
 } ExprKind;
 
 DECLARE_VECTOR(Expr*, ExprVec)
@@ -174,7 +175,8 @@ struct Expr {
   Expr* lhs;  // for ND_BINOP, ND_COMMA, ND_COMPOUND_ASSIGN and ND_ASSIGN, owned
   Expr* rhs;  // ditto
 
-  Expr* expr;  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP, ND_SIZEOF_EXPR and ND_CAST, owned
+  // for ND_ADDR, ND_DEREF, ND_ADDR_ARY, ND_UNAOP, ND_SIZEOF_EXPR, ND_MEMBER and ND_CAST, owned
+  Expr* expr;
 
   TypeName* cast_to;  // for ND_CAST, owned, nullable if `cast_type` is not NULL
 
@@ -187,6 +189,7 @@ struct Expr {
   char* string;     // for ND_STRING, owned
   size_t str_len;   // for ND_STRING
   ExprVec* args;    // for ND_CALL, owned
+  char* member;     // for ND_MEMBER, owned
 
   Expr* cond;   // for ND_COND, owned
   Expr* then_;  // for ND_COND, owned
@@ -213,6 +216,7 @@ Expr* new_node_cast(TypeName* ty, Expr* opr);
 Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);
 Expr* new_node_sizeof_type(TypeName*);
 Expr* new_node_sizeof_expr(Expr*);
+Expr* new_node_member(Expr*, const char*);
 Expr* shallow_copy_node(Expr*);
 
 typedef struct Statement Statement;

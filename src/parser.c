@@ -433,6 +433,10 @@ static Expr* postfix(TokenList** t) {
         expect(t, TK_RBRACKET);
         node = n;
         break;
+      case TK_DOT:
+        consume(t);
+        node = new_node_member(node, expect(t, TK_IDENT).ident);
+        break;
       case TK_DOUBLE_PLUS: {
         consume(t);
         // `e++` is converted to `(e+=1)-1`

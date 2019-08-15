@@ -459,5 +459,21 @@ int main() {
   return b[1];
 }
 EOF
+items 1 "_Bool b = 10; return b;"
+items 0 "_Bool b = 0; return b;"
+items 1 "_Bool b = -1; return b;"
+items 0 "_Bool b = 1; return !b;"
+items 1 "_Bool b = 0; return !b;"
+items 1 "int a, *p = &a; _Bool b = p; return b;"
+items 0 "int *a = 0; _Bool b = a; return b; "
+try_ 1 <<EOF
+_Bool is_zero_or_seven(int num) {
+  return num == 0 || num == 7;
+}
+
+int main() {
+  return is_zero_or_seven(1) || (is_zero_or_seven(0) && is_zero_or_seven(7));
+}
+EOF
 
 echo OK

@@ -14,14 +14,15 @@
   DECLARE_VECTOR(Name##Entries*, Name##Table)                                                      \
   typedef struct Name Name;                                                                        \
   Name* new_##Name(unsigned size);                                                                 \
-  Name* copy_##Name(const Name*);                                                                  \
+  Name* copy_##Name(const Name*);                               \
+  Name* shallow_copy_##Name(const Name*);                                                          \
   void insert_##Name(Name*, const char* k, T v);                                                   \
   T get_##Name(Name*, const char* k);                                                              \
   bool lookup_##Name(Name*, const char* k, T* out);                                                \
   void remove_##Name(Name*, const char* k);                                                        \
   void release_##Name(Name*);
 
-#define DEFINE_MAP(release_T, T, Name)                                                             \
+#define DEFINE_MAP(copy_T, release_T, T, Name)                                                     \
   struct Name##Entry {                                                                             \
     unsigned hash;                                                                                 \
     char* key;                                                                                     \
@@ -44,24 +45,29 @@
     }                                                                                              \
     return m;                                                                                      \
   }                                                                                                \
-  Name##Entries* copy_entries_##Name(const Name##Entries* list) {                                  \
+  Name##Entries* copy_entries_##Name(const Name##Entries* list, bool is_deep) {                    \
     if (list->is_nil) {                                                                            \
       return nil_##Name##Entries();                                                                \
     }                                                                                              \
     Name##Entry e = list->head;                                                                    \
     e.key         = strdup(e.key);                                                                 \
-    return cons_##Name##Entries(e, copy_entries_##Name(list->tail));                               \
+    if (is_deep) {                                                                                 \
+      e.value = copy_T(e.value);                                                                   \
+    }                                                                                              \
+    return cons_##Name##Entries(e, copy_entries_##Name(list->tail, is_deep));                      \
   }                                                                                                \
-  Name* copy_##Name(const Name* m) {                                                               \
+  Name* copy_impl_##Name(const Name* m, bool is_deep) {                                            \
     Name* copy    = calloc(1, sizeof(Name));                                                       \
     unsigned size = length_##Name##Table(m->table);                                                \
     copy->table   = new_##Name##Table(size);                                                       \
     for (unsigned i = 0; i < size; i++) {                                                          \
       Name##Entries* l = get_##Name##Table(m->table, i);                                           \
-      push_##Name##Table(copy->table, copy_entries_##Name(l));                                     \
+      push_##Name##Table(copy->table, copy_entries_##Name(l, is_deep));                            \
     }                                                                                              \
     return copy;                                                                                   \
   }                                                                                                \
+  Name* shallow_copy_##Name(const Name* m) { return copy_impl_##Name(m, false); }                  \
+  Name* copy_##Name(const Name* m) { return copy_impl_##Name(m, true); }                           \
   static Name##Entry make_entry_##Name(const char* k, T v) {                                       \
     unsigned hash = hash_string(k);                                                                \
     Name##Entry e;                                                                                 \

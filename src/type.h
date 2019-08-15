@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include "map.h"
 #include "vector.h"
 
 typedef enum {

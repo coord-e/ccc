@@ -203,7 +203,10 @@ static void release_ParameterDecl(ParameterDecl* d) {
 
 DEFINE_LIST(release_ParameterDecl, ParameterDecl*, ParamList)
 static void release_unsigned(unsigned i) {}
-DEFINE_MAP(release_unsigned, unsigned, UIMap)
+static unsigned copy_unsigned(unsigned i) {
+  return i;
+}
+DEFINE_MAP(copy_unsigned, release_unsigned, unsigned, UIMap)
 
 static void release_FunctionDef(FunctionDef* def) {
   if (def == NULL) {

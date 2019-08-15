@@ -3,7 +3,7 @@
 #include "type.h"
 
 DECLARE_MAP(Type*, TypeMap)
-DEFINE_MAP(release_Type, Type*, TypeMap)
+DEFINE_MAP(copy_Type, release_Type, Type*, TypeMap)
 
 typedef struct {
   TypeMap* names;
@@ -1081,7 +1081,7 @@ static void sema_stmt(Env* env, Statement* stmt) {
     case ST_COMPOUND: {
       // block
       TypeMap* save = env->vars;
-      TypeMap* inst = copy_TypeMap(env->vars);
+      TypeMap* inst = shallow_copy_TypeMap(env->vars);
 
       env->vars = inst;
       sema_items(env, stmt->items);

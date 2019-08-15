@@ -143,7 +143,7 @@ static StructDeclarationList* struct_declaration_list(TokenList** t) {
 static StructSpecifier* struct_specifier(TokenList** t) {
   expect(t, TK_STRUCT);
 
-  char* tag;
+  char* tag = NULL;
   if (head_of(t) == TK_IDENT) {
     tag = strdup(expect(t, TK_IDENT).ident);
   }

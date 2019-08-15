@@ -1363,7 +1363,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
       error("typedef declaration specifier is invalid in parameters");
     }
     Type* base_ty = translate_declaration_specifiers(env, d->spec);
-    if (base_ty->kind == TY_VOID) {
+    if (base_ty->kind == TY_VOID && d->decl->num_ptrs == 0) {
       if (length_TypeVec(params) != 0 || !is_nil_ParamList(tail_ParamList(cur))) {
         error("void must be the first and only parameter if specified");
       }

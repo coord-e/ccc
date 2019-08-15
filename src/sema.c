@@ -1353,7 +1353,7 @@ void sema_items(Env* env, BlockItemList* l) {
   sema_items(env, tail_BlockItemList(l));
 }
 
-// if `env` is NULL, this accepts abstract declarator
+// if `env->is_global_only`, this accepts abstract declarator
 static TypeVec* param_types(Env* env, ParamList* cur) {
   TypeVec* params = new_TypeVec(2);
   while (!is_nil_ParamList(cur)) {
@@ -1372,7 +1372,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
       return params;
     }
 
-    if (env == NULL) {
+    if (env->is_global_only) {
       Type* type;
       extract_declarator(d->decl, base_ty, NULL, &type);
       push_TypeVec(params, type);
@@ -1434,7 +1434,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       Type* ret;
       char* name;
       extract_declarator(f->decl, base_ty, &name, &ret);
-      TypeVec* params = param_types(NULL, f->params);
+      TypeVec* params = param_types(fake_env(global), f->params);
       Type* ty        = func_ty(ret, params);
       f->type         = copy_Type(ty);
       add_global(global, name, ty);

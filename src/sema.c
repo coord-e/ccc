@@ -1302,6 +1302,12 @@ static void sema_stmt(Env* env, Statement* stmt) {
       sema_stmt(env, stmt->body);
       break;
     case ST_SWITCH: {
+      if (stmt->cases != NULL) {
+        // TODO: shallow release
+        stmt->cases = NULL;
+      }
+      stmt->default_ = NULL;
+
       sema_expr(env, stmt->expr);
       Statement* old = start_switch(env, stmt);
       sema_stmt(env, stmt->body);

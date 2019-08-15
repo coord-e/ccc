@@ -386,8 +386,41 @@ bool is_real_ty(const Type* ty) {
   return is_integer_ty(ty);  // || is_real_floating_ty(ty);
 }
 
-bool is_compatible_ty(const Type* t1, const Type* t2) {
-  return equal_to_Type(t1, t2);
+bool is_compatible_ty(const Type* a, const Type* b) {
+  if (a->kind != b->kind) {
+    return false;
+  }
+
+  switch (a->kind) {
+    case TY_STRUCT:
+      if ((bool)a->tag != (bool)b->tag) {
+        return false;
+      }
+      // if a->tag == NULL, b->tag would be NULL
+      if (a->tag != NULL && strcmp(a->tag, b->tag) != 0) {
+        return false;
+      }
+      if (is_complete_ty(a) && is_complete_ty(b)) {
+        if (length_StringVec(a->fields) != length_StringVec(b->fields)) {
+          return false;
+        }
+        for (unsigned i = 0; i < length_StringVec(a->fields); i++) {
+          char* k1 = get_StringVec(a->fields, i);
+          char* k2 = get_StringVec(b->fields, i);
+          if (strcmp(k1, k2) != 0) {
+            return false;
+          }
+          Field* f1 = get_FieldMap(a->field_map, k1);
+          Field* f2 = get_FieldMap(b->field_map, k2);
+          if (!equal_to_Field(f1, f2)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    default:
+      return equal_to_Type(a, b);
+  }
 }
 
 bool is_integer_ty(const Type* t) {

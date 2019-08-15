@@ -33,6 +33,10 @@ static Env* init_Env(TokenList* t) {
   return env;
 }
 
+static void add_name(Env* env, const char* name, NameKind kind) {
+  insert_NameMap(env->names, name, kind);
+}
+
 static void release_Env(Env* env) {
   release_NameMap(env->names);
   free(env);
@@ -341,10 +345,14 @@ static InitializerList* try_initializer_list(Env* env) {
   return list;
 }
 
-static InitDeclarator* try_init_declarator(Env* env) {
+static InitDeclarator* try_init_declarator(Env* env, bool is_typedef) {
   Declarator* decl = try_declarator(env, false);
   if (decl == NULL) {
     return NULL;
+  }
+
+  if (decl->direct->name_ref != NULL) {
+    add_name(env, decl->direct->name_ref, is_typedef ? NAME_TYPEDEF : NAME_VARIABLE);
   }
 
   Initializer* init = NULL;
@@ -356,7 +364,7 @@ static InitDeclarator* try_init_declarator(Env* env) {
   return new_InitDeclarator(decl, init);
 }
 
-static InitDeclaratorList* try_init_declarator_list(Env* env) {
+static InitDeclaratorList* try_init_declarator_list(Env* env, bool is_typedef) {
   TokenList* save = env->cur;
 
   InitDeclaratorList* cur  = nil_InitDeclaratorList();
@@ -367,7 +375,7 @@ static InitDeclaratorList* try_init_declarator_list(Env* env) {
   }
 
   do {
-    InitDeclarator* init = try_init_declarator(env);
+    InitDeclarator* init = try_init_declarator(env, is_typedef);
     if (init == NULL) {
       env->cur = save;
       return NULL;
@@ -379,8 +387,8 @@ static InitDeclaratorList* try_init_declarator_list(Env* env) {
   return list;
 }
 
-static InitDeclaratorList* init_declarator_list(Env* env) {
-  InitDeclaratorList* list = try_init_declarator_list(env);
+static InitDeclaratorList* init_declarator_list(Env* env, bool is_typedef) {
+  InitDeclaratorList* list = try_init_declarator_list(env, is_typedef);
   if (list == NULL) {
     error("could not parse the init declarator list");
   }
@@ -393,7 +401,7 @@ static Declaration* try_declaration(Env* env) {
     return NULL;
   }
 
-  InitDeclaratorList* dor = try_init_declarator_list(env);
+  InitDeclaratorList* dor = try_init_declarator_list(env, s->is_typedef);
   if (dor == NULL) {
     return NULL;
   }
@@ -1049,7 +1057,7 @@ static ExternalDecl* external_declaration(Env* env) {
   if (head_of(env) != TK_LPAREN) {
     // TODO: insufficient duplicated parsing of a declarator
     env->cur                 = save;
-    InitDeclaratorList* list = init_declarator_list(env);
+    InitDeclaratorList* list = init_declarator_list(env, spec->is_typedef);
     expect(env, TK_SEMICOLON);
 
     Declaration* decl = new_declaration(spec, list);

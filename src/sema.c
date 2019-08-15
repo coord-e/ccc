@@ -77,7 +77,7 @@ static void add_global_tagged_struct(GlobalEnv* env, const char* name, Type* ty)
 }
 
 static bool lookup_tagged_struct(Env* env, const char* name, Type** t) {
-  if (!lookup_TypeMap(env->tagged_structs, name, t)) {
+  if (env->is_global_only || !lookup_TypeMap(env->tagged_structs, name, t)) {
     if (!lookup_TypeMap(env->global->tagged_structs, name, t)) {
       return false;
     }

@@ -483,9 +483,7 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
   unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
   Expr* ptr_opr_c = new_cast_direct(int_ty, ptr_opr);
-  // TODO: Remove this explicit cast by arithmetic conversion
-  Expr* int_opr_c = new_cast_direct(copy_Type(int_ty),
-                                    new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
+  Expr* int_opr_c = new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size));
   Expr* new_expr  = new_node_binop(op, ptr_opr_c, int_opr_c);
 
   return new_cast_direct(copy_Type(ptr_opr->type), new_expr);
@@ -500,10 +498,8 @@ static Expr* build_pointer_arith_assign(BinopKind op, Expr* ptr_opr, Expr* int_o
   Type* int_ty       = into_unsigned_ty(int_of_size_ty(sizeof_ty(ptr_opr->type)));
   unsigned elem_size = sizeof_ty(ptr_opr->type->ptr_to);
 
-  Expr* lhs = new_lval_cast(int_ty, ptr_opr);
-  // TODO: Remove this explicit cast by arithmetic conversion
-  Expr* int_opr_c = new_cast_direct(copy_Type(int_ty),
-                                    new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size)));
+  Expr* lhs       = new_lval_cast(int_ty, ptr_opr);
+  Expr* int_opr_c = new_node_binop(BINOP_MUL, int_opr, new_node_num(elem_size));
   Expr* new_expr  = new_node_compound_assign(op, lhs, int_opr_c);
 
   return new_cast_direct(copy_Type(ptr_opr->type), new_expr);
@@ -521,8 +517,7 @@ static Expr* build_pointer_diff(Expr* opr1, Expr* opr2) {
   Expr* opr1_c   = new_cast_direct(int_ty, opr1);
   Expr* opr2_c   = new_cast_direct(copy_Type(int_ty), opr2);
   Expr* new_expr = new_node_binop(BINOP_SUB, opr1_c, opr2_c);
-  // TODO: Remove this explicit cast by arithmetic conversion
-  Expr* num_c = new_cast_direct(copy_Type(int_ty), new_node_num(sizeof_ty(opr1->type->ptr_to)));
+  Expr* num_c    = new_node_num(sizeof_ty(opr1->type->ptr_to));
 
   return new_node_binop(BINOP_DIV, new_expr, num_c);
 }
@@ -1123,9 +1118,8 @@ static Initializer* build_string_initializer(Env* env, Type* type, Expr* init) {
 
   for (unsigned i = 0; i < length_of_ty(type); i++) {
     Initializer* c_init = new_Initializer(IN_EXPR);
-    // TODO: remove this explicit cast by conversion
-    c_init->expr = new_cast_direct(char_ty(), new_node_num(*p));
-    cur          = snoc_InitializerList(c_init, cur);
+    c_init->expr        = new_node_num(*p);
+    cur                 = snoc_InitializerList(c_init, cur);
 
     p++;
   }

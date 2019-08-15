@@ -162,6 +162,9 @@ bool equal_to_Type(const Type* a, const Type* b) {
 
       return true;
     case TY_ARRAY:
+      if (a->is_length_known != b->is_length_known) {
+        return false;
+      }
       if (a->length != b->length) {
         return false;
       }

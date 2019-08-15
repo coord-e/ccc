@@ -825,6 +825,19 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       t = copy_Type(lhs_ty);
       break;
     }
+    case ND_MEMBER: {
+      Type* ty = sema_expr(env, expr->expr);
+      if (ty->kind != TY_STRUCT) {
+        error("struct is expected before . operator");
+      }
+      should_complete(ty);
+      Field* f;
+      if (!lookup_FieldMap(ty->field_map, expr->member, &f)) {
+        error("member '%s' is not found in the struct", expr->member);
+      }
+      t = copy_Type(f->type);
+      break;
+    }
     case ND_COMMA: {
       sema_expr(env, expr->lhs);
       t = copy_Type(sema_expr(env, expr->rhs));

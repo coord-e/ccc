@@ -259,12 +259,77 @@ static Type* translate_base_type(BaseType t) {
 #pragma GCC diagnostic warning "-Wswitch"
 }
 
+static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* spec);
+static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type);
+
+typedef struct {
+  StringVec* fields;
+  FieldMap* field_map;
+  unsigned current_offset;
+} StructTranslationEnv;
+
+static StructTranslationEnv* init_StructTranslationEnv() {
+  StructTranslationEnv* env = calloc(1, sizeof(StructTranslationEnv));
+  env->fields               = new_StringVec(16);
+  env->field_map            = new_FieldMap(16);
+  env->current_offset       = 0;
+  return env;
+}
+
+static void translate_struct_declarators(StructTranslationEnv* senv,
+                                         DeclaratorList* l,
+                                         Type* base_ty) {
+  if (is_nil_DeclaratorList(l)) {
+    return;
+  }
+
+  Declarator* decl = head_DeclaratorList(l);
+  char* name;
+  Type* type;
+  extract_declarator(decl, base_ty, &name, &type);
+
+  push_StringVec(senv->fields, name);
+  Field* f = new_Field(type, senv->current_offset);
+  senv->current_offset += sizeof_ty(type);
+  insert_FieldMap(senv->field_map, name, f);
+
+  translate_struct_declarators(senv, tail_DeclaratorList(l), base_ty);
+}
+
+static void translate_struct_declarations(Env* env,
+                                          StructTranslationEnv* senv,
+                                          StructDeclarationList* l) {
+  if (is_nil_StructDeclarationList(l)) {
+    return;
+  }
+
+  StructDeclaration* decl = head_StructDeclarationList(l);
+  Type* base_ty           = translate_declaration_specifiers(env, decl->spec);
+  translate_struct_declarators(senv, decl->declarators, base_ty);
+
+  translate_struct_declarations(env, senv, tail_StructDeclarationList(l));
+}
+
+static Type* translate_struct_specifier(Env* env, StructSpecifier* spec) {
+  switch (spec->kind) {
+    case SS_NAME:
+      return struct_ty(strdup(spec->tag), NULL, NULL);
+    case SS_DECL: {
+      StructTranslationEnv* senv = init_StructTranslationEnv();
+      translate_struct_declarations(env, senv, spec->declarations);
+      return struct_ty(spec->tag == NULL ? NULL : strdup(spec->tag), senv->fields, senv->field_map);
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* spec) {
   switch (spec->kind) {
     case DS_BASE:
       return translate_base_type(spec->base_type);
     case DS_STRUCT:
-      error("unimplemented");
+      return translate_struct_specifier(env, spec->struct_);
     default:
       CCC_UNREACHABLE;
   }

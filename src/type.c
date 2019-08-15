@@ -27,7 +27,7 @@ static void release_long(long l) {}
 static long copy_long(long l) {
   return l;
 }
-DEFINE_MAP(copy_long, release_long, long, LongMap)
+DEFINE_MAP(copy_long, release_long, long, EnumMap)
 
 static void release_Field(Field* field) {
   if (field == NULL) {
@@ -94,7 +94,7 @@ void release_Type(Type* ty) {
   release_StringVec(ty->fields);
   release_FieldMap(ty->field_map);
   release_StringVec(ty->enums);
-  release_LongMap(ty->enum_map);
+  release_EnumMap(ty->enum_map);
   free(ty->tag);
   free(ty);
 }
@@ -142,7 +142,7 @@ Type* copy_Type(const Type* ty) {
     }
   }
   if (ty->enum_map != NULL) {
-    new->enum_map = copy_LongMap(ty->enum_map);
+    new->enum_map = copy_EnumMap(ty->enum_map);
   }
 
   return new;
@@ -163,8 +163,8 @@ static void print_enumerator(FILE* p, long l) {
   fprintf(p, "%ld", l);
 }
 
-DECLARE_MAP_PRINTER(LongMap)
-DEFINE_MAP_PRINTER(print_enumerator, "{\n", ",\n", " = ", "}\n", LongMap)
+DECLARE_MAP_PRINTER(EnumMap)
+DEFINE_MAP_PRINTER(print_enumerator, "{\n", ",\n", " = ", "}\n", EnumMap)
 
 void print_Type(FILE* p, Type* ty) {
   switch (ty->kind) {
@@ -222,7 +222,7 @@ void print_Type(FILE* p, Type* ty) {
         fprintf(p, "%s ", ty->tag);
       }
       if (ty->enum_map != NULL) {
-        print_LongMap(p, ty->enum_map);
+        print_EnumMap(p, ty->enum_map);
       }
       break;
     case TY_ARRAY:
@@ -296,7 +296,7 @@ bool equal_to_Type(const Type* a, const Type* b) {
         if (strcmp(k1, k2) != 0) {
           return false;
         }
-        if (get_LongMap(a->enum_map, k1) != get_LongMap(b->enum_map, k2)) {
+        if (get_EnumMap(a->enum_map, k1) != get_EnumMap(b->enum_map, k2)) {
           return false;
         }
       }
@@ -375,7 +375,7 @@ Type* struct_ty(char* tag, StringVec* fields, FieldMap* field_map) {
   return t;
 }
 
-Type* enum_ty(char* tag, StringVec* enums, LongMap* enum_map) {
+Type* enum_ty(char* tag, StringVec* enums, EnumMap* enum_map) {
   Type* t     = new_Type(TY_ENUM);
   t->enum_map = enum_map;
   t->enums    = enums;
@@ -408,6 +408,11 @@ Type* size_t_ty() {
 }
 
 Type* ptrdiff_t_ty() {
+  return long_ty();
+}
+
+Type* enum_underlying_ty(const Type* t) {
+  assert(t->kind == TY_ENUM);
   return long_ty();
 }
 
@@ -454,6 +459,13 @@ bool is_real_ty(const Type* ty) {
 }
 
 bool is_compatible_ty(const Type* a, const Type* b) {
+  if (a->kind == TY_ENUM && equal_to_Type(enum_underlying_ty(a), b)) {
+    return true;
+  }
+  if (b->kind == TY_ENUM && equal_to_Type(enum_underlying_ty(b), a)) {
+    return true;
+  }
+
   if (a->kind != b->kind) {
     return false;
   }
@@ -497,7 +509,7 @@ bool is_compatible_ty(const Type* a, const Type* b) {
           if (strcmp(k1, k2) != 0) {
             return false;
           }
-          if (get_LongMap(a->enum_map, k1) != get_LongMap(b->enum_map, k2)) {
+          if (get_EnumMap(a->enum_map, k1) != get_EnumMap(b->enum_map, k2)) {
             return false;
           }
         }
@@ -594,7 +606,7 @@ unsigned sizeof_ty(const Type* t) {
       return f->offset + sizeof_ty(f->type);
     }
     case TY_ENUM:
-      return 8;
+      return sizeof_ty(enum_underlying_ty(t));
     default:
       CCC_UNREACHABLE;
   }
@@ -621,7 +633,7 @@ int compare_rank_ty(const Type* t1, const Type* t2) {
     return 1;
   }
 
-  return t1->size - t2->size;
+  return sizeof_ty(t1) - sizeof_ty(t2);
 }
 
 bool is_representable_in_ty(const Type* t1, const Type* t2) {
@@ -635,6 +647,12 @@ bool is_representable_in_ty(const Type* t1, const Type* t2) {
   if (t1->kind == TY_BOOL && t2->kind != TY_BOOL) {
     return true;
   } else if (t1->kind != TY_BOOL && t2->kind == TY_BOOL) {
+    return false;
+  }
+
+  if (t1->kind == TY_ENUM && t2->kind != TY_ENUM) {
+    t1 = enum_underlying_ty(t1);
+  } else if (t1->kind != TY_ENUM && t2->kind == TY_ENUM) {
     return false;
   }
 

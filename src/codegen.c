@@ -3,23 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "arch.h"
 #include "codegen.h"
 #include "error.h"
-
-// clang-format off
-static const char* regs8[]  = {"r12b", "r13b", "r14b", "r15b", "bl"};
-static const char* regs16[] = {"r12w", "r13w", "r14w", "r15w", "bxj"};
-static const char* regs32[] = {"r12d", "r13d", "r14d", "r15d", "ebx"};
-static const char* regs64[] = {"r12",  "r13",  "r14",  "r15",  "rbx"};
-
-static const char* arg_regs8[]  = {"dil", "sil", "dl",  "cl",  "r8b", "r9b"};
-static const char* arg_regs16[] = {"di",  "si",  "dx",  "cx",  "r8w", "r9w"};
-static const char* arg_regs32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
-static const char* arg_regs64[] = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9"};
-// clang-format on
-
-// declared as an extern variable in codegen.h
-size_t num_regs = sizeof(regs64) / sizeof(*regs64);
 
 static const char* size_spec(DataSize s) {
   switch (s) {
@@ -124,26 +110,6 @@ static const char* reg_of(Reg r) {
 
 static const char* nth_reg_of(unsigned i, RegVec* rs) {
   return reg_of(get_RegVec(rs, i));
-}
-
-const size_t max_args = sizeof(arg_regs64) / sizeof(*arg_regs64);
-static const char* nth_arg(unsigned idx, DataSize s) {
-  if (idx >= max_args) {
-    error("unsupported number of arguments/parameters. (%d)", idx);
-  }
-
-  switch (s) {
-    case SIZE_BYTE:
-      return arg_regs8[idx];
-    case SIZE_WORD:
-      return arg_regs16[idx];
-    case SIZE_DWORD:
-      return arg_regs32[idx];
-    case SIZE_QWORD:
-      return arg_regs64[idx];
-    default:
-      CCC_UNREACHABLE;
-  }
 }
 
 static void id_label_name(FILE* p, unsigned id) {

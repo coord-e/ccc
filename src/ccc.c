@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "arch.h"
 #include "codegen.h"
 #include "error.h"
 #include "ir.h"
@@ -23,7 +24,8 @@ static struct argp_option options[] = {
     {"emit-ast1", 'a', "FILE", 0, "Dump parsed ast to the file"},
     {"emit-ast2", 's', "FILE", 0, "Dump analyzed ast to the file"},
     {"emit-ir1", 'c', "FILE", 0, "Dump the initial IR to the file"},
-    {"emit-ir2", 'i', "FILE", 0, "Dump the final IR to the file"},
+    {"emit-ir2", 'i', "FILE", 0, "Dump the target-specific IR to the file"},
+    {"emit-ir3", 'f', "FILE", 0, "Dump the final IR to the file"},
     {"output", 'o', "FILE", 0, "Output to FILE"},
     {0}};
 
@@ -33,6 +35,7 @@ typedef struct {
   char* emit_ast2;
   char* emit_ir1;
   char* emit_ir2;
+  char* emit_ir3;
 
   char* output;
   char* source;
@@ -53,6 +56,9 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
       break;
     case 'c':
       opts->emit_ir1 = arg;
+      break;
+    case 'f':
+      opts->emit_ir3 = arg;
       break;
     case 'i':
       opts->emit_ir2 = arg;
@@ -156,13 +162,20 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
+  arch(ir);
+  if (opts.emit_ir2 != NULL) {
+    FILE* f = open_file(opts.emit_ir2, "w");
+    print_IR(f, ir);
+    close_file(f);
+  }
+
   reorder_blocks(ir);
 
   liveness(ir);
   reg_alloc(num_regs, ir);
 
-  if (opts.emit_ir2 != NULL) {
-    FILE* f = open_file(opts.emit_ir2, "w");
+  if (opts.emit_ir3 != NULL) {
+    FILE* f = open_file(opts.emit_ir3, "w");
     print_IR(f, ir);
     close_file(f);
   }

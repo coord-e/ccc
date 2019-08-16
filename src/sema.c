@@ -71,19 +71,19 @@ static void release_GlobalEnv(GlobalEnv* env) {
 }
 
 static void add_var(Env* env, const char* name, Type* ty) {
-  insert_TypeMap(env->vars, name, ty);
-}
-
-static void add_global(GlobalEnv* env, const char* name, Type* ty) {
-  insert_TypeMap(env->names, name, ty);
+  if (env->is_global_only) {
+    insert_TypeMap(env->global->names, name, ty);
+  } else {
+    insert_TypeMap(env->vars, name, ty);
+  }
 }
 
 static void add_tagged_type(Env* env, const char* name, Type* ty) {
-  insert_TypeMap(env->tagged_types, name, ty);
-}
-
-static void add_global_tagged_type(GlobalEnv* env, const char* name, Type* ty) {
-  insert_TypeMap(env->tagged_types, name, ty);
+  if (env->is_global_only) {
+    insert_TypeMap(env->global->tagged_types, name, ty);
+  } else {
+    insert_TypeMap(env->tagged_types, name, ty);
+  }
 }
 
 static bool lookup_tagged_type(Env* env, const char* name, Type** t) {
@@ -93,6 +93,14 @@ static bool lookup_tagged_type(Env* env, const char* name, Type** t) {
     }
   }
   return true;
+}
+
+static void add_enum_const(Env* env, const char* name, long v) {
+  if (env->is_global_only) {
+    insert_EnumMap(env->global->enum_consts, name, v);
+  } else {
+    insert_EnumMap(env->enum_consts, name, v);
+  }
 }
 
 static bool lookup_enum_const(Env* env, const char* name, long* t) {
@@ -105,19 +113,11 @@ static bool lookup_enum_const(Env* env, const char* name, long* t) {
 }
 
 static void add_typedef(Env* env, const char* name, Type* ty) {
-  insert_TypeMap(env->typedefs, name, ty);
-}
-
-static void add_global_typedef(GlobalEnv* env, const char* name, Type* ty) {
-  insert_TypeMap(env->typedefs, name, ty);
-}
-
-static void add_enum_const(Env* env, const char* name, long v) {
-  insert_EnumMap(env->enum_consts, name, v);
-}
-
-static void add_global_enum_const(GlobalEnv* env, const char* name, long v) {
-  insert_EnumMap(env->enum_consts, name, v);
+  if (env->is_global_only) {
+    insert_TypeMap(env->global->typedefs, name, ty);
+  } else {
+    insert_TypeMap(env->typedefs, name, ty);
+  }
 }
 
 static Type* get_typedef(Env* env, const char* name) {
@@ -382,11 +382,7 @@ static Type* translate_struct_specifier(Env* env, StructSpecifier* spec) {
       translate_struct_declarations(env, senv, spec->declarations);
       if (spec->tag != NULL) {
         Type* type = struct_ty(strdup(spec->tag), senv->fields, senv->field_map);
-        if (env->is_global_only) {
-          add_global_tagged_type(env->global, spec->tag, copy_Type(type));
-        } else {
-          add_tagged_type(env, spec->tag, copy_Type(type));
-        }
+        add_tagged_type(env, spec->tag, copy_Type(type));
         return type;
       } else {
         return struct_ty(NULL, senv->fields, senv->field_map);
@@ -423,11 +419,7 @@ static void translate_enumerators(Env* env, EnumTranslationEnv* eenv, Enumerator
     eenv->current_value++;
   }
   insert_EnumMap(eenv->enum_map, e->name, eenv->current_value);
-  if (env->is_global_only) {
-    add_global_enum_const(env->global, e->name, eenv->current_value);
-  } else {
-    add_enum_const(env, e->name, eenv->current_value);
-  }
+  add_enum_const(env, e->name, eenv->current_value);
 
   translate_enumerators(env, eenv, tail_EnumeratorList(l));
 }
@@ -447,11 +439,7 @@ static Type* translate_enum_specifier(Env* env, EnumSpecifier* spec) {
       translate_enumerators(env, senv, spec->enums);
       if (spec->tag != NULL) {
         Type* type = enum_ty(strdup(spec->tag), senv->enums, senv->enum_map);
-        if (env->is_global_only) {
-          add_global_tagged_type(env->global, spec->tag, copy_Type(type));
-        } else {
-          add_tagged_type(env, spec->tag, copy_Type(type));
-        }
+        add_tagged_type(env, spec->tag, copy_Type(type));
         return type;
       } else {
         return enum_ty(NULL, senv->enums, senv->enum_map);
@@ -1295,11 +1283,7 @@ static void sema_init_declarator(Env* env,
   decl->type = copy_Type(ty);
 
   if (is_typedef) {
-    if (is_global) {
-      add_global_typedef(env->global, name, ty);
-    } else {
-      add_typedef(env, name, ty);
-    }
+    add_typedef(env, name, ty);
 
     if (decl->initializer != NULL) {
       error("typedef declaration initialized");
@@ -1307,12 +1291,7 @@ static void sema_init_declarator(Env* env,
   } else {
     // TODO: check linkage
     should_complete(ty);
-
-    if (is_global) {
-      add_global(env->global, name, ty);
-    } else {
-      add_var(env, name, ty);
-    }
+    add_var(env, name, ty);
 
     if (is_global && decl->initializer == NULL) {
       decl->initializer = build_empty_initializer(copy_Type(decl->type));
@@ -1505,7 +1484,7 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
   Type* ty        = func_ty(ret, params);
   f->type         = copy_Type(ty);
 
-  add_global(global, name, ty);
+  add_var(fake_env(global), name, ty);
   sema_items(env, f->items);
 
   f->named_labels = env->named_labels;
@@ -1536,7 +1515,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       TypeVec* params = param_types(fake_env(global), f->params);
       Type* ty        = func_ty(ret, params);
       f->type         = copy_Type(ty);
-      add_global(global, name, ty);
+      add_var(fake_env(global), name, ty);
       break;
     }
     case EX_DECL: {

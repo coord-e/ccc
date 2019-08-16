@@ -11,6 +11,8 @@ const char* regs64[] = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9",  "rax", "r12", 
 const unsigned max_args   = 6;
 const size_t num_regs     = sizeof(regs64) / sizeof(*regs64);
 const unsigned rax_reg_id = 6;
+const unsigned rcx_reg_id = 3;
+const unsigned rdx_reg_id = 2;
 
 unsigned nth_arg_id(unsigned n) {
   if (n >= max_args) {
@@ -45,6 +47,14 @@ static Reg new_real_reg(unsigned id, DataSize size) {
 
 static Reg rax_reg(DataSize size) {
   return new_real_reg(rax_reg_id, size);
+}
+
+static Reg rdx_reg(DataSize size) {
+  return new_real_reg(rdx_reg_id, size);
+}
+
+static Reg rcx_reg(DataSize size) {
+  return new_real_reg(rcx_reg_id, size);
 }
 
 static Reg nth_arg_reg(unsigned n, DataSize size) {
@@ -97,16 +107,59 @@ static void walk_insts(Env* env, IRInstList* l) {
   IRInstList* tail = tail_IRInstList(l);
   switch (inst->kind) {
     case IR_BIN: {
-      Reg rd     = inst->rd;
-      Reg lhs    = get_RegVec(inst->ras, 0);
-      Reg rhs    = get_RegVec(inst->ras, 1);
-      IRInst* i1 = new_move(env, rd, lhs);
-      IRInst* i2 = new_binop(env, inst->binop, rd, rd, rhs);
+      Reg rd  = inst->rd;
+      Reg lhs = get_RegVec(inst->ras, 0);
+      Reg rhs = get_RegVec(inst->ras, 1);
+      switch (inst->binop) {
+        case BINOP_DIV: {
+          Reg rax    = rax_reg(lhs.size);
+          IRInst* i1 = new_move(env, rax, lhs);
+          IRInst* i2 = new_binop(env, inst->binop, rax, rax, rhs);
+          IRInst* i3 = new_move(env, rd, rax);
+          remove_IRInstList(l);
+          insert_IRInstList(i3, l);
+          insert_IRInstList(i2, l);
+          insert_IRInstList(i1, l);
+          tail = tail_IRInstList(tail_IRInstList(tail_IRInstList(l)));
+          break;
+        }
+        case BINOP_REM: {
+          Reg rax    = rax_reg(lhs.size);
+          Reg rdx    = rdx_reg(rd.size);
+          IRInst* i1 = new_move(env, rax, lhs);
+          IRInst* i2 = new_binop(env, inst->binop, rdx, rax, rhs);
+          IRInst* i3 = new_move(env, rd, rdx);
+          remove_IRInstList(l);
+          insert_IRInstList(i3, l);
+          insert_IRInstList(i2, l);
+          insert_IRInstList(i1, l);
+          tail = tail_IRInstList(tail_IRInstList(tail_IRInstList(l)));
+          break;
+        }
+        case BINOP_SHIFT_LEFT:
+        case BINOP_SHIFT_RIGHT: {
+          Reg rcx    = rcx_reg(rhs.size);
+          IRInst* i1 = new_move(env, rcx, rhs);
+          IRInst* i2 = new_move(env, rd, lhs);
+          IRInst* i3 = new_binop(env, inst->binop, rd, rd, rcx);
+          remove_IRInstList(l);
+          insert_IRInstList(i3, l);
+          insert_IRInstList(i2, l);
+          insert_IRInstList(i1, l);
+          tail = tail_IRInstList(tail_IRInstList(tail_IRInstList(l)));
+          break;
+        }
+        default: {
+          IRInst* i1 = new_move(env, rd, lhs);
+          IRInst* i2 = new_binop(env, inst->binop, rd, rd, rhs);
 
-      remove_IRInstList(l);
-      insert_IRInstList(i2, l);
-      insert_IRInstList(i1, l);
-      tail = tail_IRInstList(tail_IRInstList(l));
+          remove_IRInstList(l);
+          insert_IRInstList(i2, l);
+          insert_IRInstList(i1, l);
+          tail = tail_IRInstList(tail_IRInstList(l));
+          break;
+        }
+      }
       break;
     }
     case IR_UNA: {

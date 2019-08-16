@@ -22,51 +22,6 @@ static const char* size_spec(DataSize s) {
   }
 }
 
-static const char* rax_of_size(DataSize s) {
-  switch (s) {
-    case SIZE_BYTE:
-      return "al";
-    case SIZE_WORD:
-      return "ax";
-    case SIZE_DWORD:
-      return "eax";
-    case SIZE_QWORD:
-      return "rax";
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static const char* rcx_of_size(DataSize s) {
-  switch (s) {
-    case SIZE_BYTE:
-      return "cl";
-    case SIZE_WORD:
-      return "cx";
-    case SIZE_DWORD:
-      return "ecx";
-    case SIZE_QWORD:
-      return "rcx";
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static const char* rdx_of_size(DataSize s) {
-  switch (s) {
-    case SIZE_BYTE:
-      return "dl";
-    case SIZE_WORD:
-      return "dx";
-    case SIZE_DWORD:
-      return "edx";
-    case SIZE_QWORD:
-      return "rdx";
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
 static void emit_label(FILE* p, char* fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -235,7 +190,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
         assert(get_RegVec(h->ras, i).real == nth_arg_id(i));
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
-      emit(p, "mov %s, %s", reg_of(h->rd), rax_of_size(h->rd.size));
+      assert(h->rd.real == rax_reg_id);
       break;
     default:
       CCC_UNREACHABLE;
@@ -291,16 +246,16 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "imul %s, %s", reg_of(rd), reg_of(rhs));
       return;
     case BINOP_DIV:
-      emit(p, "mov %s, %s", rax_of_size(rd.size), reg_of(rd));
+      assert(lhs.real == rax_reg_id);
+      assert(rd.real == rax_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
-      emit(p, "mov %s, %s", reg_of(rd), rax_of_size(rd.size));
       return;
     case BINOP_REM:
-      emit(p, "mov %s, %s", rax_of_size(rd.size), reg_of(rd));
+      assert(lhs.real == rax_reg_id);
+      assert(rd.real == rdx_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
-      emit(p, "mov %s, %s", reg_of(rd), rdx_of_size(rd.size));
       return;
     case BINOP_EQ:
       codegen_cmp(p, "e", rd, rhs);
@@ -321,12 +276,12 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       codegen_cmp(p, "le", rd, rhs);
       return;
     case BINOP_SHIFT_RIGHT:
-      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      assert(rhs.real == rcx_reg_id);
       // TODO: Consider signedness
       emit(p, "sar %s, cl", reg_of(rd));
       return;
     case BINOP_SHIFT_LEFT:
-      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      assert(rhs.real == rcx_reg_id);
       emit(p, "shl %s, cl", reg_of(rd));
       return;
     case BINOP_AND:

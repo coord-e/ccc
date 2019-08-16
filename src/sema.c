@@ -7,8 +7,9 @@ DEFINE_MAP(copy_Type, release_Type, Type*, TypeMap)
 
 typedef struct {
   TypeMap* names;
-  TypeMap* tagged_structs;
+  TypeMap* tagged_types;
   TypeMap* typedefs;
+  EnumMap* enum_consts;
 } GlobalEnv;
 
 typedef struct {
@@ -19,15 +20,17 @@ typedef struct {
   unsigned label_count;
   Statement* current_switch;
   bool is_global_only;
-  TypeMap* tagged_structs;
+  TypeMap* tagged_types;
   TypeMap* typedefs;
+  EnumMap* enum_consts;
 } Env;
 
 static GlobalEnv* init_GlobalEnv() {
-  GlobalEnv* env      = calloc(1, sizeof(GlobalEnv));
-  env->names          = new_TypeMap(64);
-  env->tagged_structs = new_TypeMap(64);
-  env->typedefs       = new_TypeMap(64);
+  GlobalEnv* env    = calloc(1, sizeof(GlobalEnv));
+  env->names        = new_TypeMap(64);
+  env->tagged_types = new_TypeMap(64);
+  env->typedefs     = new_TypeMap(64);
+  env->enum_consts  = new_EnumMap(64);
   return env;
 }
 
@@ -40,8 +43,9 @@ static Env* init_Env(GlobalEnv* global, Type* ret) {
   env->label_count    = 0;
   env->current_switch = NULL;
   env->is_global_only = false;
-  env->tagged_structs = new_TypeMap(16);
+  env->tagged_types   = new_TypeMap(16);
   env->typedefs       = new_TypeMap(16);
+  env->enum_consts    = new_EnumMap(64);
   return env;
 }
 
@@ -54,14 +58,14 @@ static Env* fake_env(GlobalEnv* global) {
 
 static void release_Env(Env* env) {
   release_TypeMap(env->vars);
-  release_TypeMap(env->tagged_structs);
+  release_TypeMap(env->tagged_types);
   release_TypeMap(env->typedefs);
   free(env);
 }
 
 static void release_GlobalEnv(GlobalEnv* env) {
   release_TypeMap(env->names);
-  release_TypeMap(env->tagged_structs);
+  release_TypeMap(env->tagged_types);
   release_TypeMap(env->typedefs);
   free(env);
 }
@@ -74,17 +78,26 @@ static void add_global(GlobalEnv* env, const char* name, Type* ty) {
   insert_TypeMap(env->names, name, ty);
 }
 
-static void add_tagged_struct(Env* env, const char* name, Type* ty) {
-  insert_TypeMap(env->tagged_structs, name, ty);
+static void add_tagged_type(Env* env, const char* name, Type* ty) {
+  insert_TypeMap(env->tagged_types, name, ty);
 }
 
-static void add_global_tagged_struct(GlobalEnv* env, const char* name, Type* ty) {
-  insert_TypeMap(env->tagged_structs, name, ty);
+static void add_global_tagged_type(GlobalEnv* env, const char* name, Type* ty) {
+  insert_TypeMap(env->tagged_types, name, ty);
 }
 
-static bool lookup_tagged_struct(Env* env, const char* name, Type** t) {
-  if (env->is_global_only || !lookup_TypeMap(env->tagged_structs, name, t)) {
-    if (!lookup_TypeMap(env->global->tagged_structs, name, t)) {
+static bool lookup_tagged_type(Env* env, const char* name, Type** t) {
+  if (env->is_global_only || !lookup_TypeMap(env->tagged_types, name, t)) {
+    if (!lookup_TypeMap(env->global->tagged_types, name, t)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool lookup_enum_const(Env* env, const char* name, long* t) {
+  if (env->is_global_only || !lookup_EnumMap(env->enum_consts, name, t)) {
+    if (!lookup_EnumMap(env->global->enum_consts, name, t)) {
       return false;
     }
   }
@@ -97,6 +110,14 @@ static void add_typedef(Env* env, const char* name, Type* ty) {
 
 static void add_global_typedef(GlobalEnv* env, const char* name, Type* ty) {
   insert_TypeMap(env->typedefs, name, ty);
+}
+
+static void add_enum_const(Env* env, const char* name, long v) {
+  insert_EnumMap(env->enum_consts, name, v);
+}
+
+static void add_global_enum_const(GlobalEnv* env, const char* name, long v) {
+  insert_EnumMap(env->enum_consts, name, v);
 }
 
 static Type* get_typedef(Env* env, const char* name) {
@@ -350,7 +371,7 @@ static Type* translate_struct_specifier(Env* env, StructSpecifier* spec) {
   switch (spec->kind) {
     case SS_NAME: {
       Type* ty;
-      if (lookup_tagged_struct(env, spec->tag, &ty)) {
+      if (lookup_tagged_type(env, spec->tag, &ty)) {
         return copy_Type(ty);
       } else {
         return struct_ty(strdup(spec->tag), NULL, NULL);
@@ -362,13 +383,78 @@ static Type* translate_struct_specifier(Env* env, StructSpecifier* spec) {
       if (spec->tag != NULL) {
         Type* type = struct_ty(strdup(spec->tag), senv->fields, senv->field_map);
         if (env->is_global_only) {
-          add_global_tagged_struct(env->global, spec->tag, copy_Type(type));
+          add_global_tagged_type(env->global, spec->tag, copy_Type(type));
         } else {
-          add_tagged_struct(env, spec->tag, copy_Type(type));
+          add_tagged_type(env, spec->tag, copy_Type(type));
         }
         return type;
       } else {
         return struct_ty(NULL, senv->fields, senv->field_map);
+      }
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+typedef struct {
+  StringVec* enums;
+  EnumMap* enum_map;
+  long current_value;
+} EnumTranslationEnv;
+
+static EnumTranslationEnv* init_EnumTranslationEnv() {
+  EnumTranslationEnv* env = calloc(1, sizeof(EnumTranslationEnv));
+  env->enums              = new_StringVec(16);
+  env->enum_map           = new_EnumMap(16);
+  env->current_value      = -1;
+  return env;
+}
+
+static void translate_enumerators(Env* env, EnumTranslationEnv* eenv, EnumeratorList* l) {
+  if (is_nil_EnumeratorList(l)) {
+    return;
+  }
+
+  Enumerator* e = head_EnumeratorList(l);
+  push_StringVec(eenv->enums, strdup(e->name));
+  if (e->value != NULL) {
+    eenv->current_value = eval_constant(e->value);
+  } else {
+    eenv->current_value++;
+  }
+  insert_EnumMap(eenv->enum_map, e->name, eenv->current_value);
+  if (env->is_global_only) {
+    add_global_enum_const(env->global, e->name, eenv->current_value);
+  } else {
+    add_enum_const(env, e->name, eenv->current_value);
+  }
+
+  translate_enumerators(env, eenv, tail_EnumeratorList(l));
+}
+
+static Type* translate_enum_specifier(Env* env, EnumSpecifier* spec) {
+  switch (spec->kind) {
+    case ES_NAME: {
+      Type* ty;
+      if (lookup_tagged_type(env, spec->tag, &ty)) {
+        return copy_Type(ty);
+      } else {
+        return struct_ty(strdup(spec->tag), NULL, NULL);
+      }
+    }
+    case ES_DECL: {
+      EnumTranslationEnv* senv = init_EnumTranslationEnv();
+      translate_enumerators(env, senv, spec->enums);
+      if (spec->tag != NULL) {
+        Type* type = enum_ty(strdup(spec->tag), senv->enums, senv->enum_map);
+        if (env->is_global_only) {
+          add_global_tagged_type(env->global, spec->tag, copy_Type(type));
+        } else {
+          add_tagged_type(env, spec->tag, copy_Type(type));
+        }
+        return type;
+      } else {
+        return enum_ty(NULL, senv->enums, senv->enum_map);
       }
     }
     default:
@@ -382,6 +468,8 @@ static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* s
       return translate_base_type(spec->base_type);
     case DS_STRUCT:
       return translate_struct_specifier(env, spec->struct_);
+    case DS_ENUM:
+      return translate_enum_specifier(env, spec->enum_);
     case DS_TYPEDEF_NAME:
       return get_typedef(env, spec->typedef_name);
     default:
@@ -833,7 +921,7 @@ static Type* try_complete(Env* env, Type* ty) {
     assert(ty->tag != NULL);
 
     Type* comp;
-    if (lookup_tagged_struct(env, ty->tag, &comp)) {
+    if (lookup_tagged_type(env, ty->tag, &comp)) {
       release_Type(ty);
       return copy_Type(comp);
     }
@@ -967,9 +1055,19 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       t = copy_Type(then_ty);
       break;
     }
-    case ND_VAR:
-      t = get_var(env, expr->var);
-      break;
+    case ND_VAR: {
+      long c;
+      if (lookup_enum_const(env, expr->var, &c)) {
+        // TODO: shallow release rhs
+        Type* ty = enum_underlying_ty();
+        *expr    = *new_cast_direct(copy_Type(ty), new_node_num(c));
+        t        = ty;
+        break;
+      } else {
+        t = get_var(env, expr->var);
+        break;
+      }
+    }
     case ND_NUM:
       t = int_ty();
       break;

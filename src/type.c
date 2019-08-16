@@ -411,8 +411,7 @@ Type* ptrdiff_t_ty() {
   return long_ty();
 }
 
-Type* enum_underlying_ty(const Type* t) {
-  assert(t->kind == TY_ENUM);
+Type* enum_underlying_ty() {
   return long_ty();
 }
 
@@ -459,10 +458,10 @@ bool is_real_ty(const Type* ty) {
 }
 
 bool is_compatible_ty(const Type* a, const Type* b) {
-  if (a->kind == TY_ENUM && equal_to_Type(enum_underlying_ty(a), b)) {
+  if (a->kind == TY_ENUM && equal_to_Type(enum_underlying_ty(), b)) {
     return true;
   }
-  if (b->kind == TY_ENUM && equal_to_Type(enum_underlying_ty(b), a)) {
+  if (b->kind == TY_ENUM && equal_to_Type(enum_underlying_ty(), a)) {
     return true;
   }
 
@@ -606,7 +605,7 @@ unsigned sizeof_ty(const Type* t) {
       return f->offset + sizeof_ty(f->type);
     }
     case TY_ENUM:
-      return sizeof_ty(enum_underlying_ty(t));
+      return sizeof_ty(enum_underlying_ty());
     default:
       CCC_UNREACHABLE;
   }
@@ -651,7 +650,7 @@ bool is_representable_in_ty(const Type* t1, const Type* t2) {
   }
 
   if (t1->kind == TY_ENUM && t2->kind != TY_ENUM) {
-    t1 = enum_underlying_ty(t1);
+    t1 = enum_underlying_ty();
   } else if (t1->kind != TY_ENUM && t2->kind == TY_ENUM) {
     return false;
   }

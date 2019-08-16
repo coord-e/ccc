@@ -97,7 +97,7 @@ Type* array_ty(Type*, bool is_length_known);
 
 Type* size_t_ty();
 Type* ptrdiff_t_ty();
-Type* enum_underlying_ty(const Type*);
+Type* enum_underlying_ty();
 
 void make_signed_ty(Type*);
 void make_unsigned_ty(Type*);

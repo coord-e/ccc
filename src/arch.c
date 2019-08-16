@@ -1,5 +1,11 @@
 #include "arch.h"
 
+// first 6 registers are used to pass arguments to a function
+static const unsigned max_args   = 6;
+static const char* real_regs[]   = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9",
+                                  "rax", "r12", "r13", "r14", "r15", "rbx"};
+static const unsigned rax_reg_id = 6;
+
 typedef struct {
   unsigned global_inst_count;
   unsigned inst_count;
@@ -16,6 +22,23 @@ static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
   *inst_count   = env->global_inst_count;
   f->inst_count = env->inst_count;
   free(env);
+}
+
+static Reg new_real_reg(unsigned id, DataSize size) {
+  Reg r = {.kind = REG_REAL, .virtual = 0, .real = id, .size = size, .is_used = true};
+  return r;
+}
+
+static Reg rax_reg(DataSize size) {
+  return new_real_reg(rax_reg_id, size);
+}
+
+static Reg nth_arg_reg(unsigned n, DataSize size) {
+  if (n >= max_args) {
+    error("unsupported number of arguments/parameters. (%d)", n);
+  }
+
+  return new_real_reg(n, size);
 }
 
 static IRInst* new_move(Env* env, Reg rd, Reg ra) {
@@ -39,6 +62,13 @@ static IRInst* new_unaop(Env* env, UnaopKind kind, Reg rd, Reg opr) {
   inst->unaop  = kind;
   inst->rd     = rd;
   push_RegVec(inst->ras, opr);
+  return inst;
+}
+
+static IRInst* new_call(Env* env, Reg rd, Reg rf) {
+  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_CALL);
+  inst->rd     = rd;
+  push_RegVec(inst->ras, rf);
   return inst;
 }
 
@@ -71,6 +101,22 @@ static void walk_insts(Env* env, IRInstList* l) {
       remove_IRInstList(l);
       insert_IRInstList(i2, l);
       insert_IRInstList(i1, l);
+      break;
+    }
+    case IR_CALL: {
+      Reg rd = inst->rd;
+      Reg rf = get_RegVec(inst->ras, 0);
+
+      remove_IRInstList(l);
+      insert_IRInstList(new_move(env, rd, rax_reg(rd.size)), l);
+      IRInst* call = new_call(env, rax_reg(rd.size), rf);
+      insert_IRInstList(call, l);
+      for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
+        Reg r = get_RegVec(inst->ras, i);
+        Reg p = nth_arg_reg(i - 1, r.size);
+        push_RegVec(call->ras, p);
+        insert_IRInstList(new_move(env, p, r), l);
+      }
       break;
     }
     default:

@@ -92,9 +92,9 @@ struct DeclarationSpecifiers {
 
   bool is_typedef;
   char* typedef_name;
-  /* bool is_extern; */
-  /* bool is_static; */
-  /* bool is_const; */
+  bool is_extern;
+  bool is_static;
+  bool is_const;
 };
 
 DeclarationSpecifiers* new_DeclarationSpecifiers(DeclarationSpecKind);

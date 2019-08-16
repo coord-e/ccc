@@ -89,6 +89,12 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_ENUM, cur);
   } else if (IS_SAME(init, "typedef")) {
     return add_token(TK_TYPEDEF, cur);
+  } else if (IS_SAME(init, "const")) {
+    return add_token(TK_CONST, cur);
+  } else if (IS_SAME(init, "extern")) {
+    return add_token(TK_EXTERN, cur);
+  } else if (IS_SAME(init, "static")) {
+    return add_token(TK_STATIC, cur);
   }
 #undef IS_SAME
 
@@ -589,6 +595,15 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_TYPEDEF:
       fprintf(p, "(TYPEDEF)");
+      break;
+    case TK_EXTERN:
+      fprintf(p, "(EXTERN)");
+      break;
+    case TK_STATIC:
+      fprintf(p, "(STATIC)");
+      break;
+    case TK_CONST:
+      fprintf(p, "(CONST)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t.number);

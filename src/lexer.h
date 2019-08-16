@@ -65,6 +65,9 @@ typedef enum {
   TK_VOID,
   TK_SIGNED,
   TK_UNSIGNED,
+  TK_EXTERN,
+  TK_STATIC,
+  TK_CONST,
   TK_BOOL,  // _Bool
   TK_STRUCT,
   TK_ENUM,

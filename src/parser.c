@@ -263,6 +263,9 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
   StructSpecifier* struct_ = NULL;
   EnumSpecifier* enum_     = NULL;
   bool is_typedef          = false;
+  bool is_const            = false;
+  bool is_static           = false;
+  bool is_extern           = false;
   char* typedef_name       = NULL;
 
   TokenList* save = env->cur;
@@ -272,6 +275,18 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
       case TK_TYPEDEF:
         consume(env);
         is_typedef = true;
+        break;
+      case TK_CONST:
+        consume(env);
+        is_const = true;
+        break;
+      case TK_EXTERN:
+        consume(env);
+        is_extern = true;
+        break;
+      case TK_STATIC:
+        consume(env);
+        is_static = true;
         break;
       case TK_SIGNED:
         consume(env);
@@ -353,6 +368,9 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
           s->typedef_name = strdup(typedef_name);
         }
         s->is_typedef = is_typedef;
+        s->is_const   = is_const;
+        s->is_static  = is_static;
+        s->is_extern  = is_extern;
         return s;
     }
   }

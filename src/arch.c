@@ -48,6 +48,12 @@ static IRInst* new_move(Env* env, Reg rd, Reg ra) {
   return inst;
 }
 
+static IRInst* new_ret(Env* env, Reg ra) {
+  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_RET);
+  push_RegVec(inst->ras, ra);
+  return inst;
+}
+
 static IRInst* new_binop(Env* env, BinopKind kind, Reg rd, Reg lhs, Reg rhs) {
   IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
   inst->binop  = kind;
@@ -119,6 +125,25 @@ static void walk_insts(Env* env, IRInstList* l) {
       }
       break;
     }
+    case IR_ARG: {
+      Reg rd       = inst->rd;
+      unsigned idx = inst->argument_idx;
+
+      remove_IRInstList(l);
+      insert_IRInstList(new_move(env, rd, nth_arg_reg(idx, rd.size)), l);
+      break;
+    }
+    case IR_RET:
+      if (length_RegVec(inst->ras) == 0) {
+        break;
+      }
+      assert(length_RegVec(inst->ras) == 1);
+      Reg ra = get_RegVec(inst->ras, 0);
+
+      remove_IRInstList(l);
+      insert_IRInstList(new_ret(env, rax_reg(ra.size)), l);
+      insert_IRInstList(new_move(env, rax_reg(ra.size), ra), l);
+      break;
     default:
       break;
   }

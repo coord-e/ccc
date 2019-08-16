@@ -162,6 +162,57 @@ static DeclaratorList* declarator_list(Env* env) {
   return list;
 }
 
+static Expr* conditional(Env* env);
+
+static Enumerator* enumerator(Env* env) {
+  char* name  = strdup(expect(env, TK_IDENT).ident);
+  Expr* value = NULL;
+  if (head_of(env) == TK_EQUAL) {
+    consume(env);
+    value = conditional(env);
+  }
+
+  return new_Enumerator(name, value);
+}
+
+static EnumeratorList* enumerator_list(Env* env) {
+  EnumeratorList* list = nil_EnumeratorList();
+  EnumeratorList* cur  = list;
+
+  while (head_of(env) != TK_RBRACE) {
+    cur = snoc_EnumeratorList(enumerator(env), cur);
+    try
+      (env, TK_COMMA);
+  }
+
+  return list;
+}
+
+static EnumSpecifier* enum_specifier(Env* env) {
+  expect(env, TK_ENUM);
+
+  char* tag = NULL;
+  if (head_of(env) == TK_IDENT) {
+    tag = strdup(expect(env, TK_IDENT).ident);
+  }
+
+  if (head_of(env) == TK_LBRACE) {
+    // ES_DECL
+    consume(env);
+    EnumSpecifier* s = new_EnumSpecifier(ES_DECL, tag);
+    s->enums         = enumerator_list(env);
+    expect(env, TK_RBRACE);
+    return s;
+  } else {
+    // ES_NAME
+    if (tag == NULL) {
+      error("missing enum tag");
+    }
+
+    return new_EnumSpecifier(ES_NAME, tag);
+  }
+}
+
 static DeclarationSpecifiers* declaration_specifiers(Env* env);
 
 static StructDeclaration* struct_declaration(Env* env) {
@@ -210,6 +261,7 @@ static StructSpecifier* struct_specifier(Env* env) {
 static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
   BaseType bt              = 0;
   StructSpecifier* struct_ = NULL;
+  EnumSpecifier* enum_     = NULL;
   bool is_typedef          = false;
   char* typedef_name       = NULL;
 
@@ -259,6 +311,12 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
         }
         struct_ = struct_specifier(env);
         break;
+      case TK_ENUM:
+        if (enum_ != NULL) {
+          error("too many enum types in declaration specifiers");
+        }
+        enum_ = enum_specifier(env);
+        break;
       case TK_IDENT: {
         char* ident = head_TokenList(env->cur).ident;
         if (is_typedef_name(env, ident)) {
@@ -272,30 +330,30 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
       }
         // fallthrough
       default:
-        if (bt == 0 && struct_ == NULL && typedef_name == NULL) {
+        if (bt == 0 && struct_ == NULL && enum_ == NULL && typedef_name == NULL) {
           env->cur = save;
           return NULL;
         }
-        if ((bool)bt + (bool)struct_ + (bool)typedef_name != 1) {
+        if ((bool)bt + (bool)struct_ + (bool)enum_ + (bool)typedef_name != 1) {
           error("too many data types in declaration specifiers");
         }
+        DeclarationSpecifiers* s = NULL;
         if (bt != 0) {
-          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_BASE);
-          s->base_type             = bt;
-          s->is_typedef            = is_typedef;
-          return s;
+          s            = new_DeclarationSpecifiers(DS_BASE);
+          s->base_type = bt;
         } else if (struct_ != NULL) {
-          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_STRUCT);
-          s->struct_               = struct_;
-          s->is_typedef            = is_typedef;
-          return s;
+          s          = new_DeclarationSpecifiers(DS_STRUCT);
+          s->struct_ = struct_;
+        } else if (enum_ != NULL) {
+          s        = new_DeclarationSpecifiers(DS_ENUM);
+          s->enum_ = enum_;
         } else {
           assert(typedef_name != NULL);
-          DeclarationSpecifiers* s = new_DeclarationSpecifiers(DS_TYPEDEF_NAME);
-          s->typedef_name          = strdup(typedef_name);
-          s->is_typedef            = is_typedef;
-          return s;
+          s               = new_DeclarationSpecifiers(DS_TYPEDEF_NAME);
+          s->typedef_name = strdup(typedef_name);
         }
+        s->is_typedef = is_typedef;
+        return s;
     }
   }
 }

@@ -85,6 +85,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
     return add_token(TK_DEFAULT, cur);
   } else if (IS_SAME(init, "struct")) {
     return add_token(TK_STRUCT, cur);
+  } else if (IS_SAME(init, "enum")) {
+    return add_token(TK_ENUM, cur);
   } else if (IS_SAME(init, "typedef")) {
     return add_token(TK_TYPEDEF, cur);
   }
@@ -563,6 +565,9 @@ static void print_token(FILE* p, Token t) {
       break;
     case TK_STRUCT:
       fprintf(p, "(STRUCT)");
+      break;
+    case TK_ENUM:
+      fprintf(p, "(ENUM)");
       break;
     case TK_SWITCH:
       fprintf(p, "(SWITCH)");

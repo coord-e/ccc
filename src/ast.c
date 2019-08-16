@@ -5,6 +5,28 @@
 
 static void release_expr(Expr* e);
 
+static void release_Enumerator(Enumerator* e) {
+  if (e == NULL) {
+    return;
+  }
+
+  free(e->name);
+  release_expr(e->value);
+  free(e);
+}
+
+DEFINE_LIST(release_Enumerator, Enumerator*, EnumeratorList)
+
+static void release_EnumSpecifier(EnumSpecifier* es) {
+  if (es == NULL) {
+    return;
+  }
+
+  free(es->tag);
+  release_EnumeratorList(es->enums);
+  free(es);
+}
+
 static void release_DirectDeclarator(DirectDeclarator* d) {
   if (d == NULL) {
     return;
@@ -35,6 +57,7 @@ static void release_DeclarationSpecifiers(DeclarationSpecifiers* spec) {
   }
 
   release_StructSpecifier(spec->struct_);
+  release_EnumSpecifier(spec->enum_);
   free(spec);
 }
 
@@ -164,6 +187,20 @@ static void release_BlockItem(BlockItem* item) {
 
 DEFINE_LIST(release_BlockItem, BlockItem*, BlockItemList)
 
+Enumerator* new_Enumerator(char* name, Expr* value) {
+  Enumerator* e = calloc(1, sizeof(Enumerator));
+  e->name       = name;
+  e->value      = value;
+  return e;
+}
+
+EnumSpecifier* new_EnumSpecifier(EnumSpecKind kind, char* tag) {
+  EnumSpecifier* s = calloc(1, sizeof(EnumSpecifier));
+  s->kind          = kind;
+  s->tag           = tag;
+  return s;
+}
+
 DeclarationSpecifiers* new_DeclarationSpecifiers(DeclarationSpecKind kind) {
   DeclarationSpecifiers* spec = calloc(1, sizeof(DeclarationSpecifiers));
   spec->kind                  = kind;
@@ -245,6 +282,35 @@ void release_AST(AST* t) {
 // printer functions
 static void print_expr(FILE* p, Expr* expr);
 
+static void print_Enumerator(FILE* p, Enumerator* e) {
+  fprintf(p, "%s", e->name);
+  if (e->value != NULL) {
+    fputs(" = ", p);
+    print_expr(p, e->value);
+  }
+}
+
+DECLARE_LIST_PRINTER(EnumeratorList)
+DEFINE_LIST_PRINTER(print_Enumerator, ",\n", ",\n", EnumeratorList)
+
+static void print_EnumSpecifier(FILE* p, EnumSpecifier* s) {
+  fputs("enum ", p);
+  if (s->tag != NULL) {
+    fprintf(p, "%s ", s->tag);
+  }
+  switch (s->kind) {
+    case ES_DECL:
+      fputs("{\n", p);
+      print_EnumeratorList(p, s->enums);
+      fputs("}", p);
+      break;
+    case ES_NAME:
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
 static void print_BaseType(FILE* p, BaseType b) {
   if (b & BT_SIGNED) {
     fputs("signed ", p);
@@ -325,6 +391,9 @@ static void print_DeclarationSpecifiers(FILE* p, DeclarationSpecifiers* d) {
       break;
     case DS_STRUCT:
       print_StructSpecifier(p, d->struct_);
+      break;
+    case DS_ENUM:
+      print_EnumSpecifier(p, d->enum_);
       break;
     case DS_TYPEDEF_NAME:
       fprintf(p, "%s", d->typedef_name);

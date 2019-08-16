@@ -256,7 +256,14 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       fprintf(p, "\n");
       break;
     case IR_GLOBAL_ADDR:
-      emit(p, "lea %s, %s@PLT[rip]", reg_of(h->rd), h->global_name);
+      switch (h->global_kind) {
+        case GN_FUNCTION:
+          emit(p, "lea %s, %s@PLT[rip]", reg_of(h->rd), h->global_name);
+          break;
+        case GN_DATA:
+          emit(p, "mov %s, [rip + %s@GOTPCREL]", reg_of(h->rd), h->global_name);
+          break;
+      }
       break;
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {

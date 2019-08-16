@@ -454,11 +454,12 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicB
   create_or_start_bb(env, next);
 }
 
-static Reg new_global(Env* env, const char* name) {
+static Reg new_global(Env* env, const char* name, GlobalNameKind kind) {
   Reg r             = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* inst      = new_inst_(env, IR_GLOBAL_ADDR);
   inst->rd          = r;
   inst->global_name = strdup(name);
+  inst->global_kind = kind;
   add_inst(env, inst);
   return r;
 }
@@ -474,7 +475,7 @@ static char* new_named_string(GlobalEnv* env, const char* str) {
 
 static Reg new_string(Env* env, const char* str) {
   char* name = new_named_string(env->global_env, str);
-  Reg r      = new_global(env, name);
+  Reg r      = new_global(env, name, GN_DATA);
   free(name);
   return r;
 }
@@ -488,7 +489,11 @@ static Reg gen_lhs(Env* env, Expr* node) {
       if (get_var(env, node->var, &i)) {
         return new_stack_addr(env, i);
       } else {
-        return new_global(env, node->var);
+        if (node->type->kind == TY_FUNC) {
+          return new_global(env, node->var, GN_FUNCTION);
+        } else {
+          return new_global(env, node->var, GN_DATA);
+        }
       }
     }
     case ND_MEMBER: {

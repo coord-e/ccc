@@ -943,7 +943,10 @@ static void gen_local_initializer(Env* env, Reg target, Initializer* init, Type*
   }
 }
 
-static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl) {
+static void gen_init_declarator(Env* env,
+                                GlobalEnv* genv,
+                                DeclarationSpecifiers* spec,
+                                InitDeclarator* decl) {
   if (env != NULL) {
     unsigned var = new_var(env, decl->declarator->direct->name_ref, sizeof_ty(decl->type));
     Reg r        = new_stack_addr(env, var);
@@ -954,26 +957,30 @@ static void gen_init_declarator(Env* env, GlobalEnv* genv, InitDeclarator* decl)
   } else {
     assert(genv != NULL);
 
-    // TODO: check `extern` definitions
-    // NOTE: `sema` ensured that all global declaration except `extern` has an initializer
-    assert(decl->initializer != NULL);
+    if (!spec->is_extern) {
+      // NOTE: `sema` ensured that all global declaration except `extern` has an initializer
+      assert(decl->initializer != NULL);
 
-    GlobalInitializer* gi = translate_initializer(genv, decl->initializer);
-    add_normal_gvar(genv, decl->declarator->direct->name_ref, gi);
+      GlobalInitializer* gi = translate_initializer(genv, decl->initializer);
+      add_normal_gvar(genv, decl->declarator->direct->name_ref, gi);
+    }
   }
 }
 
-static void gen_init_decl_list(Env* env, GlobalEnv* genv, InitDeclaratorList* l) {
+static void gen_init_decl_list(Env* env,
+                               GlobalEnv* genv,
+                               DeclarationSpecifiers* spec,
+                               InitDeclaratorList* l) {
   if (is_nil_InitDeclaratorList(l)) {
     return;
   }
-  gen_init_declarator(env, genv, head_InitDeclaratorList(l));
-  gen_init_decl_list(env, genv, tail_InitDeclaratorList(l));
+  gen_init_declarator(env, genv, spec, head_InitDeclaratorList(l));
+  gen_init_decl_list(env, genv, spec, tail_InitDeclaratorList(l));
 }
 
 static void gen_decl(Env* env, Declaration* decl) {
   if (!decl->spec->is_typedef) {
-    gen_init_decl_list(env, NULL, decl->declarators);
+    gen_init_decl_list(env, NULL, decl->spec, decl->declarators);
   }
 }
 
@@ -1063,7 +1070,7 @@ static FunctionList* gen_TranslationUnit(GlobalEnv* genv, FunctionList* acc, Tra
       return gen_TranslationUnit(genv, acc, tail);
     case EX_DECL:
       if (!d->decl->spec->is_typedef) {
-        gen_init_decl_list(NULL, genv, d->decl->declarators);
+        gen_init_decl_list(NULL, genv, d->decl->spec, d->decl->declarators);
       }
       return gen_TranslationUnit(genv, acc, tail);
     default:

@@ -577,4 +577,22 @@ int main() {
 }
 EOF
 
+# enum
+items 0 "enum {E1, E2, E3} e = E1; return e;"
+items 2 "enum {E1, E2, E3} e = E3; return e;"
+items 0 "enum { E }; return E;"
+items 9 "enum tag { E1 = 1, E2 = 8 }; enum tag v = E2; return v + E1;"
+try_ 11 <<EOF
+typedef enum {
+  SUPER_MY_ENUM,
+  AWESOME_MY_ENUM = 10,
+  FOO,
+} E;
+
+int main() {
+    E e = FOO;
+    return e;
+}
+EOF
+
 echo OK

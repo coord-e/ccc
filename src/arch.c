@@ -25,40 +25,44 @@ unsigned nth_arg_id(unsigned n) {
 typedef struct {
   unsigned global_inst_count;
   unsigned inst_count;
+  unsigned reg_count;
 } Env;
 
 static Env* init_Env(unsigned global_inst_count, Function* f) {
   Env* env               = calloc(1, sizeof(Env));
   env->global_inst_count = global_inst_count;
   env->inst_count        = f->inst_count;
+  env->reg_count         = f->reg_count;
   return env;
 }
 
 static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
   *inst_count   = env->global_inst_count;
   f->inst_count = env->inst_count;
+  f->reg_count  = env->reg_count;
   free(env);
 }
 
-static Reg new_real_reg(unsigned id, DataSize size) {
-  Reg r = {.kind = REG_REAL, .virtual = 0, .real = id, .size = size, .is_used = true};
+static Reg new_fixed_reg(Env* env, unsigned id, DataSize size) {
+  Reg r = {
+      .kind = REG_FIXED, .virtual = env->reg_count++, .real = id, .size = size, .is_used = true};
   return r;
 }
 
-static Reg rax_reg(DataSize size) {
-  return new_real_reg(rax_reg_id, size);
+static Reg rax_fixed_reg(Env* env, DataSize size) {
+  return new_fixed_reg(env, rax_reg_id, size);
 }
 
-static Reg rdx_reg(DataSize size) {
-  return new_real_reg(rdx_reg_id, size);
+static Reg rdx_fixed_reg(Env* env, DataSize size) {
+  return new_fixed_reg(env, rdx_reg_id, size);
 }
 
-static Reg rcx_reg(DataSize size) {
-  return new_real_reg(rcx_reg_id, size);
+static Reg rcx_fixed_reg(Env* env, DataSize size) {
+  return new_fixed_reg(env, rcx_reg_id, size);
 }
 
-static Reg nth_arg_reg(unsigned n, DataSize size) {
-  return new_real_reg(nth_arg_id(n), size);
+static Reg nth_arg_fixed_reg(Env* env, unsigned n, DataSize size) {
+  return new_fixed_reg(env, nth_arg_id(n), size);
 }
 
 static IRInst* new_move(Env* env, Reg rd, Reg ra) {
@@ -112,7 +116,7 @@ static void walk_insts(Env* env, IRInstList* l) {
       Reg rhs = get_RegVec(inst->ras, 1);
       switch (inst->binop) {
         case BINOP_DIV: {
-          Reg rax    = rax_reg(lhs.size);
+          Reg rax    = rax_fixed_reg(env, lhs.size);
           IRInst* i1 = new_move(env, rax, lhs);
           IRInst* i2 = new_binop(env, inst->binop, rax, rax, rhs);
           IRInst* i3 = new_move(env, rd, rax);
@@ -124,8 +128,8 @@ static void walk_insts(Env* env, IRInstList* l) {
           break;
         }
         case BINOP_REM: {
-          Reg rax    = rax_reg(lhs.size);
-          Reg rdx    = rdx_reg(rd.size);
+          Reg rax    = rax_fixed_reg(env, lhs.size);
+          Reg rdx    = rdx_fixed_reg(env, rd.size);
           IRInst* i1 = new_move(env, rax, lhs);
           IRInst* i2 = new_binop(env, inst->binop, rdx, rax, rhs);
           IRInst* i3 = new_move(env, rd, rdx);
@@ -138,7 +142,7 @@ static void walk_insts(Env* env, IRInstList* l) {
         }
         case BINOP_SHIFT_LEFT:
         case BINOP_SHIFT_RIGHT: {
-          Reg rcx    = rcx_reg(rhs.size);
+          Reg rcx    = rcx_fixed_reg(env, rhs.size);
           IRInst* i1 = new_move(env, rcx, rhs);
           IRInst* i2 = new_move(env, rd, lhs);
           IRInst* i3 = new_binop(env, inst->binop, rd, rd, rcx);
@@ -179,13 +183,14 @@ static void walk_insts(Env* env, IRInstList* l) {
       Reg rf = get_RegVec(inst->ras, 0);
 
       remove_IRInstList(l);
-      insert_IRInstList(new_move(env, rd, rax_reg(rd.size)), l);
-      IRInst* call = new_call(env, rax_reg(rd.size), rf);
+      Reg rax = rax_fixed_reg(env, rd.size);
+      insert_IRInstList(new_move(env, rd, rax), l);
+      IRInst* call = new_call(env, rax, rf);
       insert_IRInstList(call, l);
       tail = tail_IRInstList(tail_IRInstList(l));
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg r = get_RegVec(inst->ras, i);
-        Reg p = nth_arg_reg(i - 1, r.size);
+        Reg p = nth_arg_fixed_reg(env, i - 1, r.size);
         push_RegVec(call->ras, p);
         insert_IRInstList(new_move(env, p, r), l);
         tail = tail_IRInstList(tail);
@@ -197,7 +202,7 @@ static void walk_insts(Env* env, IRInstList* l) {
       unsigned idx = inst->argument_idx;
 
       remove_IRInstList(l);
-      insert_IRInstList(new_move(env, rd, nth_arg_reg(idx, rd.size)), l);
+      insert_IRInstList(new_move(env, rd, nth_arg_fixed_reg(env, idx, rd.size)), l);
       tail = tail_IRInstList(l);
       break;
     }
@@ -206,11 +211,12 @@ static void walk_insts(Env* env, IRInstList* l) {
         break;
       }
       assert(length_RegVec(inst->ras) == 1);
-      Reg ra = get_RegVec(inst->ras, 0);
+      Reg ra  = get_RegVec(inst->ras, 0);
+      Reg rax = rax_fixed_reg(env, ra.size);
 
       remove_IRInstList(l);
-      insert_IRInstList(new_ret(env, rax_reg(ra.size)), l);
-      insert_IRInstList(new_move(env, rax_reg(ra.size), ra), l);
+      insert_IRInstList(new_ret(env, rax), l);
+      insert_IRInstList(new_move(env, rax, ra), l);
       tail = tail_IRInstList(tail_IRInstList(l));
       break;
     default:

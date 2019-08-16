@@ -1098,6 +1098,9 @@ static void print_reg(FILE* p, Reg r) {
     case REG_REAL:
       fprintf(p, "r%d", r.real);
       break;
+    case REG_FIXED:
+      fprintf(p, "f%d->%d", r.virtual, r.real);
+      break;
     default:
       CCC_UNREACHABLE;
   }

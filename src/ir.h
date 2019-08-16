@@ -35,6 +35,7 @@ typedef enum {
 typedef enum {
   REG_VIRT,
   REG_REAL,
+  REG_FIXED,
 } RegKind;
 
 typedef struct {

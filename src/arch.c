@@ -34,6 +34,14 @@ static IRInst* new_binop(Env* env, BinopKind kind, Reg rd, Reg lhs, Reg rhs) {
   return inst;
 }
 
+static IRInst* new_unaop(Env* env, UnaopKind kind, Reg rd, Reg opr) {
+  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_UNA);
+  inst->unaop  = kind;
+  inst->rd     = rd;
+  push_RegVec(inst->ras, opr);
+  return inst;
+}
+
 static void walk_insts(Env* env, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
@@ -48,6 +56,17 @@ static void walk_insts(Env* env, IRInstList* l) {
       Reg rhs    = get_RegVec(inst->ras, 1);
       IRInst* i1 = new_move(env, rd, lhs);
       IRInst* i2 = new_binop(env, inst->binop, rd, rd, rhs);
+
+      remove_IRInstList(l);
+      insert_IRInstList(i2, l);
+      insert_IRInstList(i1, l);
+      break;
+    }
+    case IR_UNA: {
+      Reg rd     = inst->rd;
+      Reg opr    = get_RegVec(inst->ras, 0);
+      IRInst* i1 = new_move(env, rd, opr);
+      IRInst* i2 = new_unaop(env, inst->unaop, rd, rd);
 
       remove_IRInstList(l);
       insert_IRInstList(i2, l);

@@ -96,6 +96,7 @@ static void walk_insts(Env* env, IRInstList* l) {
       remove_IRInstList(l);
       insert_IRInstList(i2, l);
       insert_IRInstList(i1, l);
+      tail = tail_IRInstList(tail_IRInstList(l));
       break;
     }
     case IR_UNA: {
@@ -107,6 +108,7 @@ static void walk_insts(Env* env, IRInstList* l) {
       remove_IRInstList(l);
       insert_IRInstList(i2, l);
       insert_IRInstList(i1, l);
+      tail = tail_IRInstList(tail_IRInstList(l));
       break;
     }
     case IR_CALL: {
@@ -117,11 +119,13 @@ static void walk_insts(Env* env, IRInstList* l) {
       insert_IRInstList(new_move(env, rd, rax_reg(rd.size)), l);
       IRInst* call = new_call(env, rax_reg(rd.size), rf);
       insert_IRInstList(call, l);
+      tail = tail_IRInstList(tail_IRInstList(l));
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg r = get_RegVec(inst->ras, i);
         Reg p = nth_arg_reg(i - 1, r.size);
         push_RegVec(call->ras, p);
         insert_IRInstList(new_move(env, p, r), l);
+        tail = tail_IRInstList(tail);
       }
       break;
     }
@@ -131,6 +135,7 @@ static void walk_insts(Env* env, IRInstList* l) {
 
       remove_IRInstList(l);
       insert_IRInstList(new_move(env, rd, nth_arg_reg(idx, rd.size)), l);
+      tail = tail_IRInstList(l);
       break;
     }
     case IR_RET:
@@ -143,6 +148,7 @@ static void walk_insts(Env* env, IRInstList* l) {
       remove_IRInstList(l);
       insert_IRInstList(new_ret(env, rax_reg(ra.size)), l);
       insert_IRInstList(new_move(env, rax_reg(ra.size), ra), l);
+      tail = tail_IRInstList(tail_IRInstList(l));
       break;
     default:
       break;

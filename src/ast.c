@@ -686,10 +686,14 @@ void print_statement(FILE* p, Statement* d) {
       break;
     case ST_FOR:
       fputs("for (", p);
-      if (d->init != NULL) {
+      if (d->init_decl != NULL) {
+        print_declaration(p, d->init_decl);
+      } else if (d->init != NULL) {
         print_expr(p, d->init);
+        fputs("; ", p);
+      } else {
+        fputs("; ", p);
       }
-      fputs("; ", p);
       print_expr(p, d->before);
       fputs("; ", p);
       if (d->after != NULL) {

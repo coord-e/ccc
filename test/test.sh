@@ -403,10 +403,8 @@ int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
 
 int main(int argc, char** argv) {
   int acc = 0;
-  int i = 0;
-  for (; i < 2; i++) {
-    int j = 0;
-    for (; j < 3; j++) {
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 3; j++) {
       acc += a[i][j];
     }
   }

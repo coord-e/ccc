@@ -379,6 +379,7 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
 static DeclarationSpecifiers* declaration_specifiers(Env* env) {
   DeclarationSpecifiers* s = try_declaration_specifiers(env);
   if (s == NULL) {
+    print_TokenList(stderr, env->cur);
     error("could not parse declaration specifiers.");
   }
   return s;
@@ -999,14 +1000,17 @@ static Statement* statement(Env* env) {
       consume(env);
       expect(env, TK_LPAREN);
 
-      Expr* init;
-      if (head_of(env) == TK_SEMICOLON) {
-        init = NULL;
+      Expr* init             = NULL;
+      Declaration* init_decl = NULL;
+      if (head_of(env) != TK_SEMICOLON) {
+        init_decl = try_declaration(env);
+        if (init_decl == NULL) {
+          init = expr(env);
+          expect(env, TK_SEMICOLON);
+        }
       } else {
-        init = expr(env);
+        consume(env);
       }
-
-      expect(env, TK_SEMICOLON);
 
       Expr* before;
       if (head_of(env) == TK_SEMICOLON) {
@@ -1028,6 +1032,7 @@ static Statement* statement(Env* env) {
       Statement* body = statement(env);
 
       Statement* s = new_statement(ST_FOR, NULL);
+      s->init_decl = init_decl;
       s->init      = init;
       s->before    = before;
       s->after     = after;

@@ -633,6 +633,22 @@ void reset_loop(Env* env) {
 
 void gen_block_item_list(Env* env, BlockItemList* ast);
 
+static UIMap* start_scope(Env* env) {
+  UIMap* save = env->vars;
+  UIMap* inst = shallow_copy_UIMap(env->vars);
+
+  env->vars = inst;
+
+  return save;
+}
+
+static void end_scope(Env* env, UIMap* save) {
+  release_UIMap(env->vars);
+  env->vars = save;
+}
+
+static void gen_decl(Env* env, Declaration* decl);
+
 static void gen_stmt(Env* env, Statement* stmt) {
   switch (stmt->kind) {
     case ST_EXPRESSION:
@@ -710,7 +726,10 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       set_loop(env, next_bb, cont_bb);
 
-      if (stmt->init != NULL) {
+      UIMap* save = start_scope(env);
+      if (stmt->init_decl != NULL) {
+        gen_decl(env, stmt->init_decl);
+      } else if (stmt->init != NULL) {
         gen_expr(env, stmt->init);
       }
       create_or_start_bb(env, for_bb);
@@ -723,6 +742,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       if (stmt->after != NULL) {
         gen_expr(env, stmt->after);
       }
+      end_scope(env, save);
       new_jump(env, for_bb, next_bb);
 
       reset_loop(env);
@@ -749,14 +769,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
     }
     case ST_COMPOUND: {
       // compound statement is a block
-      UIMap* save = env->vars;
-      UIMap* inst = shallow_copy_UIMap(env->vars);
-
-      env->vars = inst;
+      UIMap* save = start_scope(env);
       gen_block_item_list(env, stmt->items);
-      env->vars = save;
-
-      release_UIMap(inst);
+      end_scope(env, save);
       break;
     }
     case ST_LABEL:

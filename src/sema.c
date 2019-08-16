@@ -1322,19 +1322,28 @@ static void sema_decl(Env* env, Declaration* decl) {
 
 static void sema_items(Env* env, BlockItemList* l);
 
+static TypeMap* start_scope(Env* env) {
+  TypeMap* save = env->vars;
+  TypeMap* inst = shallow_copy_TypeMap(env->vars);
+
+  env->vars = inst;
+
+  return save;
+}
+
+static void end_scope(Env* env, TypeMap* save) {
+  // TODO: shallow release
+  /* release_TypeMap(env->vars); */
+  env->vars = save;
+}
+
 static void sema_stmt(Env* env, Statement* stmt) {
   switch (stmt->kind) {
     case ST_COMPOUND: {
       // block
-      TypeMap* save = env->vars;
-      TypeMap* inst = shallow_copy_TypeMap(env->vars);
-
-      env->vars = inst;
+      TypeMap* save = start_scope(env);
       sema_items(env, stmt->items);
-      env->vars = save;
-
-      // TODO: shallow release
-      /* release_TypeMap(inst); */
+      end_scope(env, save);
       break;
     }
     case ST_EXPRESSION:
@@ -1359,8 +1368,11 @@ static void sema_stmt(Env* env, Statement* stmt) {
       sema_expr(env, stmt->expr);
       sema_stmt(env, stmt->body);
       break;
-    case ST_FOR:
-      if (stmt->init != NULL) {
+    case ST_FOR: {
+      TypeMap* save = start_scope(env);
+      if (stmt->init_decl != NULL) {
+        sema_decl(env, stmt->init_decl);
+      } else if (stmt->init != NULL) {
         sema_expr(env, stmt->init);
       }
       sema_expr(env, stmt->before);
@@ -1368,7 +1380,9 @@ static void sema_stmt(Env* env, Statement* stmt) {
         sema_expr(env, stmt->after);
       }
       sema_stmt(env, stmt->body);
+      end_scope(env, save);
       break;
+    }
     case ST_BREAK:
     case ST_CONTINUE:
     case ST_NULL:

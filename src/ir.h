@@ -51,6 +51,11 @@ DECLARE_VECTOR_PRINTER(RegVec)
 
 typedef struct BasicBlock BasicBlock;
 
+typedef enum {
+  GN_FUNCTION,
+  GN_DATA,
+} GlobalNameKind;
+
 typedef struct IRInst {
   IRInstKind kind;
 
@@ -64,7 +69,8 @@ typedef struct IRInst {
   unsigned argument_idx;  // for IR_ARG
   DataSize data_size;     // for IR_{LOAD, STORE, STACK_LOAD, STACK_STORE}
 
-  char* global_name;  // for IR_GLOBAL, owned
+  char* global_name;           // for IR_GLOBAL, owned
+  GlobalNameKind global_kind;  // for IR_GLOBAL
 
   BasicBlock* label;  // for IR_LABEL, not owned
 

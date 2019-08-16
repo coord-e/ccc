@@ -1262,7 +1262,7 @@ static void sema_initializer(Env* env, Type* type, Initializer* init) {
 
 static void sema_init_declarator(Env* env,
                                  bool is_global,
-                                 bool is_typedef,
+                                 DeclarationSpecifiers* spec,
                                  Type* base_ty,
                                  InitDeclarator* decl) {
   char* name;
@@ -1282,7 +1282,7 @@ static void sema_init_declarator(Env* env,
 
   decl->type = copy_Type(ty);
 
-  if (is_typedef) {
+  if (spec->is_typedef) {
     add_typedef(env, name, ty);
 
     if (decl->initializer != NULL) {
@@ -1293,7 +1293,7 @@ static void sema_init_declarator(Env* env,
     should_complete(ty);
     add_var(env, name, ty);
 
-    if (is_global && decl->initializer == NULL) {
+    if (is_global && !spec->is_extern && decl->initializer == NULL) {
       decl->initializer = build_empty_initializer(copy_Type(decl->type));
     }
   }
@@ -1305,19 +1305,19 @@ static void sema_init_declarator(Env* env,
 
 static void sema_init_decl_list(Env* env,
                                 bool is_global,
-                                bool is_typedef,
+                                DeclarationSpecifiers* spec,
                                 Type* base_ty,
                                 InitDeclaratorList* l) {
   if (is_nil_InitDeclaratorList(l)) {
     return;
   }
-  sema_init_declarator(env, is_global, is_typedef, base_ty, head_InitDeclaratorList(l));
-  sema_init_decl_list(env, is_global, is_typedef, base_ty, tail_InitDeclaratorList(l));
+  sema_init_declarator(env, is_global, spec, base_ty, head_InitDeclaratorList(l));
+  sema_init_decl_list(env, is_global, spec, base_ty, tail_InitDeclaratorList(l));
 }
 
 static void sema_decl(Env* env, Declaration* decl) {
   Type* base_ty = translate_declaration_specifiers(env, decl->spec);
-  sema_init_decl_list(env, false, decl->spec->is_typedef, base_ty, decl->declarators);
+  sema_init_decl_list(env, false, decl->spec, base_ty, decl->declarators);
 }
 
 static void sema_items(Env* env, BlockItemList* l);
@@ -1536,8 +1536,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       Declaration* decl = d->decl;
       Type* base_ty     = translate_declaration_specifiers(fake_env(global), decl->spec);
       // TODO: check if the declaration is `extern`
-      sema_init_decl_list(fake_env(global), true, decl->spec->is_typedef, base_ty,
-                          decl->declarators);
+      sema_init_decl_list(fake_env(global), true, decl->spec, base_ty, decl->declarators);
       break;
     }
     default:

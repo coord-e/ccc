@@ -159,7 +159,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
     case IR_ARG:
-      emit(p, "mov %s, %s", reg_of(h->rd), nth_arg(h->argument_idx, h->rd.size));
+      assert(false && "IR_ARG can't be last by codegen");
       break;
     case IR_MOV:
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
@@ -175,8 +175,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
     case IR_RET:
       if (length_RegVec(h->ras) != 0) {
         assert(length_RegVec(h->ras) == 1);
-        Reg r = get_RegVec(h->ras, 0);
-        emit(p, "mov %s, %s", rax_of_size(r.size), reg_of(r));
+        assert(get_RegVec(h->ras, 0).real == rax_reg_id);
       }
       emit_epilogue(p, f);
       emit(p, "ret");
@@ -233,8 +232,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
-        Reg r = get_RegVec(h->ras, i);
-        emit(p, "mov %s, %s", nth_arg(i - 1, r.size), reg_of(r));
+        assert(get_RegVec(h->ras, i).real == nth_arg_id(i));
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
       emit(p, "mov %s, %s", reg_of(h->rd), rax_of_size(h->rd.size));
@@ -256,9 +254,7 @@ static void codegen_unaop(FILE* p, IRInst* inst) {
   Reg rd  = inst->rd;
   Reg opr = get_RegVec(inst->ras, 0);
 
-  if (rd.real != opr.real) {
-    emit(p, "mov %s, %s", reg_of(rd), reg_of(opr));
-  }
+  assert(rd.real == opr.real);
 
   switch (inst->unaop) {
     case UNAOP_POSITIVE:
@@ -282,9 +278,7 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   // A = B op A instruction can't be emitted
   assert(rd.real != rhs.real);
 
-  if (rd.real != lhs.real) {
-    emit(p, "mov %s, %s", reg_of(rd), reg_of(lhs));
-  }
+  assert(rd.real == lhs.real);
 
   switch (inst->binop) {
     case BINOP_ADD:

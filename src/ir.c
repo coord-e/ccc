@@ -252,16 +252,10 @@ static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
 
   Reg dest = new_reg(env, lhs.size);
 
-  // TODO: emit this move in `arch` pass
-  IRInst* i1 = new_inst_(env, IR_MOV);
-  i1->rd     = dest;
-  push_RegVec(i1->ras, lhs);
-  add_inst(env, i1);
-
   IRInst* i2 = new_inst_(env, IR_BIN);
   i2->binop  = op;
   i2->rd     = dest;
-  push_RegVec(i2->ras, dest);
+  push_RegVec(i2->ras, lhs);
   push_RegVec(i2->ras, rhs);
   add_inst(env, i2);
 

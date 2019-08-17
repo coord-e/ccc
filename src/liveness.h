@@ -7,11 +7,21 @@
 #include "list.h"
 #include "vector.h"
 
+typedef enum {
+  IV_UNSET,
+  IV_VIRTUAL,
+  IV_FIXED,
+} IntervalKind;
+
 typedef struct {
+  IntervalKind kind;
+
   // -1 for undefined
   // TODO: stop using -1 to indicate undefined value
   unsigned from;
   unsigned to;
+
+  unsigned fixed_real;  // for IV_FIXED
 } Interval;
 
 DECLARE_VECTOR(Interval*, RegIntervals)

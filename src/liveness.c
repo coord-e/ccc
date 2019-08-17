@@ -137,8 +137,25 @@ static Interval* new_interval(unsigned from, unsigned to) {
   return iv;
 }
 
-static void add_range(RegIntervals* ivs, unsigned virtual, unsigned from, unsigned to) {
-  Interval* iv = get_RegIntervals(ivs, virtual);
+static void set_interval_kind(Interval* iv, RegKind kind) {
+  switch (kind) {
+    case REG_FIXED:
+      assert(iv->kind == IV_UNSET || iv->kind == IV_FIXED);
+      iv->kind = IV_FIXED;
+      break;
+    case REG_VIRT:
+      assert(iv->kind == IV_UNSET || iv->kind == IV_VIRTUAL);
+      iv->kind = IV_VIRTUAL;
+      break;
+    case REG_REAL:
+      assert("real registers found in register allocation");
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+static void add_range(Interval* iv, unsigned from, unsigned to) {
   if (iv->from == -1 || iv->from > from) {
     iv->from = from;
   }
@@ -147,9 +164,8 @@ static void add_range(RegIntervals* ivs, unsigned virtual, unsigned from, unsign
   }
 }
 
-static void set_from(RegIntervals* ivs, unsigned virtual, unsigned from) {
-  Interval* iv = get_RegIntervals(ivs, virtual);
-  iv->from     = from;
+static void set_from(Interval* iv, unsigned from) {
+  iv->from = from;
 }
 
 static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned block_from) {
@@ -161,11 +177,15 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
       Reg ra = get_RegVec(inst->ras, i);
       assert(ra.is_used);
 
-      add_range(ivs, ra.virtual, block_from, inst->local_id);
+      Interval* iv = get_RegIntervals(ivs, ra.virtual);
+      add_range(iv, block_from, inst->local_id);
+      set_interval_kind(iv, ra.kind);
     }
 
     if (inst->rd.is_used) {
-      set_from(ivs, inst->rd.virtual, inst->local_id);
+      Interval* iv = get_RegIntervals(ivs, inst->rd.virtual);
+      set_from(iv, inst->local_id);
+      set_interval_kind(iv, inst->rd.kind);
     }
   }
 }
@@ -187,7 +207,8 @@ RegIntervals* build_intervals(Function* ir) {
 
     for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
       if (get_BitSet(b->live_out, vi)) {
-        add_range(ivs, vi, block_from, block_to);
+        Interval* iv = get_RegIntervals(ivs, vi);
+        add_range(iv, block_from, block_to);
       }
     }
 

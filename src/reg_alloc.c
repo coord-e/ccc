@@ -17,8 +17,8 @@ typedef struct {
   RegIntervals* intervals;  // not owned
   UIList* active;           // owned
   unsigned active_count;
-  BitSet* used;   // owned
-  UIVec* result;  // owned, -1 -> not allocated, -2 -> spilled
+  UIVec* used_by;  // owned, -1 -> not used
+  UIVec* result;   // owned, -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
   UIVec* locations;  // owned, -1 -> not spilled
   unsigned usable_regs_count;
@@ -40,7 +40,9 @@ static Env* init_Env(unsigned virt_count,
   env->intervals          = ivs;
   env->active             = nil_UIList();
   env->active_count       = 0;
-  env->used               = zero_BitSet(env->usable_regs_count);
+  env->used_by            = new_UIVec(env->usable_regs_count);
+  resize_UIVec(env->used_by, env->usable_regs_count);
+  fill_UIVec(env->used_by, -1);
 
   env->result = new_UIVec(virt_count);
   resize_UIVec(env->result, virt_count);
@@ -59,7 +61,7 @@ static Env* init_Env(unsigned virt_count,
 
 static void release_Env(Env* env) {
   release_UIList(env->active);
-  release_BitSet(env->used);
+  release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
   free(env);
@@ -74,18 +76,23 @@ static Interval* interval_of(Env* env, unsigned virtual) {
 }
 
 static unsigned find_free_reg(Env* env) {
-  for (unsigned i = 0; i < length_BitSet(env->used); i++) {
-    if (!get_BitSet(env->used, i)) {
+  for (unsigned i = 0; i < length_UIVec(env->used_by); i++) {
+    if (get_UIVec(env->used_by, i) == -1) {
       return i;
     }
   }
   error("no free reg found");
 }
 
+static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
+  assert(get_UIVec(env->used_by, real) == -1);
+  set_UIVec(env->used_by, real, virtual);
+  set_UIVec(env->result, virtual, real);
+}
+
 static void alloc_reg(Env* env, unsigned virtual) {
   unsigned real = find_free_reg(env);
-  set_BitSet(env->used, real, true);
-  set_UIVec(env->result, virtual, real);
+  alloc_specific_reg(env, virtual, real);
 }
 
 static void release_reg(Env* env, unsigned virtual) {
@@ -94,7 +101,7 @@ static void release_reg(Env* env, unsigned virtual) {
     return;
   }
 
-  set_BitSet(env->used, real, false);
+  set_UIVec(env->used_by, real, -1);
 }
 
 static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {
@@ -141,8 +148,26 @@ static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
   expire_old_intervals_iter(env, current, l);
 }
 
-static void expire_old_intervals(Env* env, unsigned target_virt) {
-  expire_old_intervals_iter(env, interval_of(env, target_virt), env->active);
+static void remove_virtual_from_active_iter(Env* env, unsigned target, UIList* l) {
+  if (is_nil_UIList(l)) {
+    CCC_UNREACHABLE;
+    return;
+  }
+
+  if (head_UIList(l) == target) {
+    remove_from_active(env, l);
+    return;
+  }
+
+  remove_virtual_from_active_iter(env, target, tail_UIList(l));
+}
+
+static void remove_virtual_from_active(Env* env, unsigned target) {
+  remove_virtual_from_active_iter(env, target, env->active);
+}
+
+static void expire_old_intervals(Env* env, Interval* target_iv) {
+  expire_old_intervals_iter(env, target_iv, env->active);
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
@@ -201,14 +226,33 @@ static void walk_regs(Env* env, UIList* l) {
   }
 
   unsigned virtual = head_UIList(l);
+  Interval* iv     = interval_of(env, virtual);
 
-  expire_old_intervals(env, virtual);
+  expire_old_intervals(env, iv);
 
-  if (env->active_count == env->usable_regs_count) {
-    spill_at_interval(env, virtual);
-  } else {
-    alloc_reg(env, virtual);
-    add_to_active(env, virtual);
+  switch (iv->kind) {
+    case IV_VIRTUAL:
+      if (env->active_count == env->usable_regs_count) {
+        spill_at_interval(env, virtual);
+      } else {
+        alloc_reg(env, virtual);
+        add_to_active(env, virtual);
+      }
+      break;
+    case IV_FIXED: {
+      unsigned u = get_UIVec(env->used_by, iv->fixed_real);
+      if (u != -1) {
+        unsigned blocked_virt = u;
+        release_reg(env, blocked_virt);
+        alloc_stack(env, blocked_virt);
+        remove_virtual_from_active(env, blocked_virt);
+      }
+      alloc_specific_reg(env, virtual, iv->fixed_real);
+      add_to_active(env, virtual);
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
   }
 
   walk_regs(env, tail_UIList(l));
@@ -218,6 +262,10 @@ static bool assign_reg(Env* env, Reg* r) {
   unsigned real = get_UIVec(env->result, r->virtual);
   if (real == -1) {
     error("failed to allocate register: %d", r->virtual);
+  }
+
+  if (r->kind == REG_FIXED) {
+    assert(r->real == real);
   }
 
   r->kind = REG_REAL;

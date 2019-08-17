@@ -1,11 +1,15 @@
 #include "reg_alloc.h"
 #include "bit_set.h"
+#include "double_list.h"
 #include "vector.h"
 
 // TODO: Type and distinguish real and virtual register index
 // TODO: Stop using -1 or 0 to mark something
 
 static void release_unsigned(unsigned i) {}
+
+DECLARE_DLIST(unsigned, UIDList)
+DEFINE_DLIST(release_unsigned, unsigned, UIDList)
 
 DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
@@ -15,7 +19,7 @@ DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
 
 typedef struct {
   RegIntervals* intervals;  // not owned
-  UIList* active;           // owned
+  UIDList* active;          // owned
   unsigned active_count;
   UIVec* used_by;  // owned, -1 -> not used
   UIVec* result;   // owned, -1 -> not allocated, -2 -> spilled
@@ -38,7 +42,7 @@ static Env* init_Env(unsigned virt_count,
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
   env->intervals          = ivs;
-  env->active             = nil_UIList();
+  env->active             = new_UIDList();
   env->active_count       = 0;
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
@@ -60,7 +64,7 @@ static Env* init_Env(unsigned virt_count,
 }
 
 static void release_Env(Env* env) {
-  release_UIList(env->active);
+  release_UIDList(env->active);
   release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
@@ -104,70 +108,73 @@ static void release_reg(Env* env, unsigned virtual) {
   set_UIVec(env->used_by, real, -1);
 }
 
-static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {
-  if (is_nil_UIList(l)) {
-    insert_UIList(target_virt, l);
+static void add_to_active_iter(Env* env,
+                               unsigned target_virt,
+                               Interval* current,
+                               UIDListIterator* l) {
+  if (is_nil_UIDListIterator(l)) {
+    insert_UIDListIterator(l, target_virt);
     return;
   }
 
-  Interval* intv = interval_of(env, head_UIList(l));
+  Interval* intv = interval_of(env, data_UIDListIterator(l));
   if (intv->to > current->to) {
-    insert_UIList(target_virt, l);
+    insert_UIDListIterator(l, target_virt);
     return;
   }
 
-  add_to_active_iter(env, target_virt, current, tail_UIList(l));
+  add_to_active_iter(env, target_virt, current, next_UIDListIterator(l));
 }
 
 static void add_to_active(Env* env, unsigned target_virt) {
-  add_to_active_iter(env, target_virt, interval_of(env, target_virt), env->active);
+  add_to_active_iter(env, target_virt, interval_of(env, target_virt), front_UIDList(env->active));
   env->active_count++;
 }
 
-static void remove_from_active(Env* env, UIList* cur) {
-  remove_UIList(cur);
+static void remove_from_active(Env* env, UIDListIterator* cur) {
+  remove_UIDListIterator(cur);
   env->active_count--;
 }
 
-static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
-  if (is_nil_UIList(l)) {
+static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterator* l) {
+  if (is_nil_UIDListIterator(l)) {
     return;
   }
 
-  unsigned virtual = head_UIList(l);
+  unsigned virtual = data_UIDListIterator(l);
   Interval* intv   = interval_of(env, virtual);
   if (intv->to >= current->from) {
     return;
   }
 
+  UIDListIterator* next = next_UIDListIterator(l);
   // expired
   remove_from_active(env, l);
   release_reg(env, virtual);
 
-  // not `tail` but `l` because `l` has removed in `remove_from_active`
-  expire_old_intervals_iter(env, current, l);
+  expire_old_intervals_iter(env, current, next);
 }
 
-static void remove_virtual_from_active_iter(Env* env, unsigned target, UIList* l) {
-  if (is_nil_UIList(l)) {
+static void remove_virtual_from_active_iter(Env* env, unsigned target, UIDListIterator* l) {
+  if (is_nil_UIDListIterator(l)) {
     CCC_UNREACHABLE;
     return;
   }
 
-  if (head_UIList(l) == target) {
+  if (data_UIDListIterator(l) == target) {
     remove_from_active(env, l);
     return;
   }
 
-  remove_virtual_from_active_iter(env, target, tail_UIList(l));
+  remove_virtual_from_active_iter(env, target, next_UIDListIterator(l));
 }
 
 static void remove_virtual_from_active(Env* env, unsigned target) {
-  remove_virtual_from_active_iter(env, target, env->active);
+  remove_virtual_from_active_iter(env, target, front_UIDList(env->active));
 }
 
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  expire_old_intervals_iter(env, target_iv, env->active);
+  expire_old_intervals_iter(env, target_iv, front_UIDList(env->active));
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
@@ -178,9 +185,8 @@ static void alloc_stack(Env* env, unsigned virt) {
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
-  // TODO: can we eliminate this traversal of last element?
-  UIList* spill_ptr = last_UIList(env->active);
-  unsigned spill    = head_UIList(spill_ptr);
+  UIDListIterator* spill_ptr = back_UIDList(env->active);
+  unsigned spill             = data_UIDListIterator(spill_ptr);
 
   Interval* spill_intv  = interval_of(env, spill);
   Interval* target_intv = interval_of(env, target);

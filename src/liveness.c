@@ -198,11 +198,6 @@ RegIntervals* build_intervals(Function* ir) {
   for (unsigned i = 0; i < ir->reg_count; i++) {
     push_RegIntervals(ivs, new_interval(-1, -1));
   }
-  for (unsigned i = 0; i < length_UIVec(ir->arg_regs); i++) {
-    unsigned arg_reg_v = get_UIVec(ir->arg_regs, i);
-    Interval* iv       = get_RegIntervals(ivs, arg_reg_v);
-    set_from(iv, 0);
-  }
 
   // reverse order
   for (unsigned i = 0; i < length_BBVec(v); i++) {

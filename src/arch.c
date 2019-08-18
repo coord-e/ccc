@@ -27,7 +27,6 @@ typedef struct {
   unsigned global_inst_count;
   unsigned inst_count;
   unsigned reg_count;
-  UIVec* arg_regs;
 } Env;
 
 static Env* init_Env(unsigned global_inst_count, Function* f) {
@@ -35,7 +34,6 @@ static Env* init_Env(unsigned global_inst_count, Function* f) {
   env->global_inst_count = global_inst_count;
   env->inst_count        = f->inst_count;
   env->reg_count         = f->reg_count;
-  env->arg_regs          = new_UIVec(max_args);
   return env;
 }
 
@@ -43,7 +41,6 @@ static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
   *inst_count   = env->global_inst_count;
   f->inst_count = env->inst_count;
   f->reg_count  = env->reg_count;
-  f->arg_regs   = env->arg_regs;
   free(env);
 }
 
@@ -208,11 +205,8 @@ static void walk_insts(Env* env, IRInstList* l) {
       Reg rd       = inst->rd;
       unsigned idx = inst->argument_idx;
 
-      Reg ra = nth_arg_fixed_reg(env, idx, rd.size);
-      push_UIVec(env->arg_regs, ra.virtual);
-
       remove_IRInstList(l);
-      insert_IRInstList(new_move(env, rd, ra), l);
+      insert_IRInstList(new_move(env, rd, nth_arg_fixed_reg(env, idx, rd.size)), l);
       tail = tail_IRInstList(l);
       break;
     }

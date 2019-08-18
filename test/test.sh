@@ -211,9 +211,7 @@ int ack(int m, int n) {
   } else if (n == 0) {
     return ack(m - 1, 1);
   } else {
-    int a;
-    a = ack(m, n - 1);
-    return ack(m - 1, a);
+    return ack(m - 1, ack(m, n - 1));
   }
 }
 

@@ -233,7 +233,11 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   // A = B op A instruction can't be emitted
   assert(rd.real != rhs.real);
 
-  assert(rd.real == lhs.real);
+  // rem operator is exceptionally avoided
+  // rdx = rax % reg
+  if (inst->binop != BINOP_REM) {
+    assert(rd.real == lhs.real);
+  }
 
   switch (inst->binop) {
     case BINOP_ADD:

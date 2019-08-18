@@ -28,6 +28,9 @@ DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
 static void release_reg(Reg r) {}
 DEFINE_VECTOR(release_reg, Reg, RegVec)
 
+static void release_unsigned(unsigned u) {}
+DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
+
 static void release_BasicBlock(BasicBlock* bb) {
   if (bb == NULL) {
     return;
@@ -50,6 +53,7 @@ DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 static void release_Function(Function* f) {
   free(f->name);
   release_BBList(f->blocks);
+  release_UIVec(f->arg_regs);
   release_RegIntervals(f->intervals);
   free(f);
 }
@@ -1041,6 +1045,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   ir->sorted_blocks = NULL;
   ir->intervals     = NULL;
   ir->used_regs     = NULL;
+  ir->arg_regs      = NULL;
 
   // TODO: shallow release of containers
   free(env);

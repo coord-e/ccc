@@ -123,6 +123,8 @@ DECLARE_VECTOR(BasicBlock*, BBVec)
 // forward decralation; will declared in `liveness.h`
 typedef struct RegIntervals RegIntervals;
 
+DECLARE_VECTOR(unsigned, UIVec)
+
 typedef struct {
   char* name;  // owned
 
@@ -135,6 +137,9 @@ typedef struct {
 
   BasicBlock* entry;  // not owned
   BasicBlock* exit;   // not owend
+
+  // will filled in `arch`
+  UIVec* arg_regs;  // owned
 
   // will filled in `reorder`
   // sorted in reverse order

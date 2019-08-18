@@ -137,11 +137,12 @@ static Interval* new_interval(unsigned from, unsigned to) {
   return iv;
 }
 
-static void set_interval_kind(Interval* iv, RegKind kind) {
-  switch (kind) {
+static void set_interval_kind(Interval* iv, Reg r) {
+  switch (r.kind) {
     case REG_FIXED:
       assert(iv->kind == IV_UNSET || iv->kind == IV_FIXED);
-      iv->kind = IV_FIXED;
+      iv->kind       = IV_FIXED;
+      iv->fixed_real = r.real;
       break;
     case REG_VIRT:
       assert(iv->kind == IV_UNSET || iv->kind == IV_VIRTUAL);
@@ -179,13 +180,13 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
 
       Interval* iv = get_RegIntervals(ivs, ra.virtual);
       add_range(iv, block_from, inst->local_id);
-      set_interval_kind(iv, ra.kind);
+      set_interval_kind(iv, ra);
     }
 
     if (inst->rd.is_used) {
       Interval* iv = get_RegIntervals(ivs, inst->rd.virtual);
       set_from(iv, inst->local_id);
-      set_interval_kind(iv, inst->rd.kind);
+      set_interval_kind(iv, inst->rd);
     }
   }
 }

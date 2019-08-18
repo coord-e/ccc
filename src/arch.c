@@ -188,12 +188,15 @@ static void walk_insts(Env* env, IRInstList* l) {
       insert_IRInstList(new_move(env, rd, rax), l);
       IRInst* call = new_call(env, rax, rf);
       insert_IRInstList(call, l);
-      tail = tail_IRInstList(tail_IRInstList(l));
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg r = get_RegVec(inst->ras, i);
         Reg p = nth_arg_fixed_reg(env, i - 1, r.size);
         push_RegVec(call->ras, p);
         insert_IRInstList(new_move(env, p, r), l);
+      }
+      // TODO: remove the redundant loop
+      tail = tail_IRInstList(tail_IRInstList(l));
+      for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         tail = tail_IRInstList(tail);
       }
       break;

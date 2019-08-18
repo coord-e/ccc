@@ -267,6 +267,9 @@ static void walk_regs(Env* env, UIList* l) {
       add_to_active(env, virtual);
       break;
     }
+    case IV_UNSET:
+      assert(iv->from == -1 && iv->to == -1);
+      break;
     default:
       CCC_UNREACHABLE;
   }
@@ -394,8 +397,7 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
     unsigned real = get_UIVec(env->result, i);
     if (real == -2) {
       set_BitSet(ir->used_regs, env->reserved_for_spill, true);
-    } else {
-      assert(real != -1);
+    } else if (real != -1) {
       set_BitSet(ir->used_regs, real, true);
     }
   }

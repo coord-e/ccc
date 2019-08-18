@@ -187,7 +187,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
-        assert(get_RegVec(h->ras, i).real == nth_arg_id(i));
+        assert(get_RegVec(h->ras, i).real == nth_arg_id(i - 1));
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
       assert(h->rd.real == rax_reg_id);

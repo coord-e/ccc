@@ -354,8 +354,25 @@ static void assign_reg_num(Env* env, BBList* l) {
   }
 
   BasicBlock* b = head_BBList(l);
+  if (b->dead) {
+    assign_reg_num(env, tail_BBList(l));
+    return;
+  }
+
   assign_reg_num_iter_insts(env, b->insts);
   b->sorted_insts = NULL;
+
+  if (b->is_call_bb) {
+    b->should_preserve = new_BitSet(env->usable_regs_count + 1);
+    BitSet* s          = copy_BitSet(b->live_in);
+    and_BitSet(s, b->live_out);
+    for (unsigned i = 0; i < length_BitSet(s); i++) {
+      if (get_BitSet(s, i)) {
+        set_BitSet(b->should_preserve, get_UIVec(env->result, i), true);
+      }
+    }
+    release_BitSet(s);
+  }
 
   assign_reg_num(env, tail_BBList(l));
 }

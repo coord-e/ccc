@@ -40,6 +40,8 @@ static void release_BasicBlock(BasicBlock* bb) {
   release_BitSet(bb->live_in);
   release_BitSet(bb->live_out);
 
+  release_BitSet(bb->should_preserve);
+
   free(bb);
 }
 
@@ -157,18 +159,20 @@ static BasicBlock* new_bb(Env* env) {
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
   inst->label    = bb;
 
-  bb->local_id  = local_id;
-  bb->global_id = global_id;
-  bb->insts     = single_IRInstList(inst);
-  bb->succs     = nil_BBList();
-  bb->preds     = nil_BBList();
-  bb->dead      = false;
+  bb->local_id   = local_id;
+  bb->global_id  = global_id;
+  bb->insts      = single_IRInstList(inst);
+  bb->succs      = nil_BBList();
+  bb->preds      = nil_BBList();
+  bb->dead       = false;
+  bb->is_call_bb = false;
 
-  bb->live_gen     = NULL;
-  bb->live_kill    = NULL;
-  bb->live_in      = NULL;
-  bb->live_out     = NULL;
-  bb->sorted_insts = NULL;
+  bb->live_gen        = NULL;
+  bb->live_kill       = NULL;
+  bb->live_in         = NULL;
+  bb->live_out        = NULL;
+  bb->sorted_insts    = NULL;
+  bb->should_preserve = NULL;
 
   env->blocks = cons_BBList(bb, env->blocks);
 
@@ -569,6 +573,11 @@ Reg gen_expr(Env* env, Expr* node) {
       return new_load(env, r, datasize_of_node(node));
     }
     case ND_CALL: {
+      BasicBlock* call_bb = new_bb(env);
+      BasicBlock* next_bb = new_bb(env);
+
+      call_bb->is_call_bb = true;
+
       IRInst* inst = new_inst_(env, IR_CALL);
       Reg f        = gen_expr(env, node->lhs);
       push_RegVec(inst->ras, f);
@@ -581,7 +590,9 @@ Reg gen_expr(Env* env, Expr* node) {
       Reg r    = new_reg(env, datasize_of_node(node));
       inst->rd = r;
 
+      new_jump(env, call_bb, call_bb);
       add_inst(env, inst);
+      new_jump(env, next_bb, next_bb);
       return r;
     }
     case ND_COND: {
@@ -1236,6 +1247,10 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
   if (bb->live_out != NULL) {
     fprintf(p, " out: ");
     print_BitSet(p, bb->live_out);
+  }
+  if (bb->should_preserve != NULL) {
+    fprintf(p, "\\npreserve: ");
+    print_BitSet(p, bb->should_preserve);
   }
 
   fprintf(p, "\";\n");

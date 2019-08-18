@@ -182,13 +182,23 @@ static void alloc_stack(Env* env, unsigned virt) {
   env->stack_count += 8;
   set_UIVec(env->locations, virt, env->stack_count);
   set_UIVec(env->result, virt, -2);  // mark as spilled
+  printf("s %d\n", virt);
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
   UIDListIterator* spill_ptr = back_UIDList(env->active);
-  unsigned spill             = data_UIDListIterator(spill_ptr);
-
-  Interval* spill_intv  = interval_of(env, spill);
+  unsigned spill;
+  Interval* spill_intv = NULL;
+  while (true) {
+    spill      = data_UIDListIterator(spill_ptr);
+    spill_intv = interval_of(env, spill);
+    if (spill_intv->kind != IV_FIXED) {
+      break;
+    } else {
+      spill_ptr = prev_UIDListIterator(spill_ptr);
+    }
+  }
+  assert(spill_intv->kind != IV_FIXED);
   Interval* target_intv = interval_of(env, target);
   if (spill_intv->to > target_intv->to) {
     set_UIVec(env->result, target, get_UIVec(env->result, spill));

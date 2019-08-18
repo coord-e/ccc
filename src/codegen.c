@@ -103,7 +103,7 @@ static void emit_epilogue(FILE* p, Function* f) {
 static void codegen_binop(FILE* p, IRInst* inst);
 static void codegen_unaop(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
+static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
     return;
   }
@@ -160,8 +160,23 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_LABEL:
       emit_id_label(p, h->label->global_id);
+      if (bb->is_call_bb) {
+        for (unsigned i = 0; i < length_BitSet(bb->should_preserve); i++) {
+          if (get_BitSet(bb->should_preserve, i) && is_scratch[i]) {
+            emit(p, "push %s", regs64[i]);
+          }
+        }
+      }
       break;
     case IR_JUMP:
+      if (bb->is_call_bb) {
+        for (unsigned ti = length_BitSet(bb->should_preserve); ti > 0; ti--) {
+          unsigned i = ti - 1;
+          if (get_BitSet(bb->should_preserve, i) && is_scratch[i]) {
+            emit(p, "pop %s", regs64[i]);
+          }
+        }
+      }
       emit_(p, "jmp ");
       id_label_name(p, h->jump->global_id);
       fprintf(p, "\n");
@@ -196,7 +211,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, tail_IRInstList(insts));
+  codegen_insts(p, f, bb, tail_IRInstList(insts));
 }
 
 static void codegen_cmp(FILE* p, const char* s, Reg rd, Reg rhs) {
@@ -308,9 +323,12 @@ static void codegen_blocks(FILE* p, Function* f, BBList* l) {
   }
 
   BasicBlock* b = head_BBList(l);
-  if (!b->dead) {
-    codegen_insts(p, f, b->insts);
+  if (b->dead) {
+    codegen_blocks(p, f, tail_BBList(l));
+    return;
   }
+
+  codegen_insts(p, f, b, b->insts);
 
   codegen_blocks(p, f, tail_BBList(l));
 }

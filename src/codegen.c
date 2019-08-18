@@ -143,6 +143,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       emit(p, "movsx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
     case IR_RET:
+      assert(!bb->is_call_bb);
       if (length_RegVec(h->ras) != 0) {
         assert(length_RegVec(h->ras) == 1);
         assert(get_RegVec(h->ras, 0).real == rax_reg_id);
@@ -188,6 +189,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       fprintf(p, "\n");
       break;
     case IR_BR:
+      assert(!bb->is_call_bb);
       emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
       emit_(p, "je ");
       id_label_name(p, h->else_->global_id);

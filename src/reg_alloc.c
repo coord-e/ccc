@@ -371,7 +371,11 @@ static void assign_reg_num(Env* env, BBList* l) {
     and_BitSet(s, b->live_out);
     for (unsigned i = 0; i < length_BitSet(s); i++) {
       if (get_BitSet(s, i)) {
-        set_BitSet(b->should_preserve, get_UIVec(env->result, i), true);
+        unsigned real = get_UIVec(env->result, i);
+        if (real != -2) {
+          assert(real != -1);
+          set_BitSet(b->should_preserve, real, true);
+        }
       }
     }
     release_BitSet(s);

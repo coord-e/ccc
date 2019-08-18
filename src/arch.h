@@ -16,5 +16,6 @@ extern const char* regs8[];
 extern const char* regs16[];
 extern const char* regs32[];
 extern const char* regs64[];
+extern const bool is_scratch[];
 
 #endif

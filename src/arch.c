@@ -1,10 +1,11 @@
 #include "arch.h"
 
 // clang-format off
-const char* regs8[]  = {"dil", "sil", "dl",  "cl",  "r8b", "r9b", "al",  "r12b", "r13b", "r14b", "r15b", "bl"};
-const char* regs16[] = {"di",  "si",  "dx",  "cx",  "r8w", "r9w", "ax",  "r12w", "r13w", "r14w", "r15w", "bx"};
-const char* regs32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d", "eax", "r12d", "r13d", "r14d", "r15d", "ebx"};
-const char* regs64[] = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9",  "rax", "r12",  "r13",  "r14",  "r15",  "rbx"};
+const char* regs8[]      = {"dil", "sil", "dl",  "cl",  "r8b", "r9b", "al",  "r12b", "r13b", "r14b", "r15b", "bl"};
+const char* regs16[]     = {"di",  "si",  "dx",  "cx",  "r8w", "r9w", "ax",  "r12w", "r13w", "r14w", "r15w", "bx"};
+const char* regs32[]     = {"edi", "esi", "edx", "ecx", "r8d", "r9d", "eax", "r12d", "r13d", "r14d", "r15d", "ebx"};
+const char* regs64[]     = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9",  "rax", "r12",  "r13",  "r14",  "r15",  "rbx"};
+const bool  is_scratch[] = {true,  true,  true,  true,  true,  true,  true,  false,  false,  false,  false,  false};
 // clang-format on
 
 // first 6 registers are used to pass arguments to a function

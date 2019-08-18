@@ -81,7 +81,7 @@ static void emit_prologue(FILE* p, Function* f) {
   emit(p, "mov rbp, rsp");
   emit(p, "sub rsp, %d", f->stack_count);
   for (unsigned i = 0; i < length_BitSet(f->used_regs); i++) {
-    if (get_BitSet(f->used_regs, i)) {
+    if (get_BitSet(f->used_regs, i) && !is_scratch[i]) {
       emit(p, "push %s", regs64[i]);
     }
   }
@@ -92,7 +92,7 @@ static void emit_prologue(FILE* p, Function* f) {
 
 static void emit_epilogue(FILE* p, Function* f) {
   for (unsigned i = length_BitSet(f->used_regs); i > 0; i--) {
-    if (get_BitSet(f->used_regs, i - 1)) {
+    if (get_BitSet(f->used_regs, i - 1) && !is_scratch[i - 1]) {
       emit(p, "pop %s", regs64[i - 1]);
     }
   }

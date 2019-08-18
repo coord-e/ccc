@@ -182,7 +182,6 @@ static void alloc_stack(Env* env, unsigned virt) {
   env->stack_count += 8;
   set_UIVec(env->locations, virt, env->stack_count);
   set_UIVec(env->result, virt, -2);  // mark as spilled
-  printf("s %d\n", virt);
 }
 
 static void spill_at_interval(Env* env, unsigned target) {

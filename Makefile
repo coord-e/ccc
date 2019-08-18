@@ -1,5 +1,3 @@
-TARGET_EXEC ?= ccc
-
 BUILD_DIR ?= ./build
 SRC_DIR ?= ./src
 
@@ -9,6 +7,17 @@ DEPS := $(OBJS:.o=.d)
 
 CFLAGS ?= -Wall -std=c11 -pedantic
 CPPFLAGS ?= -MMD -MP
+
+DEBUG ?= 1
+ifeq ($(DEBUG), 1)
+  TARGET_EXEC ?= ccc.debug
+  CC = clang
+  CFLAGS += -O0 -g3 -fsanitize=memory -fPIE
+  LDFLAGS += -fsanitize=memory
+else
+  TARGET_EXEC ?= ccc
+  CFLAGS += -O3
+endif
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)

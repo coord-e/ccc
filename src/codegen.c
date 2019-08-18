@@ -3,23 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "arch.h"
 #include "codegen.h"
 #include "error.h"
-
-// clang-format off
-static const char* regs8[]  = {"r12b", "r13b", "r14b", "r15b", "bl"};
-static const char* regs16[] = {"r12w", "r13w", "r14w", "r15w", "bxj"};
-static const char* regs32[] = {"r12d", "r13d", "r14d", "r15d", "ebx"};
-static const char* regs64[] = {"r12",  "r13",  "r14",  "r15",  "rbx"};
-
-static const char* arg_regs8[]  = {"dil", "sil", "dl",  "cl",  "r8b", "r9b"};
-static const char* arg_regs16[] = {"di",  "si",  "dx",  "cx",  "r8w", "r9w"};
-static const char* arg_regs32[] = {"edi", "esi", "edx", "ecx", "r8d", "r9d"};
-static const char* arg_regs64[] = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9"};
-// clang-format on
-
-// declared as an extern variable in codegen.h
-size_t num_regs = sizeof(regs64) / sizeof(*regs64);
 
 static const char* size_spec(DataSize s) {
   switch (s) {
@@ -31,51 +17,6 @@ static const char* size_spec(DataSize s) {
       return "DWORD PTR";
     case SIZE_QWORD:
       return "QWORD PTR";
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static const char* rax_of_size(DataSize s) {
-  switch (s) {
-    case SIZE_BYTE:
-      return "al";
-    case SIZE_WORD:
-      return "ax";
-    case SIZE_DWORD:
-      return "eax";
-    case SIZE_QWORD:
-      return "rax";
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static const char* rcx_of_size(DataSize s) {
-  switch (s) {
-    case SIZE_BYTE:
-      return "cl";
-    case SIZE_WORD:
-      return "cx";
-    case SIZE_DWORD:
-      return "ecx";
-    case SIZE_QWORD:
-      return "rcx";
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
-static const char* rdx_of_size(DataSize s) {
-  switch (s) {
-    case SIZE_BYTE:
-      return "dl";
-    case SIZE_WORD:
-      return "dx";
-    case SIZE_DWORD:
-      return "edx";
-    case SIZE_QWORD:
-      return "rdx";
     default:
       CCC_UNREACHABLE;
   }
@@ -126,26 +67,6 @@ static const char* nth_reg_of(unsigned i, RegVec* rs) {
   return reg_of(get_RegVec(rs, i));
 }
 
-const size_t max_args = sizeof(arg_regs64) / sizeof(*arg_regs64);
-static const char* nth_arg(unsigned idx, DataSize s) {
-  if (idx >= max_args) {
-    error("unsupported number of arguments/parameters. (%d)", idx);
-  }
-
-  switch (s) {
-    case SIZE_BYTE:
-      return arg_regs8[idx];
-    case SIZE_WORD:
-      return arg_regs16[idx];
-    case SIZE_DWORD:
-      return arg_regs32[idx];
-    case SIZE_QWORD:
-      return arg_regs64[idx];
-    default:
-      CCC_UNREACHABLE;
-  }
-}
-
 static void id_label_name(FILE* p, unsigned id) {
   fprintf(p, "_ccc_%d", id);
 }
@@ -155,26 +76,41 @@ static void emit_id_label(FILE* p, unsigned id) {
   fprintf(p, ":\n");
 }
 
+static void emit_save_regs(FILE* p, BitSet* bs, bool scratch_filter_switch) {
+  for (unsigned i = 0; i < length_BitSet(bs); i++) {
+    if (!get_BitSet(bs, i)) {
+      continue;
+    }
+    if (scratch_filter_switch == is_scratch[i]) {
+      emit(p, "push %s", regs64[i]);
+    }
+  }
+}
+
+static void emit_restore_regs(FILE* p, BitSet* bs, bool scratch_filter_switch) {
+  for (unsigned ti = length_BitSet(bs); ti > 0; ti--) {
+    unsigned i = ti - 1;
+    if (!get_BitSet(bs, i)) {
+      continue;
+    }
+    if (scratch_filter_switch == is_scratch[i]) {
+      emit(p, "pop %s", regs64[i]);
+    }
+  }
+}
+
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit(p, "sub rsp, %d", f->stack_count);
-  for (unsigned i = 0; i < length_BitSet(f->used_regs); i++) {
-    if (get_BitSet(f->used_regs, i)) {
-      emit(p, "push %s", regs64[i]);
-    }
-  }
+  emit_save_regs(p, f->used_regs, false);
   emit_(p, "jmp ");
   id_label_name(p, f->entry->global_id);
   fprintf(p, "\n");
 }
 
 static void emit_epilogue(FILE* p, Function* f) {
-  for (unsigned i = length_BitSet(f->used_regs); i > 0; i--) {
-    if (get_BitSet(f->used_regs, i - 1)) {
-      emit(p, "pop %s", regs64[i - 1]);
-    }
-  }
+  emit_restore_regs(p, f->used_regs, false);
   emit(p, "mov rsp, rbp");
   emit(p, "pop rbp");
 }
@@ -182,7 +118,7 @@ static void emit_epilogue(FILE* p, Function* f) {
 static void codegen_binop(FILE* p, IRInst* inst);
 static void codegen_unaop(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
+static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* insts) {
   if (is_nil_IRInstList(insts)) {
     return;
   }
@@ -193,7 +129,7 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;
     case IR_ARG:
-      emit(p, "mov %s, %s", reg_of(h->rd), nth_arg(h->argument_idx, h->rd.size));
+      assert(false && "IR_ARG can't be last by codegen");
       break;
     case IR_MOV:
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
@@ -207,10 +143,10 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       emit(p, "movsx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
     case IR_RET:
+      assert(!bb->is_call_bb);
       if (length_RegVec(h->ras) != 0) {
         assert(length_RegVec(h->ras) == 1);
-        Reg r = get_RegVec(h->ras, 0);
-        emit(p, "mov %s, %s", rax_of_size(r.size), reg_of(r));
+        assert(get_RegVec(h->ras, 0).real == rax_reg_id);
       }
       emit_epilogue(p, f);
       emit(p, "ret");
@@ -240,13 +176,20 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_LABEL:
       emit_id_label(p, h->label->global_id);
+      if (bb->is_call_bb) {
+        emit_save_regs(p, bb->should_preserve, true);
+      }
       break;
     case IR_JUMP:
+      if (bb->is_call_bb) {
+        emit_restore_regs(p, bb->should_preserve, true);
+      }
       emit_(p, "jmp ");
       id_label_name(p, h->jump->global_id);
       fprintf(p, "\n");
       break;
     case IR_BR:
+      assert(!bb->is_call_bb);
       emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
       emit_(p, "je ");
       id_label_name(p, h->else_->global_id);
@@ -267,17 +210,16 @@ static void codegen_insts(FILE* p, Function* f, IRInstList* insts) {
       break;
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
-        Reg r = get_RegVec(h->ras, i);
-        emit(p, "mov %s, %s", nth_arg(i - 1, r.size), reg_of(r));
+        assert(get_RegVec(h->ras, i).real == nth_arg_id(i - 1));
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
-      emit(p, "mov %s, %s", reg_of(h->rd), rax_of_size(h->rd.size));
+      assert(h->rd.real == rax_reg_id);
       break;
     default:
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, tail_IRInstList(insts));
+  codegen_insts(p, f, bb, tail_IRInstList(insts));
 }
 
 static void codegen_cmp(FILE* p, const char* s, Reg rd, Reg rhs) {
@@ -290,9 +232,7 @@ static void codegen_unaop(FILE* p, IRInst* inst) {
   Reg rd  = inst->rd;
   Reg opr = get_RegVec(inst->ras, 0);
 
-  if (rd.real != opr.real) {
-    emit(p, "mov %s, %s", reg_of(rd), reg_of(opr));
-  }
+  assert(rd.real == opr.real);
 
   switch (inst->unaop) {
     case UNAOP_POSITIVE:
@@ -316,8 +256,10 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   // A = B op A instruction can't be emitted
   assert(rd.real != rhs.real);
 
-  if (rd.real != lhs.real) {
-    emit(p, "mov %s, %s", reg_of(rd), reg_of(lhs));
+  // rem operator is exceptionally avoided
+  // rdx = rax % reg
+  if (inst->binop != BINOP_REM) {
+    assert(rd.real == lhs.real);
   }
 
   switch (inst->binop) {
@@ -331,16 +273,16 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "imul %s, %s", reg_of(rd), reg_of(rhs));
       return;
     case BINOP_DIV:
-      emit(p, "mov %s, %s", rax_of_size(rd.size), reg_of(rd));
+      assert(lhs.real == rax_reg_id);
+      assert(rd.real == rax_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
-      emit(p, "mov %s, %s", reg_of(rd), rax_of_size(rd.size));
       return;
     case BINOP_REM:
-      emit(p, "mov %s, %s", rax_of_size(rd.size), reg_of(rd));
+      assert(lhs.real == rax_reg_id);
+      assert(rd.real == rdx_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
-      emit(p, "mov %s, %s", reg_of(rd), rdx_of_size(rd.size));
       return;
     case BINOP_EQ:
       codegen_cmp(p, "e", rd, rhs);
@@ -361,12 +303,12 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       codegen_cmp(p, "le", rd, rhs);
       return;
     case BINOP_SHIFT_RIGHT:
-      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      assert(rhs.real == rcx_reg_id);
       // TODO: Consider signedness
       emit(p, "sar %s, cl", reg_of(rd));
       return;
     case BINOP_SHIFT_LEFT:
-      emit(p, "mov %s, %s", rcx_of_size(rhs.size), reg_of(rhs));
+      assert(rhs.real == rcx_reg_id);
       emit(p, "shl %s, cl", reg_of(rd));
       return;
     case BINOP_AND:
@@ -389,9 +331,12 @@ static void codegen_blocks(FILE* p, Function* f, BBList* l) {
   }
 
   BasicBlock* b = head_BBList(l);
-  if (!b->dead) {
-    codegen_insts(p, f, b->insts);
+  if (b->dead) {
+    codegen_blocks(p, f, tail_BBList(l));
+    return;
   }
+
+  codegen_insts(p, f, b, b->insts);
 
   codegen_blocks(p, f, tail_BBList(l));
 }

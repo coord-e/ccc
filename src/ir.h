@@ -35,6 +35,7 @@ typedef enum {
 typedef enum {
   REG_VIRT,
   REG_REAL,
+  REG_FIXED,
 } RegKind;
 
 typedef struct {
@@ -100,6 +101,9 @@ struct BasicBlock {
   BBList* succs;  // not owned (owned by `IR`)
   BBList* preds;  // not owned (owned by `IR`)
 
+  // "call bb" is a bb with one call inst
+  bool is_call_bb;
+
   // it costs too much to remove all references from `preds` and `succs`
   // and remove from `blocks`,
   // so mark as dead with this field instead of removing it
@@ -115,6 +119,11 @@ struct BasicBlock {
   // sorted in normal order
   // NULL if there is no usable instance (e.g. before `reorder` or after `reg_alloc`)
   IRInstVec* sorted_insts;  // not owned
+
+  // will filled in `reg_alloc`
+  // available if `is_call_bb`` is true
+  // a set of physical registers that lives through this bb
+  BitSet* should_preserve;  // owned
 };
 
 DECLARE_VECTOR(BasicBlock*, BBVec)

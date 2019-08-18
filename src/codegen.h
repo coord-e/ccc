@@ -7,6 +7,4 @@
 // generate x86_64 code and output it
 void codegen(FILE*, IR*);
 
-extern size_t num_regs;
-
 #endif

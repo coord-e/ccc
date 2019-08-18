@@ -1,11 +1,15 @@
 #include "reg_alloc.h"
 #include "bit_set.h"
+#include "double_list.h"
 #include "vector.h"
 
 // TODO: Type and distinguish real and virtual register index
 // TODO: Stop using -1 or 0 to mark something
 
 static void release_unsigned(unsigned i) {}
+
+DECLARE_DLIST(unsigned, UIDList)
+DEFINE_DLIST(release_unsigned, unsigned, UIDList)
 
 DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
@@ -15,10 +19,10 @@ DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
 
 typedef struct {
   RegIntervals* intervals;  // not owned
-  UIList* active;           // owned
+  UIDList* active;          // owned
   unsigned active_count;
-  BitSet* used;   // owned
-  UIVec* result;  // owned, -1 -> not allocated, -2 -> spilled
+  UIVec* used_by;  // owned, -1 -> not used
+  UIVec* result;   // owned, -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
   UIVec* locations;  // owned, -1 -> not spilled
   unsigned usable_regs_count;
@@ -38,9 +42,11 @@ static Env* init_Env(unsigned virt_count,
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
   env->intervals          = ivs;
-  env->active             = nil_UIList();
+  env->active             = new_UIDList();
   env->active_count       = 0;
-  env->used               = zero_BitSet(env->usable_regs_count);
+  env->used_by            = new_UIVec(env->usable_regs_count);
+  resize_UIVec(env->used_by, env->usable_regs_count);
+  fill_UIVec(env->used_by, -1);
 
   env->result = new_UIVec(virt_count);
   resize_UIVec(env->result, virt_count);
@@ -58,8 +64,8 @@ static Env* init_Env(unsigned virt_count,
 }
 
 static void release_Env(Env* env) {
-  release_UIList(env->active);
-  release_BitSet(env->used);
+  release_UIDList(env->active);
+  release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
   free(env);
@@ -74,18 +80,23 @@ static Interval* interval_of(Env* env, unsigned virtual) {
 }
 
 static unsigned find_free_reg(Env* env) {
-  for (unsigned i = 0; i < length_BitSet(env->used); i++) {
-    if (!get_BitSet(env->used, i)) {
+  for (unsigned i = 0; i < length_UIVec(env->used_by); i++) {
+    if (get_UIVec(env->used_by, i) == -1) {
       return i;
     }
   }
   error("no free reg found");
 }
 
+static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
+  assert(get_UIVec(env->used_by, real) == -1);
+  set_UIVec(env->used_by, real, virtual);
+  set_UIVec(env->result, virtual, real);
+}
+
 static void alloc_reg(Env* env, unsigned virtual) {
   unsigned real = find_free_reg(env);
-  set_BitSet(env->used, real, true);
-  set_UIVec(env->result, virtual, real);
+  alloc_specific_reg(env, virtual, real);
 }
 
 static void release_reg(Env* env, unsigned virtual) {
@@ -94,55 +105,76 @@ static void release_reg(Env* env, unsigned virtual) {
     return;
   }
 
-  set_BitSet(env->used, real, false);
+  set_UIVec(env->used_by, real, -1);
 }
 
-static void add_to_active_iter(Env* env, unsigned target_virt, Interval* current, UIList* l) {
-  if (is_nil_UIList(l)) {
-    insert_UIList(target_virt, l);
+static void add_to_active_iter(Env* env,
+                               unsigned target_virt,
+                               Interval* current,
+                               UIDListIterator* l) {
+  if (is_nil_UIDListIterator(l)) {
+    insert_UIDListIterator(l, target_virt);
     return;
   }
 
-  Interval* intv = interval_of(env, head_UIList(l));
+  Interval* intv = interval_of(env, data_UIDListIterator(l));
   if (intv->to > current->to) {
-    insert_UIList(target_virt, l);
+    insert_UIDListIterator(l, target_virt);
     return;
   }
 
-  add_to_active_iter(env, target_virt, current, tail_UIList(l));
+  add_to_active_iter(env, target_virt, current, next_UIDListIterator(l));
 }
 
 static void add_to_active(Env* env, unsigned target_virt) {
-  add_to_active_iter(env, target_virt, interval_of(env, target_virt), env->active);
+  add_to_active_iter(env, target_virt, interval_of(env, target_virt), front_UIDList(env->active));
   env->active_count++;
 }
 
-static void remove_from_active(Env* env, UIList* cur) {
-  remove_UIList(cur);
+static void remove_from_active(Env* env, UIDListIterator* cur) {
+  remove_UIDListIterator(cur);
   env->active_count--;
 }
 
-static void expire_old_intervals_iter(Env* env, Interval* current, UIList* l) {
-  if (is_nil_UIList(l)) {
+static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterator* l) {
+  if (is_nil_UIDListIterator(l)) {
     return;
   }
 
-  unsigned virtual = head_UIList(l);
+  unsigned virtual = data_UIDListIterator(l);
   Interval* intv   = interval_of(env, virtual);
   if (intv->to >= current->from) {
     return;
   }
 
+  UIDListIterator* next = next_UIDListIterator(l);
   // expired
   remove_from_active(env, l);
   release_reg(env, virtual);
 
-  // not `tail` but `l` because `l` has removed in `remove_from_active`
-  expire_old_intervals_iter(env, current, l);
+  expire_old_intervals_iter(env, current, next);
 }
 
-static void expire_old_intervals(Env* env, unsigned target_virt) {
-  expire_old_intervals_iter(env, interval_of(env, target_virt), env->active);
+static void remove_virtual_from_active_iter(Env* env, unsigned target, UIDListIterator* l) {
+  if (is_nil_UIDListIterator(l)) {
+    CCC_UNREACHABLE;
+    return;
+  }
+
+  if (data_UIDListIterator(l) == target) {
+    remove_from_active(env, l);
+    return;
+  }
+
+  remove_virtual_from_active_iter(env, target, next_UIDListIterator(l));
+}
+
+static void remove_virtual_from_active(Env* env, unsigned target) {
+  remove_virtual_from_active_iter(env, target, front_UIDList(env->active));
+}
+
+static void expire_old_intervals(Env* env, Interval* target_iv) {
+  expire_old_intervals_iter(env, target_iv, front_UIDList(env->active));
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
@@ -153,11 +185,19 @@ static void alloc_stack(Env* env, unsigned virt) {
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
-  // TODO: can we eliminate this traversal of last element?
-  UIList* spill_ptr = last_UIList(env->active);
-  unsigned spill    = head_UIList(spill_ptr);
-
-  Interval* spill_intv  = interval_of(env, spill);
+  UIDListIterator* spill_ptr = back_UIDList(env->active);
+  unsigned spill;
+  Interval* spill_intv = NULL;
+  while (true) {
+    spill      = data_UIDListIterator(spill_ptr);
+    spill_intv = interval_of(env, spill);
+    if (spill_intv->kind != IV_FIXED) {
+      break;
+    } else {
+      spill_ptr = prev_UIDListIterator(spill_ptr);
+    }
+  }
+  assert(spill_intv->kind != IV_FIXED);
   Interval* target_intv = interval_of(env, target);
   if (spill_intv->to > target_intv->to) {
     set_UIVec(env->result, target, get_UIVec(env->result, spill));
@@ -201,14 +241,36 @@ static void walk_regs(Env* env, UIList* l) {
   }
 
   unsigned virtual = head_UIList(l);
+  Interval* iv     = interval_of(env, virtual);
 
-  expire_old_intervals(env, virtual);
+  expire_old_intervals(env, iv);
 
-  if (env->active_count == env->usable_regs_count) {
-    spill_at_interval(env, virtual);
-  } else {
-    alloc_reg(env, virtual);
-    add_to_active(env, virtual);
+  switch (iv->kind) {
+    case IV_VIRTUAL:
+      if (env->active_count == env->usable_regs_count) {
+        spill_at_interval(env, virtual);
+      } else {
+        alloc_reg(env, virtual);
+        add_to_active(env, virtual);
+      }
+      break;
+    case IV_FIXED: {
+      unsigned u = get_UIVec(env->used_by, iv->fixed_real);
+      if (u != -1) {
+        unsigned blocked_virt = u;
+        release_reg(env, blocked_virt);
+        alloc_stack(env, blocked_virt);
+        remove_virtual_from_active(env, blocked_virt);
+      }
+      alloc_specific_reg(env, virtual, iv->fixed_real);
+      add_to_active(env, virtual);
+      break;
+    }
+    case IV_UNSET:
+      assert(iv->from == -1 && iv->to == -1);
+      break;
+    default:
+      CCC_UNREACHABLE;
   }
 
   walk_regs(env, tail_UIList(l));
@@ -218,6 +280,10 @@ static bool assign_reg(Env* env, Reg* r) {
   unsigned real = get_UIVec(env->result, r->virtual);
   if (real == -1) {
     error("failed to allocate register: %d", r->virtual);
+  }
+
+  if (r->kind == REG_FIXED) {
+    assert(r->real == real);
   }
 
   r->kind = REG_REAL;
@@ -290,8 +356,29 @@ static void assign_reg_num(Env* env, BBList* l) {
   }
 
   BasicBlock* b = head_BBList(l);
+  if (b->dead) {
+    assign_reg_num(env, tail_BBList(l));
+    return;
+  }
+
   assign_reg_num_iter_insts(env, b->insts);
   b->sorted_insts = NULL;
+
+  if (b->is_call_bb) {
+    b->should_preserve = new_BitSet(env->usable_regs_count + 1);
+    BitSet* s          = copy_BitSet(b->live_in);
+    and_BitSet(s, b->live_out);
+    for (unsigned i = 0; i < length_BitSet(s); i++) {
+      if (get_BitSet(s, i)) {
+        unsigned real = get_UIVec(env->result, i);
+        if (real != -2) {
+          assert(real != -1);
+          set_BitSet(b->should_preserve, real, true);
+        }
+      }
+    }
+    release_BitSet(s);
+  }
 
   assign_reg_num(env, tail_BBList(l));
 }
@@ -313,8 +400,7 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
     unsigned real = get_UIVec(env->result, i);
     if (real == -2) {
       set_BitSet(ir->used_regs, env->reserved_for_spill, true);
-    } else {
-      assert(real != -1);
+    } else if (real != -1) {
       set_BitSet(ir->used_regs, real, true);
     }
   }

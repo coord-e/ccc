@@ -76,26 +76,41 @@ static void emit_id_label(FILE* p, unsigned id) {
   fprintf(p, ":\n");
 }
 
+static void emit_save_regs(FILE* p, BitSet* bs, bool scratch_filter_switch) {
+  for (unsigned i = 0; i < length_BitSet(bs); i++) {
+    if (!get_BitSet(bs, i)) {
+      continue;
+    }
+    if (scratch_filter_switch == is_scratch[i]) {
+      emit(p, "push %s", regs64[i]);
+    }
+  }
+}
+
+static void emit_restore_regs(FILE* p, BitSet* bs, bool scratch_filter_switch) {
+  for (unsigned ti = length_BitSet(bs); ti > 0; ti--) {
+    unsigned i = ti - 1;
+    if (!get_BitSet(bs, i)) {
+      continue;
+    }
+    if (scratch_filter_switch == is_scratch[i]) {
+      emit(p, "pop %s", regs64[i]);
+    }
+  }
+}
+
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit(p, "sub rsp, %d", f->stack_count);
-  for (unsigned i = 0; i < length_BitSet(f->used_regs); i++) {
-    if (get_BitSet(f->used_regs, i) && !is_scratch[i]) {
-      emit(p, "push %s", regs64[i]);
-    }
-  }
+  emit_save_regs(p, f->used_regs, false);
   emit_(p, "jmp ");
   id_label_name(p, f->entry->global_id);
   fprintf(p, "\n");
 }
 
 static void emit_epilogue(FILE* p, Function* f) {
-  for (unsigned i = length_BitSet(f->used_regs); i > 0; i--) {
-    if (get_BitSet(f->used_regs, i - 1) && !is_scratch[i - 1]) {
-      emit(p, "pop %s", regs64[i - 1]);
-    }
-  }
+  emit_restore_regs(p, f->used_regs, false);
   emit(p, "mov rsp, rbp");
   emit(p, "pop rbp");
 }
@@ -161,21 +176,12 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
     case IR_LABEL:
       emit_id_label(p, h->label->global_id);
       if (bb->is_call_bb) {
-        for (unsigned i = 0; i < length_BitSet(bb->should_preserve); i++) {
-          if (get_BitSet(bb->should_preserve, i) && is_scratch[i]) {
-            emit(p, "push %s", regs64[i]);
-          }
-        }
+        emit_save_regs(p, bb->should_preserve, true);
       }
       break;
     case IR_JUMP:
       if (bb->is_call_bb) {
-        for (unsigned ti = length_BitSet(bb->should_preserve); ti > 0; ti--) {
-          unsigned i = ti - 1;
-          if (get_BitSet(bb->should_preserve, i) && is_scratch[i]) {
-            emit(p, "pop %s", regs64[i]);
-          }
-        }
+        emit_restore_regs(p, bb->should_preserve, true);
       }
       emit_(p, "jmp ");
       id_label_name(p, h->jump->global_id);

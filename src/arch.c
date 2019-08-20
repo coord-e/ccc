@@ -1,17 +1,17 @@
 #include "arch.h"
 
 // clang-format off
-const char* regs8[]      = {"dil", "sil", "dl",  "cl",  "r8b", "r9b", "al",  "r12b", "r13b", "r14b", "r15b", "bl"};
-const char* regs16[]     = {"di",  "si",  "dx",  "cx",  "r8w", "r9w", "ax",  "r12w", "r13w", "r14w", "r15w", "bx"};
-const char* regs32[]     = {"edi", "esi", "edx", "ecx", "r8d", "r9d", "eax", "r12d", "r13d", "r14d", "r15d", "ebx"};
-const char* regs64[]     = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9",  "rax", "r12",  "r13",  "r14",  "r15",  "rbx"};
-const bool  is_scratch[] = {true,  true,  true,  true,  true,  true,  true,  false,  false,  false,  false,  false};
+const char* regs8[]      = {"dil", "sil", "dl",  "cl",  "r8b", "r9b", "r10b", "r11b", "r12b", "r13b", "r14b", "r15b", "al",  "bl"};
+const char* regs16[]     = {"di",  "si",  "dx",  "cx",  "r8w", "r9w", "r10w", "r11w", "r12w", "r13w", "r14w", "r15w", "ax",  "bx"};
+const char* regs32[]     = {"edi", "esi", "edx", "ecx", "r8d", "r9d", "r10d", "r11d", "r12d", "r13d", "r14d", "r15d", "eax", "ebx"};
+const char* regs64[]     = {"rdi", "rsi", "rdx", "rcx", "r8",  "r9",  "r10",  "r11",  "r12",  "r13",  "r14",  "r15",  "rax", "rbx"};
+const bool  is_scratch[] = {true,  true,  true,  true,  true,  true,  true,   true,   false,  false,  false,  false,  true,  false};
 // clang-format on
 
 // first 6 registers are used to pass arguments to a function
 const unsigned max_args   = 6;
 const size_t num_regs     = sizeof(regs64) / sizeof(*regs64);
-const unsigned rax_reg_id = 6;
+const unsigned rax_reg_id = 12;
 const unsigned rcx_reg_id = 3;
 const unsigned rdx_reg_id = 2;
 

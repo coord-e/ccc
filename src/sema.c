@@ -620,12 +620,18 @@ static Type* promoted_type(Type* opr) {
   if (!is_integer_ty(opr)) {
     return NULL;
   }
-  Type* int_ = int_ty();
+  Type* int_  = int_ty();
+  Type* uint_ = to_unsigned_ty(int_);
+  if (equal_to_Type(opr, int_) || equal_to_Type(opr, uint_)) {
+    return NULL;
+  }
   if (compare_rank_ty(opr, int_) <= 0) {
     if (is_representable_in_ty(opr, int_)) {
+      release_Type(uint_);
       return int_;
     } else {
-      return into_unsigned_ty(int_);
+      release_Type(int_);
+      return uint_;
     }
   }
   return NULL;

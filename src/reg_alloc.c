@@ -17,9 +17,57 @@ DEFINE_LIST(release_unsigned, unsigned, UIList)
 DECLARE_VECTOR(unsigned, UIVec)
 DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
 
+static void release_dummy(UIDListIterator* p) {}
+DECLARE_VECTOR(UIDListIterator*, UIDLIterVec)
+DEFINE_VECTOR(release_dummy, UIDListIterator*, UIDLIterVec)
+
+typedef struct {
+  UIDList* list;
+  UIDLIterVec* iterators;
+} IndexedUIList;
+
+static IndexedUIList* new_IndexedUIList(unsigned max_idx) {
+  IndexedUIList* l = calloc(1, sizeof(IndexedUIList));
+  l->list          = new_UIDList();
+  l->iterators     = new_UIDLIterVec(max_idx);
+  resize_UIDLIterVec(l->iterators, max_idx);
+  fill_UIDLIterVec(l->iterators, NULL);
+  return l;
+}
+
+static void release_IndexedUIList(IndexedUIList* l) {
+  release_UIDList(l->list);
+  // TODO: shallow release
+  /* release_UIDIterVec(l->iterators); */
+}
+
+static UIDListIterator* get_IndexedUIList(IndexedUIList* l, unsigned idx) {
+  return get_UIDLIterVec(l->iterators, idx);
+}
+
+static UIDListIterator* insert_IndexedUIList(IndexedUIList* l,
+                                             unsigned idx,
+                                             UIDListIterator* it,
+                                             unsigned val) {
+  UIDListIterator* new = insert_UIDListIterator(it, val);
+  set_UIDLIterVec(l->iterators, idx, new);
+  return new;
+}
+
+static void remove_IndexedUIList(IndexedUIList* l, unsigned idx, UIDListIterator* it) {
+  remove_UIDListIterator(it);
+  set_UIDLIterVec(l->iterators, idx, NULL);
+}
+
+static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
+  UIDListIterator* it = get_UIDLIterVec(l->iterators, idx);
+  assert(it != NULL);
+  remove_IndexedUIList(l, idx, it);
+}
+
 typedef struct {
   RegIntervals* intervals;  // not owned
-  UIDList* active;          // owned
+  IndexedUIList* active;    // owned, a list of virtual registers
   unsigned active_count;
   UIVec* used_by;  // owned, -1 -> not used
   UIVec* result;   // owned, -1 -> not allocated, -2 -> spilled
@@ -42,7 +90,7 @@ static Env* init_Env(unsigned virt_count,
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
   env->intervals          = ivs;
-  env->active             = new_UIDList();
+  env->active             = new_IndexedUIList(virt_count);
   env->active_count       = 0;
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
@@ -64,7 +112,7 @@ static Env* init_Env(unsigned virt_count,
 }
 
 static void release_Env(Env* env) {
-  release_UIDList(env->active);
+  release_IndexedUIList(env->active);
   release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
@@ -108,31 +156,24 @@ static void release_reg(Env* env, unsigned virtual) {
   set_UIVec(env->used_by, real, -1);
 }
 
-static void add_to_active_iter(Env* env,
-                               unsigned target_virt,
-                               Interval* current,
-                               UIDListIterator* l) {
-  if (is_nil_UIDListIterator(l)) {
-    insert_UIDListIterator(l, target_virt);
-    return;
-  }
-
-  Interval* intv = interval_of(env, data_UIDListIterator(l));
-  if (intv->to > current->to) {
-    insert_UIDListIterator(l, target_virt);
-    return;
-  }
-
-  add_to_active_iter(env, target_virt, current, next_UIDListIterator(l));
-}
-
 static void add_to_active(Env* env, unsigned target_virt) {
-  add_to_active_iter(env, target_virt, interval_of(env, target_virt), front_UIDList(env->active));
+  Interval* current = interval_of(env, target_virt);
+
+  UIDListIterator* it = front_UIDList(env->active->list);
+  while (true) {
+    if (is_nil_UIDListIterator(it) ||
+        interval_of(env, data_UIDListIterator(it))->to > current->to) {
+      insert_IndexedUIList(env->active, target_virt, it, target_virt);
+      break;
+    }
+    it = next_UIDListIterator(it);
+  }
+
   env->active_count++;
 }
 
 static void remove_from_active(Env* env, UIDListIterator* cur) {
-  remove_UIDListIterator(cur);
+  remove_IndexedUIList(env->active, data_UIDListIterator(cur), cur);
   env->active_count--;
 }
 
@@ -155,26 +196,12 @@ static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterat
   expire_old_intervals_iter(env, current, next);
 }
 
-static void remove_virtual_from_active_iter(Env* env, unsigned target, UIDListIterator* l) {
-  if (is_nil_UIDListIterator(l)) {
-    CCC_UNREACHABLE;
-    return;
-  }
-
-  if (data_UIDListIterator(l) == target) {
-    remove_from_active(env, l);
-    return;
-  }
-
-  remove_virtual_from_active_iter(env, target, next_UIDListIterator(l));
-}
-
 static void remove_virtual_from_active(Env* env, unsigned target) {
-  remove_virtual_from_active_iter(env, target, front_UIDList(env->active));
+  remove_by_idx_IndexedUIList(env->active, target);
 }
 
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  expire_old_intervals_iter(env, target_iv, front_UIDList(env->active));
+  expire_old_intervals_iter(env, target_iv, front_UIDList(env->active->list));
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
@@ -185,7 +212,7 @@ static void alloc_stack(Env* env, unsigned virt) {
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
-  UIDListIterator* spill_ptr = back_UIDList(env->active);
+  UIDListIterator* spill_ptr = back_UIDList(env->active->list);
   unsigned spill;
   Interval* spill_intv = NULL;
   while (true) {

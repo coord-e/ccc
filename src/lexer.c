@@ -19,6 +19,8 @@ static TokenList* add_token(TokenKind kind, TokenList* cur) {
   t.ident  = NULL;
   t.string = NULL;
   t.kind   = kind;
+  t.length = 0;
+  t.number = 0;
   return snoc_TokenList(t, cur);
 }
 

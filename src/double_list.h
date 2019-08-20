@@ -18,9 +18,12 @@
   Name##Iterator* next_##Name##Iterator(const Name##Iterator* iter);                               \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter);                                        \
   void remove_##Name##Iterator(Name##Iterator* iter);                                              \
-  void insert_##Name##Iterator(Name##Iterator* iter, T value);                                     \
+  Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value);                          \
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
+  bool is_empty_##Name(Name* list);                                                                \
+  T head_##Name(Name* list);                                                                       \
+  T last_##Name(Name* list);                                                                       \
   void push_front_##Name(Name* list, T value);                                                     \
   void push_back_##Name(Name* list, T value);                                                      \
   Name* shallow_copy_##Name(const Name* list);                                                     \
@@ -110,7 +113,7 @@
     iter->next       = NULL;                                                                       \
     release_##Name##Iterator(iter);                                                                \
   }                                                                                                \
-  void insert_##Name##Iterator(Name##Iterator* iter, T value) {                                    \
+  Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value) {                         \
     if (iter->prev == NULL) {                                                                      \
       error("inserting to the head");                                                              \
     }                                                                                              \
@@ -119,6 +122,23 @@
     it->data           = value;                                                                    \
     iter->prev->next   = it;                                                                       \
     iter->prev         = it;                                                                       \
+    return it;                                                                                     \
+  }                                                                                                \
+  bool is_empty_##Name(Name* list) {                                                               \
+    assert(list->init->next->is_nil == list->last->prev->is_nil);                                  \
+    return list->init->next->is_nil;                                                               \
+  }                                                                                                \
+  T head_##Name(Name* list) {                                                                      \
+    if (list->init->next->is_nil) {                                                                \
+      error("head");                                                                               \
+    }                                                                                              \
+    return list->init->next->data;                                                                 \
+  }                                                                                                \
+  T last_##Name(Name* list) {                                                                      \
+    if (list->last->prev->is_nil) {                                                                \
+      error("last");                                                                               \
+    }                                                                                              \
+    return list->last->prev->data;                                                                 \
   }                                                                                                \
   Name* shallow_copy_##Name(const Name* list) {                                                    \
     Name* new          = new_##Name();                                                             \

@@ -53,6 +53,7 @@ static void release_Function(Function* f) {
   free(f->name);
   release_BBList(f->blocks);
   release_RegIntervals(f->intervals);
+  release_BitSet(f->used_fixed_regs);
   free(f);
 }
 
@@ -129,6 +130,8 @@ typedef struct {
   unsigned bb_count;
   unsigned inst_count;
 
+  unsigned call_count;
+
   UIMap* vars;
   BBList* blocks;
   BBVec* labels;
@@ -186,6 +189,7 @@ static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
   env->stack_count = 0;
   env->bb_count    = 0;
   env->inst_count  = 0;
+  env->call_count  = 0;
   env->vars        = new_UIMap(32);
   env->blocks      = nil_BBList();
 
@@ -589,6 +593,8 @@ Reg gen_expr(Env* env, Expr* node) {
 
       Reg r    = new_reg(env, datasize_of_node(node));
       inst->rd = r;
+
+      env->call_count++;
 
       new_jump(env, call_bb, call_bb);
       add_inst(env, inst);
@@ -1040,18 +1046,20 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
 
-  Function* ir      = calloc(1, sizeof(Function));
-  ir->name          = strdup(ast->decl->direct->name_ref);
-  ir->entry         = entry;
-  ir->exit          = env->cur;
-  ir->bb_count      = env->bb_count;
-  ir->reg_count     = env->reg_count;
-  ir->stack_count   = env->stack_count;
-  ir->inst_count    = env->inst_count;
-  ir->blocks        = env->blocks;
-  ir->sorted_blocks = NULL;
-  ir->intervals     = NULL;
-  ir->used_regs     = NULL;
+  Function* ir        = calloc(1, sizeof(Function));
+  ir->name            = strdup(ast->decl->direct->name_ref);
+  ir->entry           = entry;
+  ir->exit            = env->cur;
+  ir->bb_count        = env->bb_count;
+  ir->reg_count       = env->reg_count;
+  ir->stack_count     = env->stack_count;
+  ir->inst_count      = env->inst_count;
+  ir->call_count      = env->call_count;
+  ir->blocks          = env->blocks;
+  ir->sorted_blocks   = NULL;
+  ir->intervals       = NULL;
+  ir->used_regs       = NULL;
+  ir->used_fixed_regs = NULL;
 
   // TODO: shallow release of containers
   free(env);

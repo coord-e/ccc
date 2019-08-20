@@ -27,6 +27,7 @@ typedef struct {
   unsigned global_inst_count;
   unsigned inst_count;
   unsigned reg_count;
+  BitSet* used_fixed_regs;
 } Env;
 
 static Env* init_Env(unsigned global_inst_count, Function* f) {
@@ -34,19 +35,22 @@ static Env* init_Env(unsigned global_inst_count, Function* f) {
   env->global_inst_count = global_inst_count;
   env->inst_count        = f->inst_count;
   env->reg_count         = f->reg_count;
+  env->used_fixed_regs   = zero_BitSet(num_regs);
   return env;
 }
 
 static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
-  *inst_count   = env->global_inst_count;
-  f->inst_count = env->inst_count;
-  f->reg_count  = env->reg_count;
+  *inst_count        = env->global_inst_count;
+  f->inst_count      = env->inst_count;
+  f->reg_count       = env->reg_count;
+  f->used_fixed_regs = env->used_fixed_regs;
   free(env);
 }
 
 static Reg new_fixed_reg(Env* env, unsigned id, DataSize size) {
   Reg r = {
       .kind = REG_FIXED, .virtual = env->reg_count++, .real = id, .size = size, .is_used = true};
+  set_BitSet(env->used_fixed_regs, id, true);
   return r;
 }
 

@@ -144,6 +144,11 @@ typedef struct {
   BasicBlock* entry;  // not owned
   BasicBlock* exit;   // not owend
 
+  unsigned call_count;
+
+  // will filled in `arch`
+  BitSet* used_fixed_regs;  // owned
+
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned

@@ -456,7 +456,6 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
       set_BitSet(ir->used_regs, real, true);
     }
   }
-  ir->real_reg_count = count_BitSet(ir->used_regs);
   ir->stack_count    = env->stack_count;
   ir->inst_count     = env->local_count;
   *global_inst_count = env->global_count;

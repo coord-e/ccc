@@ -1118,7 +1118,7 @@ static void print_reg(FILE* p, Reg r) {
       fprintf(p, "r%d", r.real);
       break;
     case REG_FIXED:
-      fprintf(p, "f%d->%d", r.virtual, r.real);
+      fprintf(p, "f(v%d:r%d)", r.virtual, r.real);
       break;
     default:
       CCC_UNREACHABLE;
@@ -1126,6 +1126,28 @@ static void print_reg(FILE* p, Reg r) {
 }
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
+
+void print_escaped_binop(FILE* p, BinopKind kind) {
+  switch (kind) {
+    case BINOP_GT:
+    case BINOP_GE:
+    case BINOP_LT:
+    case BINOP_LE:
+    case BINOP_OR:
+      fputs("\\", p);
+      print_binop(p, kind);
+      return;
+    case BINOP_SHIFT_RIGHT:
+      fprintf(p, "\\>\\>");
+      return;
+    case BINOP_SHIFT_LEFT:
+      fprintf(p, "\\<\\<");
+      return;
+    default:
+      print_binop(p, kind);
+      return;
+  }
+}
 
 static void print_inst(FILE* p, IRInst* i) {
   if (i->rd.is_used) {
@@ -1156,7 +1178,7 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
-      print_binop(p, i->binop);
+      print_escaped_binop(p, i->binop);
       fprintf(p, " ");
       break;
     case IR_UNA:

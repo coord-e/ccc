@@ -69,8 +69,9 @@ typedef struct {
   RegIntervals* intervals;  // not owned
   IndexedUIList* active;    // owned, a list of virtual registers
   unsigned active_count;
-  UIVec* used_by;  // owned, -1 -> not used
-  UIVec* result;   // owned, -1 -> not allocated, -2 -> spilled
+  IndexedUIList* available;  // owned, a list of real registers
+  UIVec* used_by;            // owned, -1 -> not used
+  UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
   unsigned stack_count;
   UIVec* locations;  // owned, -1 -> not spilled
   unsigned usable_regs_count;
@@ -79,6 +80,8 @@ typedef struct {
   unsigned local_count;   // local inst count
   unsigned global_count;  // global inst count
 } Env;
+
+static void add_to_available(Env* env, unsigned real);
 
 static Env* init_Env(unsigned virt_count,
                      unsigned real_count,
@@ -92,6 +95,7 @@ static Env* init_Env(unsigned virt_count,
   env->intervals          = ivs;
   env->active             = new_IndexedUIList(virt_count);
   env->active_count       = 0;
+  env->available          = new_IndexedUIList(env->usable_regs_count);
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
   fill_UIVec(env->used_by, -1);
@@ -108,15 +112,36 @@ static Env* init_Env(unsigned virt_count,
   resize_UIVec(env->locations, virt_count);
   fill_UIVec(env->locations, -1);
 
+  for (unsigned i = 0; i < env->usable_regs_count; i++) {
+    add_to_available(env, i);
+  }
+
   return env;
 }
 
 static void release_Env(Env* env) {
   release_IndexedUIList(env->active);
+  release_IndexedUIList(env->available);
   release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
   free(env);
+}
+
+// return true if r1 is preferred than r2
+static bool compare_priority(unsigned r1, unsigned r2) {
+  return true;
+}
+
+static void add_to_available(Env* env, unsigned real) {
+  UIDListIterator* it = front_UIDList(env->available->list);
+  while (true) {
+    if (is_nil_UIDListIterator(it) || compare_priority(real, data_UIDListIterator(it))) {
+      insert_IndexedUIList(env->available, real, it, real);
+      break;
+    }
+    it = next_UIDListIterator(it);
+  }
 }
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {
@@ -128,18 +153,17 @@ static Interval* interval_of(Env* env, unsigned virtual) {
 }
 
 static unsigned find_free_reg(Env* env) {
-  for (unsigned i = 0; i < length_UIVec(env->used_by); i++) {
-    if (get_UIVec(env->used_by, i) == -1) {
-      return i;
-    }
+  if (is_empty_UIDList(env->available->list)) {
+    error("no free reg found");
   }
-  error("no free reg found");
+  return head_UIDList(env->available->list);
 }
 
 static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
   assert(get_UIVec(env->used_by, real) == -1);
   set_UIVec(env->used_by, real, virtual);
   set_UIVec(env->result, virtual, real);
+  remove_by_idx_IndexedUIList(env->available, real);
 }
 
 static void alloc_reg(Env* env, unsigned virtual) {
@@ -154,6 +178,7 @@ static void release_reg(Env* env, unsigned virtual) {
   }
 
   set_UIVec(env->used_by, real, -1);
+  add_to_available(env, real);
 }
 
 static void add_to_active(Env* env, unsigned target_virt) {

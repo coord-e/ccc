@@ -1,8 +1,13 @@
 dist: xenial
 language: c
-compiler:
-  - clang
-  - gcc
+matrix:
+  include:
+    - compiler: gcc
+      env: DEBUG=0
+    - compiler: clang
+      env: DEBUG=0
+    - compiler: clang
+      env: DEBUG=1
 
 script:
   - make test

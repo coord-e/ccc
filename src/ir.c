@@ -1161,7 +1161,7 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_UNA:
       fprintf(p, "UNA ");
-      print_binop(p, i->unaop);
+      print_unaop(p, i->unaop);
       fprintf(p, " ");
       break;
     case IR_STACK_ADDR:

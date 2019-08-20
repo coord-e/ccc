@@ -3,7 +3,7 @@
 set -u
 
 readonly BASE_DIR="$(dirname "$BASH_SOURCE")/.."
-readonly CCC="$BASE_DIR/build/ccc"
+readonly CCC="$BASE_DIR/build/$1"
 
 function try() {
     local expected="$1"

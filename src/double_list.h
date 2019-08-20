@@ -18,7 +18,7 @@
   Name##Iterator* next_##Name##Iterator(const Name##Iterator* iter);                               \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter);                                        \
   void remove_##Name##Iterator(Name##Iterator* iter);                                              \
-  void insert_##Name##Iterator(Name##Iterator* iter, T value);                                     \
+  Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value);                          \
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
   void push_front_##Name(Name* list, T value);                                                     \
@@ -110,7 +110,7 @@
     iter->next       = NULL;                                                                       \
     release_##Name##Iterator(iter);                                                                \
   }                                                                                                \
-  void insert_##Name##Iterator(Name##Iterator* iter, T value) {                                    \
+  Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value) {                         \
     if (iter->prev == NULL) {                                                                      \
       error("inserting to the head");                                                              \
     }                                                                                              \
@@ -119,6 +119,7 @@
     it->data           = value;                                                                    \
     iter->prev->next   = it;                                                                       \
     iter->prev         = it;                                                                       \
+    return it;                                                                                     \
   }                                                                                                \
   Name* shallow_copy_##Name(const Name* list) {                                                    \
     Name* new          = new_##Name();                                                             \

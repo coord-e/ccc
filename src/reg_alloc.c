@@ -1,4 +1,5 @@
 #include "reg_alloc.h"
+#include "arch.h"
 #include "bit_set.h"
 #include "double_list.h"
 #include "vector.h"
@@ -66,33 +67,29 @@ static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
 }
 
 typedef struct {
-  RegIntervals* intervals;  // not owned
-  IndexedUIList* active;    // owned, a list of virtual registers
+  IndexedUIList* active;  // owned, a list of virtual registers
   unsigned active_count;
   IndexedUIList* available;  // owned, a list of real registers
   UIVec* used_by;            // owned, -1 -> not used
   UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
-  unsigned stack_count;
-  UIVec* locations;  // owned, -1 -> not spilled
+  UIVec* locations;          // owned, -1 -> not spilled
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
 
-  unsigned local_count;   // local inst count
-  unsigned global_count;  // global inst count
+  unsigned* global_count;
+
+  Function* f;
 } Env;
 
 static void add_to_available(Env* env, unsigned real);
 
-static Env* init_Env(unsigned virt_count,
-                     unsigned real_count,
-                     unsigned stack_count,
-                     unsigned local_inst_count,
-                     unsigned global_inst_count,
-                     RegIntervals* ivs) {
+static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
+  unsigned virt_count = f->reg_count;
+
   Env* env                = calloc(1, sizeof(Env));
+  env->f                  = f;
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
-  env->intervals          = ivs;
   env->active             = new_IndexedUIList(virt_count);
   env->active_count       = 0;
   env->available          = new_IndexedUIList(env->usable_regs_count);
@@ -104,13 +101,11 @@ static Env* init_Env(unsigned virt_count,
   resize_UIVec(env->result, virt_count);
   fill_UIVec(env->result, -1);
 
-  env->stack_count  = stack_count;
-  env->local_count  = local_inst_count;
-  env->global_count = global_inst_count;
-
   env->locations = new_UIVec(virt_count);
   resize_UIVec(env->locations, virt_count);
   fill_UIVec(env->locations, -1);
+
+  env->global_count = global_count;
 
   for (unsigned i = 0; i < env->usable_regs_count; i++) {
     add_to_available(env, i);
@@ -129,14 +124,25 @@ static void release_Env(Env* env) {
 }
 
 // return true if r1 is preferred than r2
-static bool compare_priority(unsigned r1, unsigned r2) {
-  return true;
+static bool compare_priority(Env* env, unsigned r1, unsigned r2) {
+  if (get_BitSet(env->f->used_fixed_regs, r1)) {
+    return false;
+  }
+  if (get_BitSet(env->f->used_fixed_regs, r2)) {
+    return true;
+  }
+
+  if (env->f->call_count > 0) {
+    return is_scratch[r1] < is_scratch[r2];
+  } else {
+    return is_scratch[r1] > is_scratch[r2];
+  }
 }
 
 static void add_to_available(Env* env, unsigned real) {
   UIDListIterator* it = front_UIDList(env->available->list);
   while (true) {
-    if (is_nil_UIDListIterator(it) || compare_priority(real, data_UIDListIterator(it))) {
+    if (is_nil_UIDListIterator(it) || compare_priority(env, real, data_UIDListIterator(it))) {
       insert_IndexedUIList(env->available, real, it, real);
       break;
     }
@@ -145,11 +151,11 @@ static void add_to_available(Env* env, unsigned real) {
 }
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {
-  return new_inst(env->local_count++, env->global_count++, kind);
+  return new_inst(env->f->inst_count++, (*env->global_count)++, kind);
 }
 
 static Interval* interval_of(Env* env, unsigned virtual) {
-  return get_RegIntervals(env->intervals, virtual);
+  return get_RegIntervals(env->f->intervals, virtual);
 }
 
 static unsigned find_free_reg(Env* env) {
@@ -231,8 +237,8 @@ static void expire_old_intervals(Env* env, Interval* target_iv) {
 
 static void alloc_stack(Env* env, unsigned virt) {
   // TODO: Store the size of spilled registers and use that here
-  env->stack_count += 8;
-  set_UIVec(env->locations, virt, env->stack_count);
+  env->f->stack_count += 8;
+  set_UIVec(env->locations, virt, env->f->stack_count);
   set_UIVec(env->result, virt, -2);  // mark as spilled
 }
 
@@ -436,9 +442,8 @@ static void assign_reg_num(Env* env, BBList* l) {
 }
 
 static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, Function* ir) {
-  RegIntervals* ivs = ir->intervals;
-  Env* env =
-      init_Env(ir->reg_count, num_regs, ir->stack_count, ir->inst_count, *global_inst_count, ivs);
+  RegIntervals* ivs    = ir->intervals;
+  Env* env             = init_Env(ir, global_inst_count, num_regs);
   UIList* ordered_regs = sort_intervals(ivs);
 
   walk_regs(env, ordered_regs);
@@ -456,9 +461,6 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
       set_BitSet(ir->used_regs, real, true);
     }
   }
-  ir->stack_count    = env->stack_count;
-  ir->inst_count     = env->local_count;
-  *global_inst_count = env->global_count;
 
   release_Env(env);
 }

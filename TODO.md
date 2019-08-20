@@ -11,6 +11,7 @@
 - preprocessor
   - `#include`
   - `#define`
+  - conditional directives such as `#if`
 
 # Refactoring
 
@@ -27,6 +28,8 @@
   - Reg
   - Token
   - remove unneeded zero init with calloc
+- separate gen_ir from ir.c
+- use finish_Env instead of release_Env as much as possible
 - naming convention
   - name_Type
   - name_target ?

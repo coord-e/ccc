@@ -1140,12 +1140,20 @@ static ParamList* parameter_list(Env* env) {
   }
 
   do {
-    DeclarationSpecifiers* s = declaration_specifiers(env);
-    Declarator* d            = try_declarator(env, false);
-    if (d == NULL) {
-      d = declarator(env, true);
+    if (head_of(env) == TK_ELIPSIS) {
+      consume(env);
+      cur = snoc_ParamList(new_ParameterDecl(PD_ELIPSIS), cur);
+    } else {
+      DeclarationSpecifiers* s = declaration_specifiers(env);
+      Declarator* d            = try_declarator(env, false);
+      if (d == NULL) {
+        d = declarator(env, true);
+      }
+      ParameterDecl* pd = new_ParameterDecl(PD_PARAM);
+      pd->spec          = s;
+      pd->decl          = d;
+      cur               = snoc_ParamList(pd, cur);
     }
-    cur = snoc_ParamList(new_ParameterDecl(s, d), cur);
   } while (try (env, TK_COMMA));
 
   return list;

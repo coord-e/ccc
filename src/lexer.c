@@ -144,9 +144,23 @@ TokenList* tokenize(char* p) {
 
     switch (*p) {
       case '.':
-        cur = add_token(TK_DOT, cur);
         p++;
-        continue;
+        switch (*p) {
+          case '.':
+            p++;
+            switch (*p) {
+              case '.':
+                p++;
+                cur = add_token(TK_ELIPSIS, cur);
+                continue;
+              default:
+                cur = add_token(TK_DOT, cur);
+                continue;
+            }
+          default:
+            cur = add_token(TK_DOT, cur);
+            continue;
+        }
       case '+':
         p++;
         switch (*p) {
@@ -611,6 +625,9 @@ static void print_Token(FILE* p, Token* t) {
       break;
     case TK_CONST:
       fprintf(p, "(CONST)");
+      break;
+    case TK_ELIPSIS:
+      fprintf(p, "(...)");
       break;
     case TK_NUMBER:
       fprintf(p, "num(%d)", t->number);

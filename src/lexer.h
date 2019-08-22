@@ -77,6 +77,7 @@ typedef enum {
   TK_GOTO,
   TK_CASE,
   TK_DEFAULT,
+  TK_ELIPSIS,
   TK_IDENT,   // identifiers
   TK_NUMBER,  // numbers
   TK_STRING,  // strings

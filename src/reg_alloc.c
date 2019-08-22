@@ -67,8 +67,7 @@ static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
 }
 
 typedef struct {
-  IndexedUIList* active;  // owned, a list of virtual registers
-  unsigned active_count;
+  IndexedUIList* active;     // owned, a list of virtual registers
   IndexedUIList* available;  // owned, a list of real registers
   UIVec* used_by;            // owned, -1 -> not used
   UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
@@ -91,7 +90,6 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
   env->active             = new_IndexedUIList(virt_count);
-  env->active_count       = 0;
   env->available          = new_IndexedUIList(env->usable_regs_count);
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
@@ -123,6 +121,14 @@ static void release_Env(Env* env) {
   free(env);
 }
 
+static IRInst* new_inst_(Env* env, IRInstKind kind) {
+  return new_inst(env->f->inst_count++, (*env->global_count)++, kind);
+}
+
+static Interval* interval_of(Env* env, unsigned virtual) {
+  return get_RegIntervals(env->f->intervals, virtual);
+}
+
 // return true if r1 is preferred than r2
 static bool compare_priority(Env* env, unsigned r1, unsigned r2) {
   if (get_BitSet(env->f->used_fixed_regs, r1)) {
@@ -150,12 +156,18 @@ static void add_to_available(Env* env, unsigned real) {
   }
 }
 
-static IRInst* new_inst_(Env* env, IRInstKind kind) {
-  return new_inst(env->f->inst_count++, (*env->global_count)++, kind);
-}
+static void add_to_active(Env* env, unsigned target_virt) {
+  Interval* current = interval_of(env, target_virt);
 
-static Interval* interval_of(Env* env, unsigned virtual) {
-  return get_RegIntervals(env->f->intervals, virtual);
+  UIDListIterator* it = front_UIDList(env->active->list);
+  while (true) {
+    if (is_nil_UIDListIterator(it) ||
+        interval_of(env, data_UIDListIterator(it))->to > current->to) {
+      insert_IndexedUIList(env->active, target_virt, it, target_virt);
+      break;
+    }
+    it = next_UIDListIterator(it);
+  }
 }
 
 static unsigned find_free_reg(Env* env) {
@@ -170,6 +182,7 @@ static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
   set_UIVec(env->used_by, real, virtual);
   set_UIVec(env->result, virtual, real);
   remove_by_idx_IndexedUIList(env->available, real);
+  add_to_active(env, virtual);
 }
 
 static void alloc_reg(Env* env, unsigned virtual) {
@@ -179,60 +192,26 @@ static void alloc_reg(Env* env, unsigned virtual) {
 
 static void release_reg(Env* env, unsigned virtual) {
   unsigned real = get_UIVec(env->result, virtual);
-  if (real == -1) {
-    return;
-  }
+  assert(real != -1 && real != -2);
 
   set_UIVec(env->used_by, real, -1);
+  remove_by_idx_IndexedUIList(env->active, virtual);
   add_to_available(env, real);
 }
 
-static void add_to_active(Env* env, unsigned target_virt) {
-  Interval* current = interval_of(env, target_virt);
-
-  UIDListIterator* it = front_UIDList(env->active->list);
-  while (true) {
-    if (is_nil_UIDListIterator(it) ||
-        interval_of(env, data_UIDListIterator(it))->to > current->to) {
-      insert_IndexedUIList(env->active, target_virt, it, target_virt);
-      break;
-    }
-    it = next_UIDListIterator(it);
-  }
-
-  env->active_count++;
-}
-
-static void remove_from_active(Env* env, UIDListIterator* cur) {
-  remove_IndexedUIList(env->active, data_UIDListIterator(cur), cur);
-  env->active_count--;
-}
-
-static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterator* l) {
-  if (is_nil_UIDListIterator(l)) {
-    return;
-  }
-
-  unsigned virtual = data_UIDListIterator(l);
-  Interval* intv   = interval_of(env, virtual);
-  if (intv->to >= current->from) {
-    return;
-  }
-
-  UIDListIterator* next = next_UIDListIterator(l);
-  // expired
-  remove_from_active(env, l);
-  release_reg(env, virtual);
-
-  expire_old_intervals_iter(env, current, next);
-}
-
-static void remove_virtual_from_active(Env* env, unsigned target) {
-  remove_by_idx_IndexedUIList(env->active, target);
-}
-
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  expire_old_intervals_iter(env, target_iv, front_UIDList(env->active->list));
+  UIDListIterator* it = front_UIDList(env->active->list);
+  while (!is_nil_UIDListIterator(it)) {
+    unsigned virtual = data_UIDListIterator(it);
+    Interval* intv   = interval_of(env, virtual);
+    if (intv->to >= target_iv->from) {
+      return;
+    }
+    // NOTE: obtain `it` earlier because `release_reg` modifies active list
+    it = next_UIDListIterator(it);
+
+    release_reg(env, virtual);
+  }
 }
 
 static void alloc_stack(Env* env, unsigned virt) {
@@ -240,6 +219,11 @@ static void alloc_stack(Env* env, unsigned virt) {
   env->f->stack_count += 8;
   set_UIVec(env->locations, virt, env->f->stack_count);
   set_UIVec(env->result, virt, -2);  // mark as spilled
+}
+
+static void spill_reg(Env* env, unsigned virt) {
+  release_reg(env, virt);
+  alloc_stack(env, virt);
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
@@ -258,10 +242,9 @@ static void spill_at_interval(Env* env, unsigned target) {
   assert(spill_intv->kind != IV_FIXED);
   Interval* target_intv = interval_of(env, target);
   if (spill_intv->to > target_intv->to) {
-    set_UIVec(env->result, target, get_UIVec(env->result, spill));
-    alloc_stack(env, spill);
-    remove_from_active(env, spill_ptr);
-    add_to_active(env, target);
+    unsigned r = get_UIVec(env->result, spill);
+    spill_reg(env, spill);
+    alloc_specific_reg(env, target, r);
   } else {
     alloc_stack(env, target);
   }
@@ -305,23 +288,18 @@ static void walk_regs(Env* env, UIList* l) {
 
   switch (iv->kind) {
     case IV_VIRTUAL:
-      if (env->active_count == env->usable_regs_count) {
+      if (is_empty_UIDList(env->available->list)) {
         spill_at_interval(env, virtual);
       } else {
         alloc_reg(env, virtual);
-        add_to_active(env, virtual);
       }
       break;
     case IV_FIXED: {
       unsigned u = get_UIVec(env->used_by, iv->fixed_real);
       if (u != -1) {
-        unsigned blocked_virt = u;
-        release_reg(env, blocked_virt);
-        alloc_stack(env, blocked_virt);
-        remove_virtual_from_active(env, blocked_virt);
+        spill_reg(env, u);
       }
       alloc_specific_reg(env, virtual, iv->fixed_real);
-      add_to_active(env, virtual);
       break;
     }
     case IV_UNSET:

@@ -1141,19 +1141,14 @@ static ParamList* parameter_list(Env* env) {
 
   do {
     if (head_of(env) == TK_ELIPSIS) {
-      consume(env);
-      cur = snoc_ParamList(new_ParameterDecl(PD_ELIPSIS), cur);
-    } else {
-      DeclarationSpecifiers* s = declaration_specifiers(env);
-      Declarator* d            = try_declarator(env, false);
-      if (d == NULL) {
-        d = declarator(env, true);
-      }
-      ParameterDecl* pd = new_ParameterDecl(PD_PARAM);
-      pd->spec          = s;
-      pd->decl          = d;
-      cur               = snoc_ParamList(pd, cur);
+      break;
     }
+    DeclarationSpecifiers* s = declaration_specifiers(env);
+    Declarator* d            = try_declarator(env, false);
+    if (d == NULL) {
+      d = declarator(env, true);
+    }
+    cur = snoc_ParamList(new_ParameterDecl(s, d), cur);
   } while (try (env, TK_COMMA));
 
   return list;
@@ -1185,8 +1180,13 @@ static ExternalDecl* external_declaration(Env* env) {
     return edecl;
   }
 
+  bool is_vararg = false;
   expect(env, TK_LPAREN);
   ParamList* params = parameter_list(env);
+  if (head_of(env) == TK_ELIPSIS) {
+    consume(env);
+    is_vararg = true;
+  }
   expect(env, TK_RPAREN);
   if (head_of(env) == TK_LBRACE) {
     consume(env);
@@ -1194,6 +1194,7 @@ static ExternalDecl* external_declaration(Env* env) {
     def->spec        = spec;
     def->decl        = d;
     def->params      = params;
+    def->is_vararg   = is_vararg;
     def->items       = block_item_list(env);
     expect(env, TK_RBRACE);
 
@@ -1207,6 +1208,7 @@ static ExternalDecl* external_declaration(Env* env) {
     decl->spec         = spec;
     decl->decl         = d;
     decl->params       = params;
+    decl->is_vararg    = is_vararg;
 
     ExternalDecl* edecl = new_external_decl(EX_FUNC_DECL);
     edecl->func_decl    = decl;

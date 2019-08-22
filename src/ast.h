@@ -316,19 +316,12 @@ struct Statement {
 
 Statement* new_statement(StmtKind kind, Expr* expr);
 
-typedef enum {
-  PD_PARAM,
-  PD_ELIPSIS,
-} ParamDeclKind;
-
 typedef struct {
-  ParamDeclKind kind;
-
-  DeclarationSpecifiers* spec;  // for PD_PARAM, owned
-  Declarator* decl;             // for PD_PARAM, owned
+  DeclarationSpecifiers* spec;
+  Declarator* decl;
 } ParameterDecl;
 
-ParameterDecl* new_ParameterDecl(ParamDeclKind kind);
+ParameterDecl* new_ParameterDecl(DeclarationSpecifiers*, Declarator*);
 
 DECLARE_LIST(ParameterDecl*, ParamList)
 DECLARE_MAP(unsigned, UIMap)
@@ -337,6 +330,8 @@ typedef struct {
   DeclarationSpecifiers* spec;  // owned
   Declarator* decl;             // owned
   ParamList* params;            // owned
+
+  bool is_vararg;
 
   BlockItemList* items;  // owned
 
@@ -354,6 +349,8 @@ typedef struct {
   DeclarationSpecifiers* spec;  // owned
   Declarator* decl;             // owned
   ParamList* params;            // owned
+
+  bool is_vararg;
 
   // will filled in `sema`
   Type* type;  // owned

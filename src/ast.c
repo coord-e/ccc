@@ -221,9 +221,10 @@ StructSpecifier* new_StructSpecifier(StructSpecKind kind, char* tag) {
   return s;
 }
 
-ParameterDecl* new_ParameterDecl(ParamDeclKind kind) {
+ParameterDecl* new_ParameterDecl(DeclarationSpecifiers* spec, Declarator* decl) {
   ParameterDecl* d = calloc(1, sizeof(ParameterDecl));
-  d->kind          = kind;
+  d->spec          = spec;
+  d->decl          = decl;
   return d;
 }
 
@@ -599,16 +600,9 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
 }
 
 static void print_ParameterDecl(FILE* p, ParameterDecl* d) {
-  switch (d->kind) {
-    case PD_PARAM:
-      print_DeclarationSpecifiers(p, d->spec);
-      fputs(" ", p);
-      print_Declarator(p, d->decl);
-      break;
-    case PD_ELIPSIS:
-      fputs("...", p);
-      break;
-  }
+  print_DeclarationSpecifiers(p, d->spec);
+  fputs(" ", p);
+  print_Declarator(p, d->decl);
 }
 
 DECLARE_LIST_PRINTER(BlockItemList)
@@ -624,6 +618,9 @@ static void print_FunctionDef(FILE* p, FunctionDef* def) {
   print_Declarator(p, def->decl);
   fprintf(p, " (");
   print_ParamList(p, def->params);
+  if (def->is_vararg) {
+    fprintf(p, ", ...");
+  }
   fprintf(p, ") {\n");
   print_BlockItemList(p, def->items);
   fprintf(p, "}\n");
@@ -634,6 +631,9 @@ static void print_FunctionDecl(FILE* p, FunctionDecl* decl) {
   print_Declarator(p, decl->decl);
   fprintf(p, " (");
   print_ParamList(p, decl->params);
+  if (decl->is_vararg) {
+    fprintf(p, ", ...");
+  }
   fprintf(p, ");\n");
 }
 static void print_ExternalDecl(FILE* p, ExternalDecl* edecl) {

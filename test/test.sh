@@ -342,6 +342,20 @@ int main(void) {
   return x;
 }
 EOF
+try_ 0 <<EOF
+int main() {
+  while(1) {
+    while(1) {
+      while(1) {
+        break;
+      }
+      break;
+    }
+    break;
+  }
+  return 0;
+}
+EOF
 
 # globals
 try_ 42 <<EOF

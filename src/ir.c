@@ -647,14 +647,16 @@ Reg* gen_expr(Env* env, Expr* node) {
   }
 }
 
-void set_loop(Env* env, BasicBlock* next, BasicBlock* cont) {
-  env->loop_break    = next;
-  env->loop_continue = cont;
+BasicBlock* set_break(Env* env, BasicBlock* break_) {
+  BasicBlock* save = env->loop_break;
+  env->loop_break  = break_;
+  return save;
 }
 
-void reset_loop(Env* env) {
-  env->loop_break    = NULL;
-  env->loop_continue = NULL;
+BasicBlock* set_continue(Env* env, BasicBlock* continue_) {
+  BasicBlock* save   = env->loop_continue;
+  env->loop_continue = continue_;
+  return save;
 }
 
 void gen_block_item_list(Env* env, BlockItemList* ast);
@@ -712,7 +714,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* body_bb  = new_bb(env);
       BasicBlock* next_bb  = new_bb(env);
 
-      set_loop(env, next_bb, while_bb);
+      BasicBlock* old_break    = set_break(env, next_bb);
+      BasicBlock* old_continue = set_continue(env, while_bb);
 
       create_or_start_bb(env, while_bb);
       Reg* cond = gen_expr(env, stmt->expr);
@@ -722,7 +725,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
       new_jump(env, while_bb, next_bb);
 
-      reset_loop(env);
+      set_break(env, old_break);
+      set_continue(env, old_continue);
 
       break;
     }
@@ -731,7 +735,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* cont_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      set_loop(env, next_bb, cont_bb);
+      BasicBlock* old_break    = set_break(env, next_bb);
+      BasicBlock* old_continue = set_continue(env, cont_bb);
 
       create_or_start_bb(env, body_bb);
       gen_stmt(env, stmt->body);
@@ -740,7 +745,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       Reg* cond = gen_expr(env, stmt->expr);
       new_br(env, cond, body_bb, next_bb, next_bb);
 
-      reset_loop(env);
+      set_break(env, old_break);
+      set_continue(env, old_continue);
 
       break;
     }
@@ -750,7 +756,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* cont_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      set_loop(env, next_bb, cont_bb);
+      BasicBlock* old_break    = set_break(env, next_bb);
+      BasicBlock* old_continue = set_continue(env, cont_bb);
 
       UIMap* save = start_scope(env);
       if (stmt->init_decl != NULL) {
@@ -771,7 +778,8 @@ static void gen_stmt(Env* env, Statement* stmt) {
       end_scope(env, save);
       new_jump(env, for_bb, next_bb);
 
-      reset_loop(env);
+      set_break(env, old_break);
+      set_continue(env, old_continue);
 
       break;
     }
@@ -820,8 +828,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       BasicBlock* next_bb = new_bb(env);
 
-      BasicBlock* old_break = env->loop_break;
-      env->loop_break       = next_bb;
+      BasicBlock* old_break = set_break(env, next_bb);
 
       for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
         Statement* case_    = get_StmtVec(stmt->cases, i);
@@ -839,7 +846,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
 
       new_jump(env, next_bb, next_bb);
-      env->loop_break = old_break;
+      set_break(env, old_break);
 
       break;
     }

@@ -520,18 +520,6 @@ static Reg* gen_lhs(Env* env, Expr* node) {
   }
 }
 
-static void gen_struct_copy(Env* env, Reg* r1, Reg* r2, Type* ty) {
-  for (unsigned i = 0; i < length_StringVec(ty->fields); i++) {
-    char* k  = get_StringVec(ty->fields, i);
-    Field* f = get_FieldMap(ty->field_map, k);
-
-    Reg* lhs      = new_binop(env, BINOP_ADD, r1, new_imm(env, f->offset, r1->size));
-    Reg* rhs      = new_binop(env, BINOP_ADD, r2, new_imm(env, f->offset, r2->size));
-    DataSize size = sizeof_ty(f->type);
-    new_store(env, lhs, new_load(env, rhs, size), size);
-  }
-}
-
 static DataSize datasize_of_node(Expr* e) {
   return to_data_size(sizeof_ty(e->type));
 }
@@ -579,19 +567,11 @@ Reg* gen_expr(Env* env, Expr* node) {
       return val;
     }
     case ND_ASSIGN: {
-      Reg* lhs = gen_lhs(env, node->lhs);
+      Reg* addr = gen_lhs(env, node->lhs);
+      Reg* rhs  = gen_expr(env, node->rhs);
       assert(sizeof_ty(node->lhs->type) == sizeof_ty(node->rhs->type));
-      if (node->lhs->type->kind == TY_STRUCT) {
-        assert(is_complete_ty(node->lhs->type));
-        assert(is_complete_ty(node->rhs->type));
-        assert(is_compatible_ty(node->lhs->type, node->rhs->type));
-        Reg* rhs = gen_lhs(env, node->rhs);
-        gen_struct_copy(env, lhs, rhs, node->lhs->type);
-      } else {
-        Reg* rhs = gen_expr(env, node->rhs);
-        new_store(env, lhs, rhs, datasize_of_node(node));
-      }
-      return new_load(env, lhs, datasize_of_node(node->lhs));
+      new_store(env, addr, rhs, datasize_of_node(node));
+      return rhs;
     }
     case ND_COMMA: {
       gen_expr(env, node->lhs);

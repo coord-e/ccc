@@ -148,7 +148,7 @@ static void set_interval_kind(Interval* iv, Reg* r) {
       iv->kind = IV_VIRTUAL;
       break;
     case REG_REAL:
-      assert("real registers found in register allocation");
+      assert(false && "real registers found in register allocation");
       break;
     default:
       CCC_UNREACHABLE;

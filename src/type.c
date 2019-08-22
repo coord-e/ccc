@@ -192,6 +192,9 @@ void print_Type(FILE* p, Type* ty) {
     case TY_FUNC:
       fprintf(p, "func(");
       print_TypeVec(p, ty->params);
+      if (ty->is_vararg) {
+        fprintf(p, ", ...");
+      }
       fprintf(p, ") ");
       print_Type(p, ty->ret);
       break;
@@ -377,10 +380,11 @@ Type* ptr_to_ty(Type* ty) {
   return t;
 }
 
-Type* func_ty(Type* ret, TypeVec* params) {
-  Type* t   = new_Type(TY_FUNC);
-  t->ret    = ret;
-  t->params = params;
+Type* func_ty(Type* ret, TypeVec* params, bool is_vararg) {
+  Type* t      = new_Type(TY_FUNC);
+  t->ret       = ret;
+  t->params    = params;
+  t->is_vararg = is_vararg;
   return t;
 }
 

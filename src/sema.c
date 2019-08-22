@@ -1124,15 +1124,26 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
       Type* f             = lhs_ty->ptr_to;
       unsigned num_args   = length_ExprVec(expr->args);
       unsigned num_params = length_TypeVec(f->params);
-      if (num_args != num_params) {
-        error("too many / too few arguments to function");
+      if (f->is_vararg) {
+        if (num_args < num_params) {
+          error("too few arguments to function");
+        }
+      } else {
+        if (num_args != num_params) {
+          error("too many / too few arguments to function");
+        }
       }
 
       for (unsigned i = 0; i < num_args; i++) {
         Expr* a = get_ExprVec(expr->args, i);
         sema_expr(env, a);
-        Type* p_ty = get_TypeVec(f->params, i);
 
+        if (i >= num_params) {
+          assert(f->is_vararg);
+          break;
+        }
+
+        Type* p_ty = get_TypeVec(f->params, i);
         assignment_conversion(env, p_ty, a);
       }
 
@@ -1544,7 +1555,7 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
 
   Env* env        = init_Env(global, ret);
   TypeVec* params = param_types(env, f->params);
-  Type* ty        = func_ty(ret, params);
+  Type* ty        = func_ty(ret, params, f->is_vararg);
   f->type         = copy_Type(ty);
 
   add_var(fake_env(global), name, ty);
@@ -1576,7 +1587,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       char* name;
       extract_declarator(f->decl, base_ty, &name, &ret);
       TypeVec* params = param_types(fake_env(global), f->params);
-      Type* ty        = func_ty(ret, params);
+      Type* ty        = func_ty(ret, params, f->is_vararg);
       f->type         = copy_Type(ty);
       add_var(fake_env(global), name, ty);
       break;

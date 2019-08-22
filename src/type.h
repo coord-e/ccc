@@ -58,6 +58,7 @@ struct Type {
   // for TY_FUNC
   Type* ret;
   TypeVec* params;
+  bool is_vararg;
 
   // for TY_ARRAY
   Type* element;
@@ -92,7 +93,7 @@ Type* bool_ty();
 Type* struct_ty(char*, StringVec*, FieldMap*);
 Type* enum_ty(char*, StringVec*, EnumMap*);
 Type* ptr_to_ty(Type*);
-Type* func_ty(Type*, TypeVec*);
+Type* func_ty(Type*, TypeVec*, bool is_vararg);
 Type* array_ty(Type*, bool is_length_known);
 
 Type* size_t_ty();

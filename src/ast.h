@@ -246,7 +246,9 @@ Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);
 Expr* new_node_sizeof_type(TypeName*);
 Expr* new_node_sizeof_expr(Expr*);
 Expr* new_node_member(Expr*, const char*);
+Expr* copy_node(Expr*);
 Expr* shallow_copy_node(Expr*);
+void release_expr(Expr*);
 
 typedef struct Statement Statement;
 

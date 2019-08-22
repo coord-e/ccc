@@ -1,6 +1,5 @@
 # Features
 
-- copies of struct objects
 - type check of constness and other type qualifiers
 - varadic functions
   - declaration

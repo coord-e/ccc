@@ -316,12 +316,19 @@ struct Statement {
 
 Statement* new_statement(StmtKind kind, Expr* expr);
 
+typedef enum {
+  PD_PARAM,
+  PD_ELIPSIS,
+} ParamDeclKind;
+
 typedef struct {
-  DeclarationSpecifiers* spec;
-  Declarator* decl;
+  ParamDeclKind kind;
+
+  DeclarationSpecifiers* spec;  // for PD_PARAM, owned
+  Declarator* decl;             // for PD_PARAM, owned
 } ParameterDecl;
 
-ParameterDecl* new_ParameterDecl(DeclarationSpecifiers*, Declarator*);
+ParameterDecl* new_ParameterDecl(ParamDeclKind kind);
 
 DECLARE_LIST(ParameterDecl*, ParamList)
 DECLARE_MAP(unsigned, UIMap)

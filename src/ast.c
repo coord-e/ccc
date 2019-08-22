@@ -221,10 +221,9 @@ StructSpecifier* new_StructSpecifier(StructSpecKind kind, char* tag) {
   return s;
 }
 
-ParameterDecl* new_ParameterDecl(DeclarationSpecifiers* spec, Declarator* decl) {
+ParameterDecl* new_ParameterDecl(ParamDeclKind kind) {
   ParameterDecl* d = calloc(1, sizeof(ParameterDecl));
-  d->spec          = spec;
-  d->decl          = decl;
+  d->kind          = kind;
   return d;
 }
 
@@ -600,9 +599,16 @@ static void print_BlockItem(FILE* p, BlockItem* item) {
 }
 
 static void print_ParameterDecl(FILE* p, ParameterDecl* d) {
-  print_DeclarationSpecifiers(p, d->spec);
-  fputs(" ", p);
-  print_Declarator(p, d->decl);
+  switch (d->kind) {
+    case PD_PARAM:
+      print_DeclarationSpecifiers(p, d->spec);
+      fputs(" ", p);
+      print_Declarator(p, d->decl);
+      break;
+    case PD_ELIPSIS:
+      fputs("...", p);
+      break;
+  }
 }
 
 DECLARE_LIST_PRINTER(BlockItemList)

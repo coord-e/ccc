@@ -198,9 +198,8 @@ static void add_to_active(Env* env, unsigned target_virt) {
     it = next_UIDListIterator(it);
   }
 }
-
-static void remove_from_active(Env* env, UIDListIterator* cur) {
-  remove_IndexedUIList(env->active, data_UIDListIterator(cur), cur);
+static void remove_virtual_from_active(Env* env, unsigned target) {
+  remove_by_idx_IndexedUIList(env->active, target);
 }
 
 static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterator* l) {
@@ -216,14 +215,10 @@ static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterat
 
   UIDListIterator* next = next_UIDListIterator(l);
   // expired
-  remove_from_active(env, l);
+  remove_virtual_from_active(env, virtual);
   release_reg(env, virtual);
 
   expire_old_intervals_iter(env, current, next);
-}
-
-static void remove_virtual_from_active(Env* env, unsigned target) {
-  remove_by_idx_IndexedUIList(env->active, target);
 }
 
 static void expire_old_intervals(Env* env, Interval* target_iv) {
@@ -253,9 +248,11 @@ static void spill_at_interval(Env* env, unsigned target) {
   assert(spill_intv->kind != IV_FIXED);
   Interval* target_intv = interval_of(env, target);
   if (spill_intv->to > target_intv->to) {
-    set_UIVec(env->result, target, get_UIVec(env->result, spill));
+    unsigned r = get_UIVec(env->result, spill);
+    release_reg(env, spill);
     alloc_stack(env, spill);
-    remove_from_active(env, spill_ptr);
+    remove_virtual_from_active(env, spill);
+    alloc_specific_reg(env, target, r);
     add_to_active(env, target);
   } else {
     alloc_stack(env, target);

@@ -610,6 +610,38 @@ static Expr* build_decay(Expr* opr) {
   }
 }
 
+static Expr* build_comma(Expr* opr1, Expr* opr2) {
+  if (opr1 == NULL) {
+    return opr2;
+  }
+
+  return new_node_comma(opr1, opr2);
+}
+
+// a = b (a,b: struct { T1 a; T2 b; }) -> (a.a = b.a, a.b = b.b, a)
+// TODO: Preserve the number of evaluations
+// both `opr1` and `opr2` are consumed and new untyped node is returned
+static Expr* build_struct_copy(Expr* opr1, Expr* opr2) {
+  assert(opr1->type->kind == TY_STRUCT);
+  assert(opr2->type->kind == TY_STRUCT);
+  assert(is_complete_ty(opr1->type));
+  assert(is_complete_ty(opr2->type));
+  assert(is_compatible_ty(opr1->type, opr2->type));
+
+  Type* ty = opr1->type;
+
+  Expr* node = NULL;
+  for (unsigned i = 0; i < length_StringVec(ty->fields); i++) {
+    char* k   = get_StringVec(ty->fields, i);
+    Expr* lhs = new_node_member(opr1, k);
+    Expr* rhs = new_node_member(opr2, k);
+
+    node = build_comma(node, new_node_assign(lhs, rhs));
+  }
+
+  return build_comma(node, opr1);
+}
+
 // calculate the resulting type of integer promotion
 // return NULL if no conversion is required
 // caller has an ownership of returned `Type*`
@@ -945,7 +977,20 @@ Type* sema_expr_raw(Env* env, Expr* expr) {
     }
     case ND_ASSIGN: {
       Type* lhs_ty = sema_expr(env, expr->lhs);
-      sema_expr(env, expr->rhs);
+      Type* rhs_ty = sema_expr(env, expr->rhs);
+      if (lhs_ty->kind == TY_STRUCT && rhs_ty->kind == TY_STRUCT) {
+        should_compatible(lhs_ty, rhs_ty);
+
+        // TODO: shallow release of rhs of this assignment
+        *expr = *build_struct_copy(expr->lhs, expr->rhs);
+
+        Type* ty = copy_Type(lhs_ty);
+        sema_expr(env, expr);
+        assert(equal_to_Type(expr->type, ty));
+
+        t = ty;
+        break;
+      }
       assignment_conversion(env, lhs_ty, expr->rhs);
       t = copy_Type(lhs_ty);
       break;

@@ -35,17 +35,14 @@ static GlobalEnv* init_GlobalEnv() {
 }
 
 static Env* init_Env(GlobalEnv* global, Type* ret) {
-  Env* env            = calloc(1, sizeof(Env));
-  env->vars           = new_TypeMap(64);
-  env->global         = global;
-  env->ret_ty         = ret;
-  env->named_labels   = new_UIMap(32);
-  env->label_count    = 0;
-  env->current_switch = NULL;
-  env->is_global_only = false;
-  env->tagged_types   = new_TypeMap(16);
-  env->typedefs       = new_TypeMap(16);
-  env->enum_consts    = new_EnumMap(64);
+  Env* env          = calloc(1, sizeof(Env));
+  env->vars         = new_TypeMap(64);
+  env->global       = global;
+  env->ret_ty       = ret;
+  env->named_labels = new_UIMap(32);
+  env->tagged_types = new_TypeMap(16);
+  env->typedefs     = new_TypeMap(16);
+  env->enum_consts  = new_EnumMap(64);
   return env;
 }
 

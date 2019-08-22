@@ -54,22 +54,22 @@ static void consume(Env* env) {
   env->cur = tail_TokenList(env->cur);
 }
 
-static Token consuming(Env* env) {
+static Token* consuming(Env* env) {
   TokenList* p = env->cur;
   consume(env);
   return head_TokenList(p);
 }
 
-static Token expect(Env* env, TokenKind k) {
-  Token r = consuming(env);
-  if (r.kind != k) {
+static Token* expect(Env* env, TokenKind k) {
+  Token* r = consuming(env);
+  if (r->kind != k) {
     error("unexpected token");
   }
   return r;
 }
 
 static TokenKind head_of(Env* env) {
-  return head_TokenList(env->cur).kind;
+  return head_TokenList(env->cur)->kind;
 }
 
 // if head_of(env) == k, consume it and return true.
@@ -93,7 +93,7 @@ static DirectDeclarator* try_direct_declarator(Env* env, bool is_abstract) {
 
   DirectDeclarator* base = new_DirectDeclarator(is_abstract ? DE_DIRECT_ABSTRACT : DE_DIRECT);
   if (!is_abstract) {
-    base->name     = strdup(expect(env, TK_IDENT).ident);
+    base->name     = strdup(expect(env, TK_IDENT)->ident);
     base->name_ref = base->name;
   }
 
@@ -165,7 +165,7 @@ static DeclaratorList* declarator_list(Env* env) {
 static Expr* conditional(Env* env);
 
 static Enumerator* enumerator(Env* env) {
-  char* name  = strdup(expect(env, TK_IDENT).ident);
+  char* name  = strdup(expect(env, TK_IDENT)->ident);
   Expr* value = NULL;
   if (head_of(env) == TK_EQUAL) {
     consume(env);
@@ -193,7 +193,7 @@ static EnumSpecifier* enum_specifier(Env* env) {
 
   char* tag = NULL;
   if (head_of(env) == TK_IDENT) {
-    tag = strdup(expect(env, TK_IDENT).ident);
+    tag = strdup(expect(env, TK_IDENT)->ident);
   }
 
   if (head_of(env) == TK_LBRACE) {
@@ -238,7 +238,7 @@ static StructSpecifier* struct_specifier(Env* env) {
 
   char* tag = NULL;
   if (head_of(env) == TK_IDENT) {
-    tag = strdup(expect(env, TK_IDENT).ident);
+    tag = strdup(expect(env, TK_IDENT)->ident);
   }
 
   if (head_of(env) == TK_LBRACE) {
@@ -333,7 +333,7 @@ static DeclarationSpecifiers* try_declaration_specifiers(Env* env) {
         enum_ = enum_specifier(env);
         break;
       case TK_IDENT: {
-        char* ident = head_TokenList(env->cur).ident;
+        char* ident = head_TokenList(env->cur)->ident;
         if (is_typedef_name(env, ident)) {
           if (typedef_name != NULL) {
             error("too many typedef names in declaration specifiers");
@@ -514,7 +514,7 @@ static Declaration* try_declaration(Env* env) {
 
   Declaration* d = new_declaration(s, dor);
 
-  if (consuming(env).kind != TK_SEMICOLON) {
+  if (consuming(env)->kind != TK_SEMICOLON) {
     return NULL;
   }
 
@@ -533,12 +533,12 @@ static Expr* term(Env* env) {
     }
   } else {
     if (head_of(env) == TK_NUMBER) {
-      return new_node_num(consuming(env).number);
+      return new_node_num(consuming(env)->number);
     } else if (head_of(env) == TK_IDENT) {
-      return new_node_var(consuming(env).ident);
+      return new_node_var(consuming(env)->ident);
     } else if (head_of(env) == TK_STRING) {
-      Token tk = consuming(env);
-      return new_node_string(tk.string, tk.length);
+      Token* tk = consuming(env);
+      return new_node_string(tk->string, tk->length);
     } else {
       error("unexpected token.");
     }
@@ -586,12 +586,12 @@ static Expr* postfix(Env* env) {
         break;
       case TK_DOT:
         consume(env);
-        node = new_node_member(node, expect(env, TK_IDENT).ident);
+        node = new_node_member(node, expect(env, TK_IDENT)->ident);
         break;
       case TK_ARROW:
         consume(env);
-        // `e->ident` is converted to `(e*).ident`
-        node = new_node_member(new_node_deref(node), expect(env, TK_IDENT).ident);
+        // `e->ident` is converted to `(e*)->ident`
+        node = new_node_member(new_node_deref(node), expect(env, TK_IDENT)->ident);
         break;
       case TK_DOUBLE_PLUS: {
         consume(env);
@@ -1086,14 +1086,14 @@ static Statement* statement(Env* env) {
     }
     case TK_GOTO: {
       consume(env);
-      char* name    = expect(env, TK_IDENT).ident;
+      char* name    = expect(env, TK_IDENT)->ident;
       Statement* s  = new_statement(ST_GOTO, NULL);
       s->label_name = strdup(name);
       return s;
     }
     case TK_IDENT: {
-      if (head_TokenList(tail_TokenList(env->cur)).kind == TK_COLON) {
-        char* name = expect(env, TK_IDENT).ident;
+      if (head_TokenList(tail_TokenList(env->cur))->kind == TK_COLON) {
+        char* name = expect(env, TK_IDENT)->ident;
         expect(env, TK_COLON);
         Statement* s  = new_statement(ST_LABEL, NULL);
         s->label_name = strdup(name);

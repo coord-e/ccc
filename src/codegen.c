@@ -59,8 +59,8 @@ static const char* reg_name(unsigned id, DataSize size) {
   }
 }
 
-static const char* reg_of(Reg r) {
-  return reg_name(r.real, r.size);
+static const char* reg_of(Reg* r) {
+  return reg_name(r->real, r->size);
 }
 
 static const char* nth_reg_of(unsigned i, RegVec* rs) {
@@ -135,8 +135,8 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       emit(p, "mov %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
     case IR_TRUNC: {
-      Reg opr = get_RegVec(h->ras, 0);
-      emit(p, "mov %s, %s", reg_of(h->rd), reg_name(opr.real, h->rd.size));
+      Reg* opr = get_RegVec(h->ras, 0);
+      emit(p, "mov %s, %s", reg_of(h->rd), reg_name(opr->real, h->rd->size));
       break;
     }
     case IR_SEXT:
@@ -146,7 +146,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       assert(!bb->is_call_bb);
       if (length_RegVec(h->ras) != 0) {
         assert(length_RegVec(h->ras) == 1);
-        assert(get_RegVec(h->ras, 0).real == rax_reg_id);
+        assert(get_RegVec(h->ras, 0)->real == rax_reg_id);
       }
       emit_epilogue(p, f);
       emit(p, "ret");
@@ -210,10 +210,10 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       break;
     case IR_CALL:
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
-        assert(get_RegVec(h->ras, i).real == nth_arg_id(i - 1));
+        assert(get_RegVec(h->ras, i)->real == nth_arg_id(i - 1));
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
-      assert(h->rd.real == rax_reg_id);
+      assert(h->rd->real == rax_reg_id);
       break;
     default:
       CCC_UNREACHABLE;
@@ -222,17 +222,17 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
   codegen_insts(p, f, bb, tail_IRInstList(insts));
 }
 
-static void codegen_cmp(FILE* p, const char* s, Reg rd, Reg rhs) {
+static void codegen_cmp(FILE* p, const char* s, Reg* rd, Reg* rhs) {
   emit(p, "cmp %s, %s", reg_of(rd), reg_of(rhs));
-  emit(p, "set%s %s", s, regs8[rd.real]);
-  emit(p, "movzb %s, %s", reg_of(rd), regs8[rd.real]);
+  emit(p, "set%s %s", s, regs8[rd->real]);
+  emit(p, "movzb %s, %s", reg_of(rd), regs8[rd->real]);
 }
 
 static void codegen_unaop(FILE* p, IRInst* inst) {
-  Reg rd  = inst->rd;
-  Reg opr = get_RegVec(inst->ras, 0);
+  Reg* rd  = inst->rd;
+  Reg* opr = get_RegVec(inst->ras, 0);
 
-  assert(rd.real == opr.real);
+  assert(rd->real == opr->real);
 
   switch (inst->unaop) {
     case UNAOP_POSITIVE:
@@ -249,17 +249,17 @@ static void codegen_unaop(FILE* p, IRInst* inst) {
 }
 
 static void codegen_binop(FILE* p, IRInst* inst) {
-  Reg rd  = inst->rd;
-  Reg lhs = get_RegVec(inst->ras, 0);
-  Reg rhs = get_RegVec(inst->ras, 1);
+  Reg* rd  = inst->rd;
+  Reg* lhs = get_RegVec(inst->ras, 0);
+  Reg* rhs = get_RegVec(inst->ras, 1);
 
   // A = B op A instruction can't be emitted
-  assert(rd.real != rhs.real);
+  assert(rd->real != rhs->real);
 
   // rem operator is exceptionally avoided
   // rdx = rax % reg
   if (inst->binop != BINOP_REM) {
-    assert(rd.real == lhs.real);
+    assert(rd->real == lhs->real);
   }
 
   switch (inst->binop) {
@@ -273,14 +273,14 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       emit(p, "imul %s, %s", reg_of(rd), reg_of(rhs));
       return;
     case BINOP_DIV:
-      assert(lhs.real == rax_reg_id);
-      assert(rd.real == rax_reg_id);
+      assert(lhs->real == rax_reg_id);
+      assert(rd->real == rax_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
       return;
     case BINOP_REM:
-      assert(lhs.real == rax_reg_id);
-      assert(rd.real == rdx_reg_id);
+      assert(lhs->real == rax_reg_id);
+      assert(rd->real == rdx_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
       return;
@@ -303,12 +303,12 @@ static void codegen_binop(FILE* p, IRInst* inst) {
       codegen_cmp(p, "le", rd, rhs);
       return;
     case BINOP_SHIFT_RIGHT:
-      assert(rhs.real == rcx_reg_id);
+      assert(rhs->real == rcx_reg_id);
       // TODO: Consider signedness
       emit(p, "sar %s, cl", reg_of(rd));
       return;
     case BINOP_SHIFT_LEFT:
-      assert(rhs.real == rcx_reg_id);
+      assert(rhs->real == rcx_reg_id);
       emit(p, "shl %s, cl", reg_of(rd));
       return;
     case BINOP_AND:

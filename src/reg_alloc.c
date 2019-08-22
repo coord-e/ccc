@@ -333,13 +333,13 @@ static bool assign_reg(Env* env, Reg* r) {
   return false;
 }
 
-static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
+static IRInstList* emit_spill_load(Env* env, Reg* r, IRInstList** lref) {
   IRInstList* l = *lref;
 
   IRInst* inst    = new_inst_(env, IR_STACK_LOAD);
-  inst->rd        = r;
-  inst->stack_idx = get_UIVec(env->locations, r.virtual);
-  inst->data_size = r.size;
+  inst->rd        = copy_Reg(r);
+  inst->stack_idx = get_UIVec(env->locations, r->virtual);
+  inst->data_size = r->size;
   insert_IRInstList(inst, l);
 
   IRInstList* t = tail_IRInstList(l);
@@ -347,11 +347,11 @@ static IRInstList* emit_spill_load(Env* env, Reg r, IRInstList** lref) {
   return tail_IRInstList(t);
 }
 
-static IRInstList* emit_spill_store(Env* env, Reg r, IRInstList* l) {
+static IRInstList* emit_spill_store(Env* env, Reg* r, IRInstList* l) {
   IRInst* inst = new_inst_(env, IR_STACK_STORE);
-  push_RegVec(inst->ras, r);
-  inst->stack_idx = get_UIVec(env->locations, r.virtual);
-  inst->data_size = r.size;
+  push_RegVec(inst->ras, copy_Reg(r));
+  inst->stack_idx = get_UIVec(env->locations, r->virtual);
+  inst->data_size = r->size;
 
   IRInstList* t = tail_IRInstList(l);
   insert_IRInstList(inst, t);
@@ -367,18 +367,15 @@ static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
   IRInstList* tail = tail_IRInstList(l);
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg ra = get_RegVec(inst->ras, i);
-    assert(ra.is_used);
+    Reg* ra = get_RegVec(inst->ras, i);
 
-    if (assign_reg(env, &ra)) {
+    if (assign_reg(env, ra)) {
       tail = emit_spill_load(env, ra, &l);
     }
-
-    set_RegVec(inst->ras, i, ra);
   }
 
-  if (inst->rd.is_used) {
-    if (assign_reg(env, &inst->rd)) {
+  if (inst->rd != NULL) {
+    if (assign_reg(env, inst->rd)) {
       tail = emit_spill_store(env, inst->rd, l);
     }
   }

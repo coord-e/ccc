@@ -83,17 +83,17 @@ typedef enum {
   TK_END,     // end of tokens
 } TokenKind;
 
-typedef struct Token Token;
-
-struct Token {
+typedef struct {
   TokenKind kind;
   char* ident;    // for TK_IDENT, owned
   char* string;   // for TK_STRING, owned
   size_t length;  // for TK_STRING
   int number;     // for TK_NUMBER
-};
+} Token;
 
-DECLARE_LIST(Token, TokenList)
+Token* new_Token(TokenKind);
+
+DECLARE_LIST(Token*, TokenList)
 DECLARE_LIST_PRINTER(TokenList)
 
 // divide `input` into a linked list of `Token`s.

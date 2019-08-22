@@ -43,11 +43,16 @@ typedef struct {
   unsigned virtual;
   unsigned real;
   DataSize size;
-
-  bool is_used;  // TODO: Use better way to represent unsued register slot
 } Reg;
 
-DECLARE_VECTOR(Reg, RegVec)
+Reg* new_Reg(RegKind, DataSize);
+Reg* new_virtual_Reg(DataSize, unsigned virtual);
+Reg* new_real_Reg(DataSize, unsigned real);
+Reg* new_fixed_Reg(DataSize, unsigned virtual, unsigned real);
+Reg* copy_Reg(Reg*);
+void release_Reg(Reg*);
+
+DECLARE_VECTOR(Reg*, RegVec)
 DECLARE_VECTOR_PRINTER(RegVec)
 
 typedef struct BasicBlock BasicBlock;
@@ -80,7 +85,7 @@ typedef struct IRInst {
   BasicBlock* then_;  // for IR_BR, not owned
   BasicBlock* else_;  // for IR_BR, not owned
 
-  Reg rd;       // destination register
+  Reg* rd;      // destination register (null if unused)
   RegVec* ras;  // argument registers (won't be null)
 } IRInst;
 

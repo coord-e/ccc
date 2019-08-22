@@ -4,20 +4,55 @@
 #include "map.h"
 #include "parser.h"
 
+Reg* new_Reg(RegKind kind, DataSize size) {
+  Reg* r  = calloc(1, sizeof(Reg));
+  r->kind = kind;
+  r->size = size;
+  return r;
+}
+
+Reg* new_virtual_Reg(DataSize size, unsigned virtual) {
+  Reg* r     = new_Reg(REG_VIRT, size);
+  r->virtual = virtual;
+  return r;
+}
+
+Reg* new_real_Reg(DataSize size, unsigned real) {
+  Reg* r  = new_Reg(REG_REAL, size);
+  r->real = real;
+  return r;
+}
+
+Reg* new_fixed_Reg(DataSize size, unsigned virtual, unsigned real) {
+  Reg* r     = new_Reg(REG_FIXED, size);
+  r->virtual = virtual;
+  r->real    = real;
+  return r;
+}
+
+Reg* copy_Reg(Reg* r) {
+  Reg* new = new_Reg(r->kind, r->size);
+  *new     = *r;
+  return new;
+}
+
 IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   IRInst* i    = calloc(1, sizeof(IRInst));
   i->kind      = kind;
   i->local_id  = local;
   i->global_id = global;
 
-  i->ras         = new_RegVec(1);
-  i->global_name = NULL;
+  i->ras = new_RegVec(1);
   return i;
 }
 
+void release_Reg(Reg* r) {
+  free(r);
+}
+
 void release_inst(IRInst* i) {
-  assert(i->ras != NULL);
   release_RegVec(i->ras);
+  release_Reg(i->rd);
   free(i->global_name);
   free(i);
 }
@@ -25,8 +60,7 @@ void release_inst(IRInst* i) {
 DEFINE_LIST(release_inst, IRInst*, IRInstList)
 DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
 
-static void release_reg(Reg r) {}
-DEFINE_VECTOR(release_reg, Reg, RegVec)
+DEFINE_VECTOR(release_Reg, Reg*, RegVec)
 
 static void release_BasicBlock(BasicBlock* bb) {
   if (bb == NULL) {
@@ -102,10 +136,8 @@ typedef struct {
 } GlobalEnv;
 
 static GlobalEnv* init_GlobalEnv() {
-  GlobalEnv* env  = calloc(1, sizeof(GlobalEnv));
-  env->bb_count   = 0;
-  env->inst_count = 0;
-  env->globals    = new_GlobalVarVec(16);
+  GlobalEnv* env = calloc(1, sizeof(GlobalEnv));
+  env->globals   = new_GlobalVarVec(16);
   return env;
 }
 
@@ -162,20 +194,11 @@ static BasicBlock* new_bb(Env* env) {
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
   inst->label    = bb;
 
-  bb->local_id   = local_id;
-  bb->global_id  = global_id;
-  bb->insts      = single_IRInstList(inst);
-  bb->succs      = nil_BBList();
-  bb->preds      = nil_BBList();
-  bb->dead       = false;
-  bb->is_call_bb = false;
-
-  bb->live_gen        = NULL;
-  bb->live_kill       = NULL;
-  bb->live_in         = NULL;
-  bb->live_out        = NULL;
-  bb->sorted_insts    = NULL;
-  bb->should_preserve = NULL;
+  bb->local_id  = local_id;
+  bb->global_id = global_id;
+  bb->insts     = single_IRInstList(inst);
+  bb->succs     = nil_BBList();
+  bb->preds     = nil_BBList();
 
   env->blocks = cons_BBList(bb, env->blocks);
 
@@ -183,20 +206,12 @@ static BasicBlock* new_bb(Env* env) {
 }
 
 static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
-  Env* env         = calloc(1, sizeof(Env));
-  env->global_env  = genv;
-  env->reg_count   = 0;
-  env->stack_count = 0;
-  env->bb_count    = 0;
-  env->inst_count  = 0;
-  env->call_count  = 0;
-  env->vars        = new_UIMap(32);
-  env->blocks      = nil_BBList();
+  Env* env        = calloc(1, sizeof(Env));
+  env->global_env = genv;
+  env->vars       = new_UIMap(32);
+  env->blocks     = nil_BBList();
 
   env->exit = new_bb(env);
-
-  env->loop_break    = NULL;
-  env->loop_continue = NULL;
 
   env->named_labels = f->named_labels;
   env->labels       = new_BBVec(f->label_count);
@@ -230,10 +245,8 @@ static BasicBlock* get_named_label(Env* env, const char* name) {
   return get_label(env, id);
 }
 
-static Reg new_reg(Env* env, DataSize size) {
-  unsigned i = env->reg_count++;
-  Reg r      = {.kind = REG_VIRT, .virtual = i, .real = 0, .size = size, .is_used = true};
-  return r;
+static Reg* new_reg(Env* env, DataSize size) {
+  return new_virtual_Reg(size, env->reg_count++);
 }
 
 static unsigned new_var(Env* env, char* name, unsigned size) {
@@ -255,35 +268,35 @@ static void add_inst(Env* env, IRInst* inst) {
   env->inst_cur = snoc_IRInstList(inst, env->inst_cur);
 }
 
-static Reg new_binop(Env* env, BinopKind op, Reg lhs, Reg rhs) {
-  assert(lhs.size == rhs.size);
+static Reg* new_binop(Env* env, BinopKind op, Reg* lhs, Reg* rhs) {
+  assert(lhs->size == rhs->size);
 
-  Reg dest = new_reg(env, lhs.size);
+  Reg* dest = new_reg(env, lhs->size);
 
   IRInst* i2 = new_inst_(env, IR_BIN);
   i2->binop  = op;
   i2->rd     = dest;
-  push_RegVec(i2->ras, lhs);
-  push_RegVec(i2->ras, rhs);
+  push_RegVec(i2->ras, copy_Reg(lhs));
+  push_RegVec(i2->ras, copy_Reg(rhs));
   add_inst(env, i2);
 
   return dest;
 }
 
-static Reg new_unaop(Env* env, UnaopKind op, Reg opr) {
-  Reg dest = new_reg(env, opr.size);
+static Reg* new_unaop(Env* env, UnaopKind op, Reg* opr) {
+  Reg* dest = new_reg(env, opr->size);
 
   IRInst* i2 = new_inst_(env, IR_UNA);
   i2->unaop  = op;
   i2->rd     = dest;
-  push_RegVec(i2->ras, opr);
+  push_RegVec(i2->ras, copy_Reg(opr));
   add_inst(env, i2);
 
   return dest;
 }
 
-static Reg new_imm(Env* env, int num, DataSize size) {
-  Reg r     = new_reg(env, size);
+static Reg* new_imm(Env* env, int num, DataSize size) {
+  Reg* r    = new_reg(env, size);
   IRInst* i = new_inst_(env, IR_IMM);
   i->imm    = num;
   i->rd     = r;
@@ -291,8 +304,8 @@ static Reg new_imm(Env* env, int num, DataSize size) {
   return r;
 }
 
-static Reg new_stack_load(Env* env, unsigned s, DataSize size) {
-  Reg r        = new_reg(env, size);
+static Reg* new_stack_load(Env* env, unsigned s, DataSize size) {
+  Reg* r       = new_reg(env, size);
   IRInst* i    = new_inst_(env, IR_STACK_LOAD);
   i->stack_idx = s;
   i->rd        = r;
@@ -301,19 +314,19 @@ static Reg new_stack_load(Env* env, unsigned s, DataSize size) {
   return r;
 }
 
-static Reg new_stack_store(Env* env, unsigned s, Reg r, DataSize size) {
-  assert(r.size == size);
+static Reg* new_stack_store(Env* env, unsigned s, Reg* r, DataSize size) {
+  assert(r->size == size);
 
   IRInst* i    = new_inst_(env, IR_STACK_STORE);
   i->stack_idx = s;
-  push_RegVec(i->ras, r);
+  push_RegVec(i->ras, copy_Reg(r));
   i->data_size = size;
   add_inst(env, i);
   return r;
 }
 
-static Reg new_stack_addr(Env* env, unsigned s) {
-  Reg r        = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
+static Reg* new_stack_addr(Env* env, unsigned s) {
+  Reg* r       = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* i    = new_inst_(env, IR_STACK_ADDR);
   i->stack_idx = s;
   i->rd        = r;
@@ -321,52 +334,52 @@ static Reg new_stack_addr(Env* env, unsigned s) {
   return r;
 }
 
-static Reg new_load(Env* env, Reg s, DataSize size) {
-  Reg r     = new_reg(env, size);
+static Reg* new_load(Env* env, Reg* s, DataSize size) {
+  Reg* r    = new_reg(env, size);
   IRInst* i = new_inst_(env, IR_LOAD);
-  push_RegVec(i->ras, s);
+  push_RegVec(i->ras, copy_Reg(s));
   i->rd        = r;
   i->data_size = size;
   add_inst(env, i);
   return r;
 }
 
-static void new_store(Env* env, Reg s, Reg r, DataSize size) {
-  assert(r.size == size);
+static void new_store(Env* env, Reg* s, Reg* r, DataSize size) {
+  assert(r->size == size);
 
   IRInst* i = new_inst_(env, IR_STORE);
-  push_RegVec(i->ras, s);
-  push_RegVec(i->ras, r);
+  push_RegVec(i->ras, copy_Reg(s));
+  push_RegVec(i->ras, copy_Reg(r));
   i->data_size = size;
   add_inst(env, i);
 }
 
-static Reg new_sext(Env* env, Reg t, DataSize to) {
-  assert(t.size < to);
+static Reg* new_sext(Env* env, Reg* t, DataSize to) {
+  assert(t->size < to);
 
-  Reg r     = new_reg(env, to);
+  Reg* r    = new_reg(env, to);
   IRInst* i = new_inst_(env, IR_SEXT);
-  push_RegVec(i->ras, t);
+  push_RegVec(i->ras, copy_Reg(t));
   i->rd        = r;
   i->data_size = to;
   add_inst(env, i);
   return r;
 }
 
-static Reg new_trunc(Env* env, Reg t, DataSize to) {
-  assert(t.size > to);
+static Reg* new_trunc(Env* env, Reg* t, DataSize to) {
+  assert(t->size > to);
 
-  Reg r     = new_reg(env, to);
+  Reg* r    = new_reg(env, to);
   IRInst* i = new_inst_(env, IR_TRUNC);
-  push_RegVec(i->ras, t);
+  push_RegVec(i->ras, copy_Reg(t));
   i->rd        = r;
   i->data_size = to;
   add_inst(env, i);
   return r;
 }
 
-static Reg nth_arg(Env* env, unsigned nth, DataSize size) {
-  Reg r           = new_reg(env, size);
+static Reg* nth_arg(Env* env, unsigned nth, DataSize size) {
+  Reg* r          = new_reg(env, size);
   IRInst* i       = new_inst_(env, IR_ARG);
   i->argument_idx = nth;
   i->rd           = r;
@@ -374,10 +387,10 @@ static Reg nth_arg(Env* env, unsigned nth, DataSize size) {
   return r;
 }
 
-static void new_move(Env* env, Reg d, Reg s) {
+static void new_move(Env* env, Reg* d, Reg* s) {
   IRInst* i = new_inst_(env, IR_MOV);
-  push_RegVec(i->ras, s);
-  i->rd = d;
+  push_RegVec(i->ras, copy_Reg(s));
+  i->rd = copy_Reg(d);
   add_inst(env, i);
 }
 
@@ -426,9 +439,9 @@ static void new_void_ret(Env* env, BasicBlock* next) {
   create_or_start_bb(env, next);
 }
 
-static Reg new_ret(Env* env, Reg r, BasicBlock* next) {
+static Reg* new_ret(Env* env, Reg* r, BasicBlock* next) {
   IRInst* i = new_inst_(env, IR_RET);
-  push_RegVec(i->ras, r);
+  push_RegVec(i->ras, copy_Reg(r));
   add_inst(env, i);
 
   connect_bb(env->cur, env->exit);
@@ -437,9 +450,9 @@ static Reg new_ret(Env* env, Reg r, BasicBlock* next) {
   return r;
 }
 
-static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicBlock* next) {
+static void new_br(Env* env, Reg* r, BasicBlock* then_, BasicBlock* else_, BasicBlock* next) {
   IRInst* i = new_inst_(env, IR_BR);
-  push_RegVec(i->ras, r);
+  push_RegVec(i->ras, copy_Reg(r));
   i->then_ = then_;
   i->else_ = else_;
   add_inst(env, i);
@@ -450,8 +463,8 @@ static void new_br(Env* env, Reg r, BasicBlock* then_, BasicBlock* else_, BasicB
   create_or_start_bb(env, next);
 }
 
-static Reg new_global(Env* env, const char* name, GlobalNameKind kind) {
-  Reg r             = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
+static Reg* new_global(Env* env, const char* name, GlobalNameKind kind) {
+  Reg* r            = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* inst      = new_inst_(env, IR_GLOBAL_ADDR);
   inst->rd          = r;
   inst->global_name = strdup(name);
@@ -469,16 +482,16 @@ static char* new_named_string(GlobalEnv* env, const char* str) {
   return strdup(name);
 }
 
-static Reg new_string(Env* env, const char* str) {
+static Reg* new_string(Env* env, const char* str) {
   char* name = new_named_string(env->global_env, str);
-  Reg r      = new_global(env, name, GN_DATA);
+  Reg* r     = new_global(env, name, GN_DATA);
   free(name);
   return r;
 }
 
-static Reg gen_expr(Env* env, Expr* node);
+static Reg* gen_expr(Env* env, Expr* node);
 
-static Reg gen_lhs(Env* env, Expr* node) {
+static Reg* gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_VAR: {
       unsigned i;
@@ -494,9 +507,9 @@ static Reg gen_lhs(Env* env, Expr* node) {
     }
     case ND_MEMBER: {
       assert(is_complete_ty(node->expr->type));
-      Reg r    = gen_lhs(env, node->expr);
+      Reg* r   = gen_lhs(env, node->expr);
       Field* f = get_FieldMap(node->expr->type->field_map, node->member);
-      return new_binop(env, BINOP_ADD, r, new_imm(env, f->offset, r.size));
+      return new_binop(env, BINOP_ADD, r, new_imm(env, f->offset, r->size));
     }
     case ND_STRING:
       return new_string(env, node->string);
@@ -511,13 +524,13 @@ static DataSize datasize_of_node(Expr* e) {
   return to_data_size(sizeof_ty(e->type));
 }
 
-Reg gen_expr(Env* env, Expr* node) {
+Reg* gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST: {
       // TODO: signedness?
       unsigned cast_size = sizeof_ty(node->cast_type);
       unsigned expr_size = sizeof_ty(node->expr->type);
-      Reg r              = gen_expr(env, node->expr);
+      Reg* r             = gen_expr(env, node->expr);
       if (cast_size > expr_size) {
         return new_sext(env, r, cast_size);
       } else if (cast_size < expr_size) {
@@ -529,33 +542,33 @@ Reg gen_expr(Env* env, Expr* node) {
     case ND_NUM:
       return new_imm(env, node->num, datasize_of_node(node));
     case ND_BINOP: {
-      Reg lhs = gen_expr(env, node->lhs);
-      Reg rhs = gen_expr(env, node->rhs);
+      Reg* lhs = gen_expr(env, node->lhs);
+      Reg* rhs = gen_expr(env, node->rhs);
       return new_binop(env, node->binop, lhs, rhs);
     }
     case ND_UNAOP: {
-      Reg r = gen_expr(env, node->expr);
+      Reg* r = gen_expr(env, node->expr);
       return new_unaop(env, node->unaop, r);
     }
     case ND_ADDR:
     case ND_ADDR_ARY:
       return gen_lhs(env, node->expr);
     case ND_DEREF: {
-      Reg r = gen_expr(env, node->expr);
+      Reg* r = gen_expr(env, node->expr);
       return new_load(env, r, datasize_of_node(node));
     }
     case ND_COMPOUND_ASSIGN: {
-      Reg addr = gen_lhs(env, node->lhs);
-      Reg rhs  = gen_expr(env, node->rhs);
-      Reg lhs  = new_load(env, addr, datasize_of_node(node->lhs));
-      Reg val  = new_binop(env, node->binop, lhs, rhs);
-      assert(sizeof_ty(node->lhs->type) == val.size);
+      Reg* addr = gen_lhs(env, node->lhs);
+      Reg* rhs  = gen_expr(env, node->rhs);
+      Reg* lhs  = new_load(env, addr, datasize_of_node(node->lhs));
+      Reg* val  = new_binop(env, node->binop, lhs, rhs);
+      assert(sizeof_ty(node->lhs->type) == val->size);
       new_store(env, addr, val, datasize_of_node(node));
       return val;
     }
     case ND_ASSIGN: {
-      Reg addr = gen_lhs(env, node->lhs);
-      Reg rhs  = gen_expr(env, node->rhs);
+      Reg* addr = gen_lhs(env, node->lhs);
+      Reg* rhs  = gen_expr(env, node->rhs);
       assert(sizeof_ty(node->lhs->type) == sizeof_ty(node->rhs->type));
       new_store(env, addr, rhs, datasize_of_node(node));
       return rhs;
@@ -573,7 +586,7 @@ Reg gen_expr(Env* env, Expr* node) {
       if (is_array_ty(node->type)) {
         error("attempt to perform lvalue conversion on array value");
       }
-      Reg r = gen_lhs(env, node);
+      Reg* r = gen_lhs(env, node);
       return new_load(env, r, datasize_of_node(node));
     }
     case ND_CALL: {
@@ -583,15 +596,16 @@ Reg gen_expr(Env* env, Expr* node) {
       call_bb->is_call_bb = true;
 
       IRInst* inst = new_inst_(env, IR_CALL);
-      Reg f        = gen_expr(env, node->lhs);
-      push_RegVec(inst->ras, f);
+      Reg* f       = gen_expr(env, node->lhs);
+      push_RegVec(inst->ras, copy_Reg(f));
 
       for (unsigned i = 0; i < length_ExprVec(node->args); i++) {
         Expr* e = get_ExprVec(node->args, i);
-        push_RegVec(inst->ras, gen_expr(env, e));
+        Reg* r  = gen_expr(env, e);
+        push_RegVec(inst->ras, copy_Reg(r));
       }
 
-      Reg r    = new_reg(env, datasize_of_node(node));
+      Reg* r   = new_reg(env, datasize_of_node(node));
       inst->rd = r;
 
       env->call_count++;
@@ -602,24 +616,26 @@ Reg gen_expr(Env* env, Expr* node) {
       return r;
     }
     case ND_COND: {
-      Reg r = new_reg(env, datasize_of_node(node));
+      Reg* r = new_reg(env, datasize_of_node(node));
 
       BasicBlock* then_bb = new_bb(env);
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      Reg cond = gen_expr(env, node->cond);
+      Reg* cond = gen_expr(env, node->cond);
       new_br(env, cond, then_bb, else_bb, then_bb);
 
       // then
-      Reg then_ = gen_expr(env, node->then_);
+      Reg* then_ = gen_expr(env, node->then_);
       new_move(env, r, then_);
       new_jump(env, next_bb, else_bb);
 
       // else
-      Reg else_ = gen_expr(env, node->else_);
+      Reg* else_ = gen_expr(env, node->else_);
       new_move(env, r, else_);
       new_jump(env, next_bb, next_bb);
+
+      // TODO: `r` is leaked
 
       return r;
     }
@@ -668,7 +684,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       if (stmt->expr == NULL) {
         new_void_ret(env, NULL);
       } else {
-        Reg r = gen_expr(env, stmt->expr);
+        Reg* r = gen_expr(env, stmt->expr);
         new_ret(env, r, NULL);
       }
       break;
@@ -678,7 +694,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      Reg cond = gen_expr(env, stmt->expr);
+      Reg* cond = gen_expr(env, stmt->expr);
       new_br(env, cond, then_bb, else_bb, then_bb);
 
       // then
@@ -699,7 +715,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       set_loop(env, next_bb, while_bb);
 
       create_or_start_bb(env, while_bb);
-      Reg cond = gen_expr(env, stmt->expr);
+      Reg* cond = gen_expr(env, stmt->expr);
       new_br(env, cond, body_bb, next_bb, body_bb);
 
       // body
@@ -721,7 +737,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
 
       create_or_start_bb(env, cont_bb);
-      Reg cond = gen_expr(env, stmt->expr);
+      Reg* cond = gen_expr(env, stmt->expr);
       new_br(env, cond, body_bb, next_bb, next_bb);
 
       reset_loop(env);
@@ -743,7 +759,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
         gen_expr(env, stmt->init);
       }
       create_or_start_bb(env, for_bb);
-      Reg cond = gen_expr(env, stmt->before);
+      Reg* cond = gen_expr(env, stmt->before);
       new_br(env, cond, body_bb, next_bb, body_bb);
 
       // body
@@ -800,7 +816,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       break;
     }
     case ST_SWITCH: {
-      Reg r = gen_expr(env, stmt->expr);
+      Reg* r = gen_expr(env, stmt->expr);
 
       BasicBlock* next_bb = new_bb(env);
 
@@ -809,7 +825,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
         Statement* case_    = get_StmtVec(stmt->cases, i);
-        Reg cond            = new_binop(env, BINOP_EQ, r, new_imm(env, case_->case_value, r.size));
+        Reg* cond           = new_binop(env, BINOP_EQ, r, new_imm(env, case_->case_value, r->size));
         BasicBlock* fail_bb = new_bb(env);
         new_br(env, cond, get_label(env, case_->label_id), fail_bb, fail_bb);
       }
@@ -905,7 +921,7 @@ static GlobalInitializer* translate_initializer(GlobalEnv* env, Initializer* ini
   }
 }
 
-static void gen_local_scalar_initializer(Env* env, Reg target, Initializer* init, Type* type) {
+static void gen_local_scalar_initializer(Env* env, Reg* target, Initializer* init, Type* type) {
   assert(is_scalar_ty(type));
 
   Expr* expr;
@@ -920,13 +936,13 @@ static void gen_local_scalar_initializer(Env* env, Reg target, Initializer* init
     default:
       CCC_UNREACHABLE;
   }
-  Reg r = gen_expr(env, expr);
+  Reg* r = gen_expr(env, expr);
   new_store(env, target, r, datasize_of_node(expr));
 }
 
-static void gen_local_initializer(Env* env, Reg target, Initializer* init, Type* type);
+static void gen_local_initializer(Env* env, Reg* target, Initializer* init, Type* type);
 
-static void gen_local_array_initializer(Env* env, Reg target, Initializer* init, Type* type) {
+static void gen_local_array_initializer(Env* env, Reg* target, Initializer* init, Type* type) {
   if (init->kind != IN_LIST) {
     error("array initializer must be an initializer list");
   }
@@ -936,14 +952,14 @@ static void gen_local_array_initializer(Env* env, Reg target, Initializer* init,
   // NOTE: `sema` ensured that the initializer list has the same length than the array
   while (!is_nil_InitializerList(cur)) {
     Initializer* ci = head_InitializerList(cur);
-    Reg r           = new_binop(env, BINOP_ADD, target, new_imm(env, offset, target.size));
+    Reg* r          = new_binop(env, BINOP_ADD, target, new_imm(env, offset, target->size));
     gen_local_initializer(env, r, ci, type->element);
     cur = tail_InitializerList(cur);
     offset += sizeof_ty(type->element);
   }
 }
 
-static void gen_local_initializer(Env* env, Reg target, Initializer* init, Type* type) {
+static void gen_local_initializer(Env* env, Reg* target, Initializer* init, Type* type) {
   if (is_scalar_ty(type)) {
     gen_local_scalar_initializer(env, target, init, type);
   } else if (is_array_ty(type)) {
@@ -959,7 +975,7 @@ static void gen_init_declarator(Env* env,
                                 InitDeclarator* decl) {
   if (env != NULL) {
     unsigned var = new_var(env, decl->declarator->direct->name_ref, sizeof_ty(decl->type));
-    Reg r        = new_stack_addr(env, var);
+    Reg* r       = new_stack_addr(env, var);
 
     if (decl->initializer != NULL) {
       gen_local_initializer(env, r, decl->initializer, decl->type);
@@ -1027,7 +1043,7 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
   unsigned addr;
   get_var(env, name, &addr);
 
-  Reg rhs = nth_arg(env, nth, to_data_size(size));
+  Reg* rhs = nth_arg(env, nth, to_data_size(size));
   new_stack_store(env, addr, rhs, to_data_size(size));
 
   gen_params(env, f, nth + 1, tail_ParamList(l));
@@ -1046,20 +1062,16 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
 
-  Function* ir        = calloc(1, sizeof(Function));
-  ir->name            = strdup(ast->decl->direct->name_ref);
-  ir->entry           = entry;
-  ir->exit            = env->cur;
-  ir->bb_count        = env->bb_count;
-  ir->reg_count       = env->reg_count;
-  ir->stack_count     = env->stack_count;
-  ir->inst_count      = env->inst_count;
-  ir->call_count      = env->call_count;
-  ir->blocks          = env->blocks;
-  ir->sorted_blocks   = NULL;
-  ir->intervals       = NULL;
-  ir->used_regs       = NULL;
-  ir->used_fixed_regs = NULL;
+  Function* ir    = calloc(1, sizeof(Function));
+  ir->name        = strdup(ast->decl->direct->name_ref);
+  ir->entry       = entry;
+  ir->exit        = env->cur;
+  ir->bb_count    = env->bb_count;
+  ir->reg_count   = env->reg_count;
+  ir->stack_count = env->stack_count;
+  ir->inst_count  = env->inst_count;
+  ir->call_count  = env->call_count;
+  ir->blocks      = env->blocks;
 
   // TODO: shallow release of containers
   free(env);
@@ -1109,16 +1121,16 @@ void release_IR(IR* ir) {
   release_GlobalVarVec(ir->globals);
 }
 
-static void print_reg(FILE* p, Reg r) {
-  switch (r.kind) {
+static void print_reg(FILE* p, Reg* r) {
+  switch (r->kind) {
     case REG_VIRT:
-      fprintf(p, "v%d", r.virtual);
+      fprintf(p, "v%d", r->virtual);
       break;
     case REG_REAL:
-      fprintf(p, "r%d", r.real);
+      fprintf(p, "r%d", r->real);
       break;
     case REG_FIXED:
-      fprintf(p, "f(v%d:r%d)", r.virtual, r.real);
+      fprintf(p, "f(v%d:r%d)", r->virtual, r->real);
       break;
     default:
       CCC_UNREACHABLE;
@@ -1150,7 +1162,7 @@ void print_escaped_binop(FILE* p, BinopKind kind) {
 }
 
 static void print_inst(FILE* p, IRInst* i) {
-  if (i->rd.is_used) {
+  if (i->rd != NULL) {
     print_reg(p, i->rd);
     fprintf(p, " = ");
   }

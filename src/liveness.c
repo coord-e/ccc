@@ -47,17 +47,16 @@ static void iter_insts(BasicBlock* b, IRInstList* l) {
   IRInst* inst = head_IRInstList(l);
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg ra = get_RegVec(inst->ras, i);
-    assert(ra.is_used);
+    Reg* ra = get_RegVec(inst->ras, i);
 
-    unsigned vi = ra.virtual;
+    unsigned vi = ra->virtual;
     if (!get_BitSet(b->live_kill, vi)) {
       set_BitSet(b->live_gen, vi, true);
     }
   }
 
-  if (inst->rd.is_used) {
-    set_BitSet(b->live_kill, inst->rd.virtual, true);
+  if (inst->rd != NULL) {
+    set_BitSet(b->live_kill, inst->rd->virtual, true);
   }
 
   iter_insts(b, tail_IRInstList(l));
@@ -137,12 +136,12 @@ static Interval* new_interval(unsigned from, unsigned to) {
   return iv;
 }
 
-static void set_interval_kind(Interval* iv, Reg r) {
-  switch (r.kind) {
+static void set_interval_kind(Interval* iv, Reg* r) {
+  switch (r->kind) {
     case REG_FIXED:
       assert(iv->kind == IV_UNSET || iv->kind == IV_FIXED);
       iv->kind       = IV_FIXED;
-      iv->fixed_real = r.real;
+      iv->fixed_real = r->real;
       break;
     case REG_VIRT:
       assert(iv->kind == IV_UNSET || iv->kind == IV_VIRTUAL);
@@ -175,16 +174,15 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
     IRInst* inst = get_IRInstVec(v, ii - 1);
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-      Reg ra = get_RegVec(inst->ras, i);
-      assert(ra.is_used);
+      Reg* ra = get_RegVec(inst->ras, i);
 
-      Interval* iv = get_RegIntervals(ivs, ra.virtual);
+      Interval* iv = get_RegIntervals(ivs, ra->virtual);
       add_range(iv, block_from, inst->local_id);
       set_interval_kind(iv, ra);
     }
 
-    if (inst->rd.is_used) {
-      Interval* iv = get_RegIntervals(ivs, inst->rd.virtual);
+    if (inst->rd != NULL) {
+      Interval* iv = get_RegIntervals(ivs, inst->rd->virtual);
       set_from(iv, inst->local_id);
       set_interval_kind(iv, inst->rd);
     }

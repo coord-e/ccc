@@ -67,8 +67,7 @@ static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
 }
 
 typedef struct {
-  IndexedUIList* active;  // owned, a list of virtual registers
-  unsigned active_count;
+  IndexedUIList* active;     // owned, a list of virtual registers
   IndexedUIList* available;  // owned, a list of real registers
   UIVec* used_by;            // owned, -1 -> not used
   UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
@@ -91,7 +90,6 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
   env->active             = new_IndexedUIList(virt_count);
-  env->active_count       = 0;
   env->available          = new_IndexedUIList(env->usable_regs_count);
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
@@ -199,13 +197,10 @@ static void add_to_active(Env* env, unsigned target_virt) {
     }
     it = next_UIDListIterator(it);
   }
-
-  env->active_count++;
 }
 
 static void remove_from_active(Env* env, UIDListIterator* cur) {
   remove_IndexedUIList(env->active, data_UIDListIterator(cur), cur);
-  env->active_count--;
 }
 
 static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterator* l) {
@@ -305,7 +300,7 @@ static void walk_regs(Env* env, UIList* l) {
 
   switch (iv->kind) {
     case IV_VIRTUAL:
-      if (env->active_count == env->usable_regs_count) {
+      if (is_empty_UIDList(env->available->list)) {
         spill_at_interval(env, virtual);
       } else {
         alloc_reg(env, virtual);

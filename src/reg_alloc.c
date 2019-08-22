@@ -201,26 +201,19 @@ static void release_reg(Env* env, unsigned virtual) {
   add_to_available(env, real);
 }
 
-static void expire_old_intervals_iter(Env* env, Interval* current, UIDListIterator* l) {
-  if (is_nil_UIDListIterator(l)) {
-    return;
-  }
-
-  unsigned virtual = data_UIDListIterator(l);
-  Interval* intv   = interval_of(env, virtual);
-  if (intv->to >= current->from) {
-    return;
-  }
-
-  UIDListIterator* next = next_UIDListIterator(l);
-  // expired
-  release_reg(env, virtual);
-
-  expire_old_intervals_iter(env, current, next);
-}
-
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  expire_old_intervals_iter(env, target_iv, front_UIDList(env->active->list));
+  UIDListIterator* it = front_UIDList(env->active->list);
+  while (!is_nil_UIDListIterator(it)) {
+    unsigned virtual = data_UIDListIterator(it);
+    Interval* intv   = interval_of(env, virtual);
+    if (intv->to >= target_iv->from) {
+      return;
+    }
+    // NOTE: obtain `it` earlier because `release_reg` modifies active list
+    it = next_UIDListIterator(it);
+
+    release_reg(env, virtual);
+  }
 }
 
 static void alloc_stack(Env* env, unsigned virt) {

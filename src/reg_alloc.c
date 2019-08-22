@@ -223,6 +223,11 @@ static void alloc_stack(Env* env, unsigned virt) {
   set_UIVec(env->result, virt, -2);  // mark as spilled
 }
 
+static void spill_reg(Env* env, unsigned virt) {
+  release_reg(env, virt);
+  alloc_stack(env, virt);
+}
+
 static void spill_at_interval(Env* env, unsigned target) {
   UIDListIterator* spill_ptr = back_UIDList(env->active->list);
   unsigned spill;
@@ -240,11 +245,10 @@ static void spill_at_interval(Env* env, unsigned target) {
   Interval* target_intv = interval_of(env, target);
   if (spill_intv->to > target_intv->to) {
     unsigned r = get_UIVec(env->result, spill);
-    release_reg(env, spill);
-    alloc_stack(env, spill);
+    spill_reg(env, spill);
     alloc_specific_reg(env, target, r);
   } else {
-    alloc_stack(env, target);
+    spill_reg(env, target);
   }
 }
 
@@ -295,9 +299,7 @@ static void walk_regs(Env* env, UIList* l) {
     case IV_FIXED: {
       unsigned u = get_UIVec(env->used_by, iv->fixed_real);
       if (u != -1) {
-        unsigned blocked_virt = u;
-        alloc_stack(env, blocked_virt);
-        release_reg(env, blocked_virt);
+        spill_reg(env, u);
       }
       alloc_specific_reg(env, virtual, iv->fixed_real);
       break;

@@ -555,7 +555,11 @@ Reg* gen_expr(Env* env, Expr* node) {
       return gen_lhs(env, node->expr);
     case ND_DEREF: {
       Reg* r = gen_expr(env, node->expr);
-      return new_load(env, r, datasize_of_node(node));
+      if (node->type->kind == TY_STRUCT) {
+        return r;
+      } else {
+        return new_load(env, r, datasize_of_node(node));
+      }
     }
     case ND_COMPOUND_ASSIGN: {
       Reg* addr = gen_lhs(env, node->lhs);
@@ -587,7 +591,11 @@ Reg* gen_expr(Env* env, Expr* node) {
         error("attempt to perform lvalue conversion on array value");
       }
       Reg* r = gen_lhs(env, node);
-      return new_load(env, r, datasize_of_node(node));
+      if (node->type->kind == TY_STRUCT) {
+        return r;
+      } else {
+        return new_load(env, r, datasize_of_node(node));
+      }
     }
     case ND_CALL: {
       BasicBlock* call_bb = new_bb(env);

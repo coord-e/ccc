@@ -192,9 +192,7 @@ static void alloc_reg(Env* env, unsigned virtual) {
 
 static void release_reg(Env* env, unsigned virtual) {
   unsigned real = get_UIVec(env->result, virtual);
-  if (real == -1) {
-    return;
-  }
+  assert(real != -1 && real != -2);
 
   set_UIVec(env->used_by, real, -1);
   remove_by_idx_IndexedUIList(env->active, virtual);
@@ -248,7 +246,7 @@ static void spill_at_interval(Env* env, unsigned target) {
     spill_reg(env, spill);
     alloc_specific_reg(env, target, r);
   } else {
-    spill_reg(env, target);
+    alloc_stack(env, target);
   }
 }
 

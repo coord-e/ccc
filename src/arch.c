@@ -99,9 +99,10 @@ static IRInst* new_unaop(Env* env, UnaopKind kind, Reg* rd, Reg* opr) {
   return inst;
 }
 
-static IRInst* new_call(Env* env, Reg* rd, Reg* rf) {
-  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_CALL);
-  inst->rd     = copy_Reg(rd);
+static IRInst* new_call(Env* env, Reg* rd, Reg* rf, bool is_vararg) {
+  IRInst* inst    = new_inst(env->inst_count++, env->global_inst_count++, IR_CALL);
+  inst->rd        = copy_Reg(rd);
+  inst->is_vararg = is_vararg;
   push_RegVec(inst->ras, copy_Reg(rf));
   return inst;
 }
@@ -189,13 +190,14 @@ static void walk_insts(Env* env, IRInstList* l) {
       break;
     }
     case IR_CALL: {
-      Reg* rd = inst->rd;
-      Reg* rf = get_RegVec(inst->ras, 0);
+      Reg* rd        = inst->rd;
+      Reg* rf        = get_RegVec(inst->ras, 0);
+      bool is_vararg = inst->is_vararg;
 
       remove_IRInstList(l);
       Reg* rax = rax_fixed_reg(env, rd->size);
       insert_IRInstList(new_move(env, rd, rax), l);
-      IRInst* call = new_call(env, rax, rf);
+      IRInst* call = new_call(env, rax, rf, is_vararg);
       release_Reg(rax);
       insert_IRInstList(call, l);
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {

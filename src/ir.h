@@ -85,6 +85,8 @@ typedef struct IRInst {
   BasicBlock* then_;  // for IR_BR, not owned
   BasicBlock* else_;  // for IR_BR, not owned
 
+  bool is_vararg;  // for IR_CALL
+
   Reg* rd;      // destination register (null if unused)
   RegVec* ras;  // argument registers (won't be null)
 } IRInst;

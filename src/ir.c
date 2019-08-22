@@ -618,6 +618,9 @@ Reg* gen_expr(Env* env, Expr* node) {
       Reg* r   = new_reg(env, datasize_of_node(node));
       inst->rd = r;
 
+      assert(node->lhs->type->kind == TY_PTR && node->lhs->type->ptr_to->kind == TY_FUNC);
+      inst->is_vararg = node->lhs->type->ptr_to->is_vararg;
+
       env->call_count++;
 
       new_jump(env, call_bb, call_bb);

@@ -212,6 +212,9 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       for (unsigned i = 1; i < length_RegVec(h->ras); i++) {
         assert(get_RegVec(h->ras, i)->real == nth_arg_id(i - 1));
       }
+      if (h->is_vararg) {
+        emit(p, "mov rax, 0");
+      }
       emit(p, "call %s", nth_reg_of(0, h->ras));
       assert(h->rd->real == rax_reg_id);
       break;

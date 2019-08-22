@@ -48,7 +48,6 @@ static void iter_insts(BasicBlock* b, IRInstList* l) {
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
-    assert(ra->is_used);
 
     unsigned vi = ra->virtual;
     if (!get_BitSet(b->live_kill, vi)) {
@@ -56,7 +55,7 @@ static void iter_insts(BasicBlock* b, IRInstList* l) {
     }
   }
 
-  if (inst->rd->is_used) {
+  if (inst->rd != NULL) {
     set_BitSet(b->live_kill, inst->rd->virtual, true);
   }
 
@@ -176,14 +175,13 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       Reg* ra = get_RegVec(inst->ras, i);
-      assert(ra->is_used);
 
       Interval* iv = get_RegIntervals(ivs, ra->virtual);
       add_range(iv, block_from, inst->local_id);
       set_interval_kind(iv, ra);
     }
 
-    if (inst->rd->is_used) {
+    if (inst->rd != NULL) {
       Interval* iv = get_RegIntervals(ivs, inst->rd->virtual);
       set_from(iv, inst->local_id);
       set_interval_kind(iv, inst->rd);

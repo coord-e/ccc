@@ -42,6 +42,7 @@ IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   i->local_id  = local;
   i->global_id = global;
 
+  i->rd          = NULL;
   i->ras         = new_RegVec(1);
   i->global_name = NULL;
   return i;
@@ -1186,7 +1187,7 @@ void print_escaped_binop(FILE* p, BinopKind kind) {
 }
 
 static void print_inst(FILE* p, IRInst* i) {
-  if (i->rd->is_used) {
+  if (i->rd != NULL) {
     print_reg(p, i->rd);
     fprintf(p, " = ");
   }

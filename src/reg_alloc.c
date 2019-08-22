@@ -368,14 +368,13 @@ static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
-    assert(ra->is_used);
 
     if (assign_reg(env, ra)) {
       tail = emit_spill_load(env, ra, &l);
     }
   }
 
-  if (inst->rd->is_used) {
+  if (inst->rd != NULL) {
     if (assign_reg(env, inst->rd)) {
       tail = emit_spill_store(env, inst->rd, l);
     }

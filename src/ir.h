@@ -43,8 +43,6 @@ typedef struct {
   unsigned virtual;
   unsigned real;
   DataSize size;
-
-  bool is_used;  // TODO: Use better way to represent unsued register slot
 } Reg;
 
 Reg* new_Reg(RegKind, DataSize);

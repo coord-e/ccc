@@ -67,64 +67,17 @@ static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
 }
 
 typedef struct {
-  Function* function;  // not owned
-
   IndexedUIList* active;     // owned, a list of virtual registers
   IndexedUIList* available;  // owned, a list of real registers
-  UIVec* used_by;            // owned, real->virtual, -1 -> not used
-} RegisterStore;
-
-// return true if r1 is preferred than r2
-static bool compare_priority(RegisterStore* store, unsigned r1, unsigned r2) {
-  if (get_BitSet(store->function->used_fixed_regs, r1)) {
-    return false;
-  }
-  if (get_BitSet(store->function->used_fixed_regs, r2)) {
-    return true;
-  }
-
-  if (store->function->call_count > 0) {
-    return is_scratch[r1] < is_scratch[r2];
-  } else {
-    return is_scratch[r1] > is_scratch[r2];
-  }
-}
-
-static void add_to_available(RegisterStore* store, unsigned real) {
-  UIDListIterator* it = front_UIDList(store->available->list);
-  while (true) {
-    if (is_nil_UIDListIterator(it) || compare_priority(store, real, data_UIDListIterator(it))) {
-      insert_IndexedUIList(store->available, real, it, real);
-      break;
-    }
-    it = next_UIDListIterator(it);
-  }
-}
-
-static RegisterStore* new_store(Function* f, unsigned available_reg_count) {
-  RegisterStore* s = calloc(1, sizeof(RegisterStore));
-  s->function      = f;
-  s->active        = new_IndexedUIList(f->reg_count);
-  s->available     = new_IndexedUIList(available_reg_count);
-  s->used_by       = new_UIVec(available_reg_count);
-  resize_UIVec(s->used_by, available_reg_count);
-  fill_UIVec(s->used_by, -1);
-
-  for (unsigned i = 0; i < available_reg_count; i++) {
-    add_to_available(s, i);
-  }
-
-  return s;
-}
-
-typedef struct {
-  RegisterStore* store;  // owned
-  UIVec* result;         // owned, -1 -> not allocated, -2 -> spilled
-  UIVec* locations;      // owned, -1 -> not spilled
+  UIVec* used_by;            // owned, -1 -> not used
+  UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
+  UIVec* locations;          // owned, -1 -> not spilled
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
 
   unsigned* global_count;
+
+  Function* f;
 } Env;
 
 static void add_to_available(Env* env, unsigned real);
@@ -133,9 +86,14 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
   unsigned virt_count = f->reg_count;
 
   Env* env                = calloc(1, sizeof(Env));
+  env->f                  = f;
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
-  env->store              = new_store(f, env->usable_regs_count);
+  env->active             = new_IndexedUIList(virt_count);
+  env->available          = new_IndexedUIList(env->usable_regs_count);
+  env->used_by            = new_UIVec(env->usable_regs_count);
+  resize_UIVec(env->used_by, env->usable_regs_count);
+  fill_UIVec(env->used_by, -1);
 
   env->result = new_UIVec(virt_count);
   resize_UIVec(env->result, virt_count);
@@ -147,14 +105,47 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
 
   env->global_count = global_count;
 
+  for (unsigned i = 0; i < env->usable_regs_count; i++) {
+    add_to_available(env, i);
+  }
+
   return env;
 }
 
 static void release_Env(Env* env) {
-  release_store(env->store);
+  release_IndexedUIList(env->active);
+  release_IndexedUIList(env->available);
+  release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
   free(env);
+}
+
+// return true if r1 is preferred than r2
+static bool compare_priority(Env* env, unsigned r1, unsigned r2) {
+  if (get_BitSet(env->f->used_fixed_regs, r1)) {
+    return false;
+  }
+  if (get_BitSet(env->f->used_fixed_regs, r2)) {
+    return true;
+  }
+
+  if (env->f->call_count > 0) {
+    return is_scratch[r1] < is_scratch[r2];
+  } else {
+    return is_scratch[r1] > is_scratch[r2];
+  }
+}
+
+static void add_to_available(Env* env, unsigned real) {
+  UIDListIterator* it = front_UIDList(env->available->list);
+  while (true) {
+    if (is_nil_UIDListIterator(it) || compare_priority(env, real, data_UIDListIterator(it))) {
+      insert_IndexedUIList(env->available, real, it, real);
+      break;
+    }
+    it = next_UIDListIterator(it);
+  }
 }
 
 static IRInst* new_inst_(Env* env, IRInstKind kind) {

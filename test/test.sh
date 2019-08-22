@@ -525,6 +525,48 @@ int main(int argc, char** argv) {
   return a->ptr->ptr->ptr->ptr->ptr->i;
 }
 EOF
+try_ 25 <<EOF
+struct S {
+  int a;
+  struct {
+    long field1;
+    char field2;
+  } b;
+};
+
+int main() {
+  struct S s1;
+  s1.a = 10;
+  s1.b.field1 = 5;
+  s1.b.field2 = 20;
+  struct S s2;
+  s2 = s1;
+  return s2.b.field1 + s2.b.field2;
+}
+EOF
+try_ 1 <<EOF
+void* malloc(int);
+
+struct S {
+  int a;
+  long b;
+};
+
+struct S* new_S(int i, long l) {
+  struct S* s = malloc(sizeof(struct S));
+  s->a = i;
+  s->b = l;
+  return s;
+}
+
+int main() {
+  struct S* s1 = new_S(1, 2);
+  struct S* s2 = new_S(3, 4);
+  *s2 = *s1;
+  s1->a = 10;
+  return s2->a;
+}
+EOF
 
 # typedef
 items 4 "typedef int yeah; yeah x = 4; return x;"

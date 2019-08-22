@@ -3,7 +3,7 @@
 
 // release functions
 
-static void release_expr(Expr* e);
+void release_expr(Expr* e);
 
 static void release_Enumerator(Enumerator* e) {
   if (e == NULL) {
@@ -129,7 +129,7 @@ static void release_TypeName(TypeName* t) {
   free(t);
 }
 
-static void release_expr(Expr* e) {
+void release_expr(Expr* e) {
   if (e == NULL) {
     return;
   }
@@ -855,6 +855,47 @@ Expr* new_node_member(Expr* e, const char* s) {
 Expr* shallow_copy_node(Expr* e) {
   Expr* node = new_node(0, NULL, NULL);
   *node      = *e;
+  return node;
+}
+
+Expr* copy_node(Expr* e) {
+  Expr* node = shallow_copy_node(e);
+  if (e->lhs != NULL) {
+    node->lhs = copy_node(e->lhs);
+  }
+  if (e->rhs != NULL) {
+    node->rhs = copy_node(e->rhs);
+  }
+  if (e->expr != NULL) {
+    node->expr = copy_node(e->expr);
+  }
+  if (e->cond != NULL) {
+    node->cond = copy_node(e->cond);
+  }
+  if (e->then_ != NULL) {
+    node->then_ = copy_node(e->then_);
+  }
+  if (e->else_ != NULL) {
+    node->else_ = copy_node(e->else_);
+  }
+  if (e->var != NULL) {
+    node->var = strdup(e->var);
+  }
+  if (e->string != NULL) {
+    node->string = strdup(e->string);
+  }
+  if (e->member != NULL) {
+    node->member = strdup(e->member);
+  }
+  if (e->type != NULL) {
+    node->type = copy_Type(e->type);
+  }
+  if (e->cast_type != NULL) {
+    node->cast_type = copy_Type(e->cast_type);
+  }
+  if (e->cast_to != NULL || e->sizeof_ != NULL || e->args != NULL) {
+    assert(false && "not implemented");
+  }
   return node;
 }
 

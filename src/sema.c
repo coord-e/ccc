@@ -633,11 +633,12 @@ static Expr* build_struct_copy(Expr* opr1, Expr* opr2) {
   Expr* node = NULL;
   for (unsigned i = 0; i < length_StringVec(ty->fields); i++) {
     char* k   = get_StringVec(ty->fields, i);
-    Expr* lhs = new_node_member(opr1, k);
-    Expr* rhs = new_node_member(opr2, k);
+    Expr* lhs = new_node_member(copy_node(opr1), strdup(k));
+    Expr* rhs = new_node_member(copy_node(opr2), strdup(k));
 
     node = build_comma(node, new_node_assign(lhs, rhs));
   }
+  release_expr(opr2);
 
   return build_comma(node, opr1);
 }

@@ -8,26 +8,31 @@
 #include "list.h"
 #include "util.h"
 
-static void release_token(Token t) {
-  free(t.ident);
-  free(t.string);
+static void release_Token(Token* t) {
+  if (t == NULL) {
+    return;
+  }
+
+  free(t->ident);
+  free(t->string);
+  free(t);
 }
-DEFINE_LIST(release_token, Token, TokenList)
+DEFINE_LIST(release_Token, Token*, TokenList)
+
+Token* new_Token(TokenKind kind) {
+  Token* t = calloc(1, sizeof(Token));
+  t->kind  = kind;
+  return t;
+}
 
 static TokenList* add_token(TokenKind kind, TokenList* cur) {
-  Token t;
-  t.ident  = NULL;
-  t.string = NULL;
-  t.kind   = kind;
-  t.length = 0;
-  t.number = 0;
-  return snoc_TokenList(t, cur);
+  return snoc_TokenList(new_Token(kind), cur);
 }
 
 // will seek `strp` to the end of number
 static TokenList* add_number(char** strp, TokenList* cur) {
-  TokenList* t   = add_token(TK_NUMBER, cur);
-  t->head.number = strtol(*strp, strp, 10);
+  TokenList* t    = add_token(TK_NUMBER, cur);
+  t->head->number = strtol(*strp, strp, 10);
   return t;
 }
 
@@ -100,8 +105,8 @@ static TokenList* add_ident(char** strp, TokenList* cur) {
   }
 #undef IS_SAME
 
-  TokenList* t  = add_token(TK_IDENT, cur);
-  t->head.ident = strndup(init, *strp - init);
+  TokenList* t   = add_token(TK_IDENT, cur);
+  t->head->ident = strndup(init, *strp - init);
   return t;
 }
 
@@ -239,9 +244,9 @@ TokenList* tokenize(char* p) {
         char* init = p;
         while (*p != '"')
           p++;
-        cur              = add_token(TK_STRING, cur);
-        cur->head.string = strndup(init, p - init);
-        cur->head.length = p - init;
+        cur               = add_token(TK_STRING, cur);
+        cur->head->string = strndup(init, p - init);
+        cur->head->length = p - init;
         p++;
         continue;
       case '^':
@@ -389,8 +394,8 @@ TokenList* tokenize(char* p) {
   return init;
 }
 
-static void print_token(FILE* p, Token t) {
-  switch (t.kind) {
+static void print_Token(FILE* p, Token* t) {
+  switch (t->kind) {
     case TK_PLUS:
       fprintf(p, "(+)");
       break;
@@ -608,20 +613,20 @@ static void print_token(FILE* p, Token t) {
       fprintf(p, "(CONST)");
       break;
     case TK_NUMBER:
-      fprintf(p, "num(%d)", t.number);
+      fprintf(p, "num(%d)", t->number);
       break;
     case TK_STRING:
-      fprintf(p, "str(%s,%ld)", t.string, t.length);
+      fprintf(p, "str(%s,%ld)", t->string, t->length);
       break;
     case TK_END:
       fprintf(p, "end");
       return;
     case TK_IDENT:
-      fprintf(p, "ident(%s)", t.ident);
+      fprintf(p, "ident(%s)", t->ident);
       return;
     default:
       CCC_UNREACHABLE;
   }
 }
 
-DEFINE_LIST_PRINTER(print_token, ", ", "\n", TokenList)
+DEFINE_LIST_PRINTER(print_Token, ", ", "\n", TokenList)

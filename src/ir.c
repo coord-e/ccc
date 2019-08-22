@@ -4,6 +4,32 @@
 #include "map.h"
 #include "parser.h"
 
+Reg* new_Reg(RegKind kind, DataSize size) {
+  Reg* r  = calloc(1, sizeof(Reg));
+  r->kind = kind;
+  r->size = size;
+  return r;
+}
+
+Reg* new_virtual_Reg(unsigned virtual) {
+  Reg* r     = new_Reg(REG_VIRT);
+  r->virtual = virtual;
+  return r;
+}
+
+Reg* new_real_Reg(unsigned real) {
+  Reg* r  = new_Reg(REG_REAL);
+  r->real = real;
+  return r;
+}
+
+Reg* new_fixed_Reg(unsigned virtual, unsigned real) {
+  Reg* r     = new_Reg(REG_FIXED);
+  r->virtual = virtual;
+  r->real    = real;
+  return r;
+}
+
 IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   IRInst* i    = calloc(1, sizeof(IRInst));
   i->kind      = kind;

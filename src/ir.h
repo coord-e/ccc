@@ -47,6 +47,11 @@ typedef struct {
   bool is_used;  // TODO: Use better way to represent unsued register slot
 } Reg;
 
+Reg* new_Reg(RegKind, DataSize);
+Reg* new_virtual_Reg(unsigned virtual);
+Reg* new_real_Reg(unsigned real);
+Reg* new_fixed_Reg(unsigned virtual, unsigned real);
+
 DECLARE_VECTOR(Reg, RegVec)
 DECLARE_VECTOR_PRINTER(RegVec)
 

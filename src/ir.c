@@ -556,6 +556,7 @@ Reg* gen_expr(Env* env, Expr* node) {
     case ND_DEREF: {
       Reg* r = gen_expr(env, node->expr);
       if (node->type->kind == TY_STRUCT) {
+        // NOTE: same representation (pointer to the head) is used for a struct value and struct lvalue
         return r;
       } else {
         return new_load(env, r, datasize_of_node(node));
@@ -592,6 +593,7 @@ Reg* gen_expr(Env* env, Expr* node) {
       }
       Reg* r = gen_lhs(env, node);
       if (node->type->kind == TY_STRUCT) {
+        // NOTE: same representation (pointer to the head) is used for a struct value and struct lvalue
         return r;
       } else {
         return new_load(env, r, datasize_of_node(node));

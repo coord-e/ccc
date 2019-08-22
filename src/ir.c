@@ -42,9 +42,7 @@ IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
   i->local_id  = local;
   i->global_id = global;
 
-  i->rd          = NULL;
-  i->ras         = new_RegVec(1);
-  i->global_name = NULL;
+  i->ras = new_RegVec(1);
   return i;
 }
 
@@ -138,10 +136,8 @@ typedef struct {
 } GlobalEnv;
 
 static GlobalEnv* init_GlobalEnv() {
-  GlobalEnv* env  = calloc(1, sizeof(GlobalEnv));
-  env->bb_count   = 0;
-  env->inst_count = 0;
-  env->globals    = new_GlobalVarVec(16);
+  GlobalEnv* env = calloc(1, sizeof(GlobalEnv));
+  env->globals   = new_GlobalVarVec(16);
   return env;
 }
 
@@ -198,20 +194,11 @@ static BasicBlock* new_bb(Env* env) {
   BasicBlock* bb = calloc(1, sizeof(BasicBlock));
   inst->label    = bb;
 
-  bb->local_id   = local_id;
-  bb->global_id  = global_id;
-  bb->insts      = single_IRInstList(inst);
-  bb->succs      = nil_BBList();
-  bb->preds      = nil_BBList();
-  bb->dead       = false;
-  bb->is_call_bb = false;
-
-  bb->live_gen        = NULL;
-  bb->live_kill       = NULL;
-  bb->live_in         = NULL;
-  bb->live_out        = NULL;
-  bb->sorted_insts    = NULL;
-  bb->should_preserve = NULL;
+  bb->local_id  = local_id;
+  bb->global_id = global_id;
+  bb->insts     = single_IRInstList(inst);
+  bb->succs     = nil_BBList();
+  bb->preds     = nil_BBList();
 
   env->blocks = cons_BBList(bb, env->blocks);
 
@@ -219,20 +206,12 @@ static BasicBlock* new_bb(Env* env) {
 }
 
 static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
-  Env* env         = calloc(1, sizeof(Env));
-  env->global_env  = genv;
-  env->reg_count   = 0;
-  env->stack_count = 0;
-  env->bb_count    = 0;
-  env->inst_count  = 0;
-  env->call_count  = 0;
-  env->vars        = new_UIMap(32);
-  env->blocks      = nil_BBList();
+  Env* env        = calloc(1, sizeof(Env));
+  env->global_env = genv;
+  env->vars       = new_UIMap(32);
+  env->blocks     = nil_BBList();
 
   env->exit = new_bb(env);
-
-  env->loop_break    = NULL;
-  env->loop_continue = NULL;
 
   env->named_labels = f->named_labels;
   env->labels       = new_BBVec(f->label_count);
@@ -1083,20 +1062,16 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
 
-  Function* ir        = calloc(1, sizeof(Function));
-  ir->name            = strdup(ast->decl->direct->name_ref);
-  ir->entry           = entry;
-  ir->exit            = env->cur;
-  ir->bb_count        = env->bb_count;
-  ir->reg_count       = env->reg_count;
-  ir->stack_count     = env->stack_count;
-  ir->inst_count      = env->inst_count;
-  ir->call_count      = env->call_count;
-  ir->blocks          = env->blocks;
-  ir->sorted_blocks   = NULL;
-  ir->intervals       = NULL;
-  ir->used_regs       = NULL;
-  ir->used_fixed_regs = NULL;
+  Function* ir    = calloc(1, sizeof(Function));
+  ir->name        = strdup(ast->decl->direct->name_ref);
+  ir->entry       = entry;
+  ir->exit        = env->cur;
+  ir->bb_count    = env->bb_count;
+  ir->reg_count   = env->reg_count;
+  ir->stack_count = env->stack_count;
+  ir->inst_count  = env->inst_count;
+  ir->call_count  = env->call_count;
+  ir->blocks      = env->blocks;
 
   // TODO: shallow release of containers
   free(env);

@@ -747,21 +747,10 @@ void print_AST(FILE* p, AST* ast) {
 
 // constructors
 Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs) {
-  Expr* node      = calloc(1, sizeof(Expr));
-  node->kind      = kind;
-  node->lhs       = lhs;
-  node->rhs       = rhs;
-  node->expr      = NULL;
-  node->var       = NULL;
-  node->string    = NULL;
-  node->args      = NULL;
-  node->cast_to   = NULL;
-  node->cast_type = NULL;
-  node->type      = NULL;
-  node->cond      = NULL;
-  node->then_     = NULL;
-  node->else_     = NULL;
-  node->sizeof_   = NULL;
+  Expr* node = calloc(1, sizeof(Expr));
+  node->kind = kind;
+  node->lhs  = lhs;
+  node->rhs  = rhs;
   return node;
 }
 
@@ -872,10 +861,6 @@ Expr* shallow_copy_node(Expr* e) {
 DirectDeclarator* new_DirectDeclarator(DirectDeclKind kind) {
   DirectDeclarator* d = calloc(1, sizeof(DirectDeclarator));
   d->kind             = kind;
-  d->name_ref         = NULL;
-  d->name             = NULL;
-  d->decl             = NULL;
-  d->length           = NULL;
   return d;
 }
 
@@ -897,8 +882,6 @@ bool is_abstract_declarator(Declarator* d) {
 Initializer* new_Initializer(InitializerKind kind) {
   Initializer* init = calloc(1, sizeof(Initializer));
   init->kind        = kind;
-  init->expr        = NULL;
-  init->list        = NULL;
   return init;
 }
 
@@ -922,7 +905,6 @@ TypeName* new_TypeName(DeclarationSpecifiers* spec, Declarator* s) {
   TypeName* d   = calloc(1, sizeof(TypeName));
   d->spec       = spec;
   d->declarator = s;
-  d->type       = NULL;
   return d;
 }
 
@@ -942,30 +924,15 @@ BlockItem* new_block_item(BlockItemKind kind, Statement* stmt, Declaration* decl
 }
 
 FunctionDef* new_function_def() {
-  FunctionDef* def  = calloc(1, sizeof(FunctionDef));
-  def->spec         = NULL;
-  def->decl         = NULL;
-  def->params       = NULL;
-  def->items        = NULL;
-  def->type         = NULL;
-  def->named_labels = NULL;
-  def->label_count  = 0;
-  return def;
+  return calloc(1, sizeof(FunctionDef));
 }
 
 FunctionDecl* new_function_decl() {
-  FunctionDecl* decl = calloc(1, sizeof(FunctionDecl));
-  decl->spec         = NULL;
-  decl->decl         = NULL;
-  decl->params       = NULL;
-  decl->type         = NULL;
-  return decl;
+  return calloc(1, sizeof(FunctionDecl));
 }
 
 ExternalDecl* new_external_decl(ExtDeclKind kind) {
   ExternalDecl* edecl = calloc(1, sizeof(ExternalDecl));
   edecl->kind         = kind;
-  edecl->func         = NULL;
-  edecl->func_decl    = NULL;
   return edecl;
 }

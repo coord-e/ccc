@@ -65,20 +65,8 @@ static void release_string(char* s) {
 DEFINE_VECTOR(release_string, char*, StringVec)
 
 Type* new_Type(TypeKind kind) {
-  Type* ty      = calloc(1, sizeof(Type));
-  ty->kind      = kind;
-  ty->size      = 0;
-  ty->is_signed = false;
-  ty->ptr_to    = NULL;
-  ty->ret       = NULL;
-  ty->params    = NULL;
-  ty->element   = NULL;
-  ty->length    = 0;
-  ty->tag       = NULL;
-  ty->fields    = NULL;
-  ty->field_map = NULL;
-  ty->enums     = NULL;
-  ty->enum_map  = NULL;
+  Type* ty = calloc(1, sizeof(Type));
+  ty->kind = kind;
   return ty;
 }
 

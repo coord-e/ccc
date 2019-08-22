@@ -32,12 +32,7 @@
     T head;                                                                                        \
     Name* tail;                                                                                    \
   };                                                                                               \
-  Name* init_##Name() {                                                                            \
-    Name* l   = malloc(sizeof(Name));                                                              \
-    l->is_nil = false;                                                                             \
-    l->tail   = NULL;                                                                              \
-    return l;                                                                                      \
-  }                                                                                                \
+  Name* init_##Name() { return calloc(1, sizeof(Name)); }                                          \
   Name* nil_##Name() {                                                                             \
     Name* l   = init_##Name();                                                                     \
     l->is_nil = true;                                                                              \

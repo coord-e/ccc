@@ -15,9 +15,6 @@ DEFINE_DLIST(release_unsigned, unsigned, UIDList)
 DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
 
-DECLARE_VECTOR(unsigned, UIVec)
-DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
-
 static void release_dummy(UIDListIterator* p) {}
 DECLARE_VECTOR(UIDListIterator*, UIDLIterVec)
 DEFINE_VECTOR(release_dummy, UIDListIterator*, UIDLIterVec)

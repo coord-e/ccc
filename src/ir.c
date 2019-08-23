@@ -304,27 +304,6 @@ static Reg* new_imm(Env* env, int num, DataSize size) {
   return r;
 }
 
-static Reg* new_stack_load(Env* env, unsigned s, DataSize size) {
-  Reg* r       = new_reg(env, size);
-  IRInst* i    = new_inst_(env, IR_STACK_LOAD);
-  i->stack_idx = s;
-  i->rd        = r;
-  i->data_size = size;
-  add_inst(env, i);
-  return r;
-}
-
-static Reg* new_stack_store(Env* env, unsigned s, Reg* r, DataSize size) {
-  assert(r->size == size);
-
-  IRInst* i    = new_inst_(env, IR_STACK_STORE);
-  i->stack_idx = s;
-  push_RegVec(i->ras, copy_Reg(r));
-  i->data_size = size;
-  add_inst(env, i);
-  return r;
-}
-
 static Reg* new_stack_addr(Env* env, unsigned s) {
   Reg* r       = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* i    = new_inst_(env, IR_STACK_ADDR);
@@ -1062,9 +1041,10 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 
   unsigned addr;
   get_var(env, name, &addr);
+  Reg* addr_reg = new_stack_addr(env, addr);
 
   Reg* rhs = nth_arg(env, nth, to_data_size(size));
-  new_stack_store(env, addr, rhs, to_data_size(size));
+  new_store(env, addr_reg, rhs, to_data_size(size));
 
   gen_params(env, f, nth + 1, tail_ParamList(l));
 }

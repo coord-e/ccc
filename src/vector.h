@@ -105,5 +105,7 @@
 // often used common definitions
 DECLARE_VECTOR(int, IntVec)
 DECLARE_VECTOR_PRINTER(IntVec)
+DECLARE_VECTOR(unsigned, UIVec)
+DECLARE_VECTOR_PRINTER(UIVec)
 
 #endif

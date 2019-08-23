@@ -9,12 +9,12 @@ typedef struct {
   BitSet* candidates;
   BitSet* excluded;
   BitSet* in_stack;
+  UIVec* assoc_areas;  // addr reg -> stack
 
   BitSet* replaceable;
 
   // TODO: fix inefficient memory usage
-  UIVec* assoc_areas;  // addr reg -> stack
-  UIVec* assoc_regs;   // stack -> replaced reg
+  UIVec* assoc_regs;  // stack -> replaced reg
 } Env;
 
 static Env* init_Env(Function*, IR*);
@@ -39,7 +39,8 @@ void mem2reg(IR* ir) {
 }
 
 static Env* init_Env(Function* f, IR* ir) {
-  unsigned reg_count = f->reg_count;
+  unsigned reg_count   = f->reg_count;
+  unsigned stack_count = f->stack_count + 1;
 
   Env* env        = malloc(sizeof(Env));
   env->function   = f;
@@ -52,8 +53,8 @@ static Env* init_Env(Function* f, IR* ir) {
   resize_UIVec(env->assoc_areas, reg_count);
   fill_UIVec(env->assoc_areas, -1);
 
-  env->assoc_regs = new_UIVec(f->stack_count + 1);
-  resize_UIVec(env->assoc_regs, f->stack_count + 1);
+  env->assoc_regs = new_UIVec(stack_count);
+  resize_UIVec(env->assoc_regs, stack_count);
   fill_UIVec(env->assoc_regs, -1);
   return env;
 }
@@ -86,6 +87,13 @@ static void set_as_in_stack(Env* env, Reg* r) {
   set_reg(env->in_stack, r);
 }
 
+static void add_assoc_area(Env* env, Reg* addr_reg, unsigned s) {
+  assert(addr_reg != NULL);
+  assert(addr_reg->kind == REG_VIRT);
+
+  set_UIVec(env->assoc_areas, addr_reg->virtual, s);
+}
+
 static void collect_uses_insts(Env* env, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
@@ -95,6 +103,7 @@ static void collect_uses_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       set_as_in_stack(env, inst->rd);
+      add_assoc_area(env, inst->rd, inst->stack_idx);
       break;
     case IR_LOAD:
       set_as_candidate(env, get_RegVec(inst->ras, 0));
@@ -130,6 +139,33 @@ static void compute_replaceable(Env* env) {
   env->replaceable = copy_BitSet(env->candidates);
   diff_BitSet(env->replaceable, env->excluded);
   and_BitSet(env->replaceable, env->in_stack);
+
+  BitSet* ex_areas = zero_BitSet(env->function->stack_count + 1);
+  // TODO: reduce the number of iterations
+  for (unsigned i = 0; i < length_BitSet(env->replaceable); i++) {
+    // i: virt reg idx
+    if (get_BitSet(env->replaceable, i)) {
+      continue;
+    }
+    unsigned s = get_UIVec(env->assoc_areas, i);
+    if (s == -1) {
+      continue;
+    }
+    // i is not replaceable while i is used as address register in some place
+    set_BitSet(ex_areas, s, true);
+  }
+  for (unsigned i = 0; i < length_BitSet(env->replaceable); i++) {
+    // i: virt reg idx
+    if (!get_BitSet(env->replaceable, i)) {
+      continue;
+    }
+    unsigned s = get_UIVec(env->assoc_areas, i);
+    assert(s != -1);
+    if (get_BitSet(ex_areas, s)) {
+      set_BitSet(env->replaceable, i, false);
+    }
+  }
+  release_BitSet(ex_areas);
 }
 
 static bool is_replaceable(Env* env, Reg* r) {
@@ -144,13 +180,6 @@ static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
   inst->rd     = copy_Reg(rd);
   push_RegVec(inst->ras, copy_Reg(ra));
   return inst;
-}
-
-static void add_assoc_area(Env* env, Reg* addr_reg, unsigned s) {
-  assert(addr_reg != NULL);
-  assert(addr_reg->kind == REG_VIRT);
-
-  set_UIVec(env->assoc_areas, addr_reg->virtual, s);
 }
 
 static void add_assoc_reg(Env* env, unsigned s) {
@@ -181,7 +210,6 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       if (is_replaceable(env, inst->rd)) {
-        add_assoc_area(env, inst->rd, inst->stack_idx);
         add_assoc_reg(env, inst->stack_idx);
         remove_IRInstList(l);
         tail = l;

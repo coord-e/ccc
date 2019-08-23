@@ -224,6 +224,16 @@ EOF
 # pointers
 items 3 "int x; x = 3; int* y; y = &x; return *y;"
 items 5 "int b; b = 10; int* a; a = &b; *a = 5; return b;"
+try_ 80 <<EOF
+int main() {
+  int i = 10;
+  int j = i + 20;
+  int *p = &j;
+  int k = j + i + 10;
+  int v = *p + k;
+  return v;
+}
+EOF
 try_ 10 << EOF
 int change_it(int* p) {
   if (*p == 0) {

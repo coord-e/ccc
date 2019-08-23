@@ -12,7 +12,9 @@ typedef struct {
 
   BitSet* replaceable;
 
-  UIVec* assoc_regs;
+  // TODO: fix inefficient memory usage
+  UIVec* assoc_areas;  // addr reg -> stack
+  UIVec* assoc_regs;   // stack -> replaced reg
 } Env;
 
 static Env* init_Env(Function*, IR*);
@@ -45,8 +47,13 @@ static Env* init_Env(Function* f, IR* ir) {
   env->candidates = zero_BitSet(reg_count);
   env->excluded   = zero_BitSet(reg_count);
   env->in_stack   = zero_BitSet(reg_count);
-  env->assoc_regs = new_UIVec(reg_count);
-  resize_UIVec(env->assoc_regs, reg_count);
+
+  env->assoc_areas = new_UIVec(reg_count);
+  resize_UIVec(env->assoc_areas, reg_count);
+  fill_UIVec(env->assoc_areas, -1);
+
+  env->assoc_regs = new_UIVec(f->stack_count + 1);
+  resize_UIVec(env->assoc_regs, f->stack_count + 1);
   fill_UIVec(env->assoc_regs, -1);
   return env;
 }
@@ -57,6 +64,7 @@ static void finish_Env(Env* env) {
   release_BitSet(env->in_stack);
   release_BitSet(env->replaceable);
   release_UIVec(env->assoc_regs);
+  release_UIVec(env->assoc_areas);
   free(env);
 }
 
@@ -131,24 +139,36 @@ static bool is_replaceable(Env* env, Reg* r) {
   return get_BitSet(env->replaceable, r->virtual);
 }
 
-static Reg* assoc_reg(Env* env, Reg* addr_reg, DataSize size) {
-  assert(addr_reg != NULL);
-  assert(addr_reg->kind == REG_VIRT);
-
-  unsigned r = get_UIVec(env->assoc_regs, addr_reg->virtual);
-  if (r == -1) {
-    r = env->function->reg_count++;
-    set_UIVec(env->assoc_regs, addr_reg->virtual, r);
-  }
-
-  return new_virtual_Reg(size, r);
-}
-
 static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
   IRInst* inst = new_inst(env->function->inst_count++, env->ir->inst_count++, IR_MOV);
   inst->rd     = copy_Reg(rd);
   push_RegVec(inst->ras, copy_Reg(ra));
   return inst;
+}
+
+static void add_assoc_area(Env* env, Reg* addr_reg, unsigned s) {
+  assert(addr_reg != NULL);
+  assert(addr_reg->kind == REG_VIRT);
+
+  set_UIVec(env->assoc_areas, addr_reg->virtual, s);
+}
+
+static void add_assoc_reg(Env* env, unsigned s) {
+  if (get_UIVec(env->assoc_regs, s) == -1) {
+    set_UIVec(env->assoc_regs, s, env->function->reg_count++);
+  }
+}
+
+static Reg* assoc_reg(Env* env, Reg* addr_reg, DataSize size) {
+  assert(addr_reg != NULL);
+  assert(addr_reg->kind == REG_VIRT);
+
+  unsigned area = get_UIVec(env->assoc_areas, addr_reg->virtual);
+  assert(area != -1);
+  unsigned reg = get_UIVec(env->assoc_regs, area);
+  assert(reg != -1);
+
+  return new_virtual_Reg(size, reg);
 }
 
 static void apply_conversion_insts(Env* env, IRInstList* l) {
@@ -161,6 +181,8 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       if (is_replaceable(env, inst->rd)) {
+        add_assoc_area(env, inst->rd, inst->stack_idx);
+        add_assoc_reg(env, inst->stack_idx);
         remove_IRInstList(l);
         tail = l;
       }
@@ -191,7 +213,7 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
       break;
   }
 
-  apply_conversion_insts(env, tail_IRInstList(l));
+  apply_conversion_insts(env, tail);
 }
 
 static void apply_conversion(Env* env, Function* ir) {

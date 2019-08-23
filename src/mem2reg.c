@@ -94,6 +94,12 @@ static void add_assoc_area(Env* env, Reg* addr_reg, unsigned s) {
   set_UIVec(env->assoc_areas, addr_reg->virtual, s);
 }
 
+static void add_assoc_reg(Env* env, unsigned s) {
+  if (get_UIVec(env->assoc_regs, s) == -1) {
+    set_UIVec(env->assoc_regs, s, env->function->reg_count++);
+  }
+}
+
 static void collect_uses_insts(Env* env, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
@@ -103,6 +109,7 @@ static void collect_uses_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       set_as_in_stack(env, inst->rd);
+      add_assoc_reg(env, inst->stack_idx);
       add_assoc_area(env, inst->rd, inst->stack_idx);
       break;
     case IR_LOAD:
@@ -182,12 +189,6 @@ static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
   return inst;
 }
 
-static void add_assoc_reg(Env* env, unsigned s) {
-  if (get_UIVec(env->assoc_regs, s) == -1) {
-    set_UIVec(env->assoc_regs, s, env->function->reg_count++);
-  }
-}
-
 static Reg* assoc_reg(Env* env, Reg* addr_reg, DataSize size) {
   assert(addr_reg != NULL);
   assert(addr_reg->kind == REG_VIRT);
@@ -210,7 +211,6 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       if (is_replaceable(env, inst->rd)) {
-        add_assoc_reg(env, inst->stack_idx);
         remove_IRInstList(l);
         tail = l;
       }

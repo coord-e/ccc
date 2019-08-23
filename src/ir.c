@@ -1062,9 +1062,10 @@ static void gen_params(Env* env, FunctionDef* f, unsigned nth, ParamList* l) {
 
   unsigned addr;
   get_var(env, name, &addr);
+  Reg* addr_reg = new_stack_addr(env, addr);
 
   Reg* rhs = nth_arg(env, nth, to_data_size(size));
-  new_stack_store(env, addr, rhs, to_data_size(size));
+  new_store(env, addr_reg, rhs, to_data_size(size));
 
   gen_params(env, f, nth + 1, tail_ParamList(l));
 }

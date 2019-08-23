@@ -13,8 +13,8 @@ typedef struct {
   BitSet* replaceable;
 
   // TODO: fix inefficient memory usage
-  UIVec* assoc_regs;   // stack -> replaced reg
-  UIVec* assoc_areas;  // addr reg -> stack
+  UIVec* replaced_regs;  // stack -> replaced reg
+  UIVec* assoc_areas;    // addr reg -> stack
 } Env;
 
 static Env* init_Env(Function*, IR*);
@@ -53,9 +53,9 @@ static Env* init_Env(Function* f, IR* ir) {
   resize_UIVec(env->assoc_areas, reg_count);
   fill_UIVec(env->assoc_areas, -1);
 
-  env->assoc_regs = new_UIVec(stack_count);
-  resize_UIVec(env->assoc_regs, stack_count);
-  fill_UIVec(env->assoc_regs, -1);
+  env->replaced_regs = new_UIVec(stack_count);
+  resize_UIVec(env->replaced_regs, stack_count);
+  fill_UIVec(env->replaced_regs, -1);
   return env;
 }
 
@@ -64,7 +64,7 @@ static void finish_Env(Env* env) {
   release_BitSet(env->excluded);
   release_BitSet(env->in_stack);
   release_BitSet(env->replaceable);
-  release_UIVec(env->assoc_regs);
+  release_UIVec(env->replaced_regs);
   release_UIVec(env->assoc_areas);
   free(env);
 }
@@ -87,17 +87,15 @@ static void set_as_in_stack(Env* env, Reg* r) {
   set_reg(env->in_stack, r);
 }
 
-static void add_assoc_area(Env* env, Reg* addr_reg, unsigned s) {
+static void bind_associated_area(Env* env, Reg* addr_reg, unsigned s) {
   assert(addr_reg != NULL);
   assert(addr_reg->kind == REG_VIRT);
 
   set_UIVec(env->assoc_areas, addr_reg->virtual, s);
 }
 
-static void add_assoc_reg(Env* env, unsigned s) {
-  if (get_UIVec(env->assoc_regs, s) == -1) {
-    set_UIVec(env->assoc_regs, s, env->function->reg_count++);
-  }
+static void allocate_replaced_reg_for(Env* env, unsigned s) {
+  set_UIVec(env->replaced_regs, s, env->function->reg_count++);
 }
 
 static void collect_uses_insts(Env* env, IRInstList* l) {
@@ -109,7 +107,7 @@ static void collect_uses_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       set_as_in_stack(env, inst->rd);
-      add_assoc_area(env, inst->rd, inst->stack_idx);
+      bind_associated_area(env, inst->rd, inst->stack_idx);
       break;
     case IR_LOAD:
       set_as_candidate(env, get_RegVec(inst->ras, 0));
@@ -170,7 +168,9 @@ static void compute_replaceable(Env* env) {
     if (get_BitSet(ex_areas, s)) {
       set_BitSet(env->replaceable, i, false);
     } else {
-      add_assoc_reg(env, s);
+      if (get_UIVec(env->replaced_regs, s) == -1) {
+        allocate_replaced_reg_for(env, s);
+      }
     }
   }
   release_BitSet(ex_areas);
@@ -196,7 +196,7 @@ static Reg* assoc_reg(Env* env, Reg* addr_reg, DataSize size) {
 
   unsigned area = get_UIVec(env->assoc_areas, addr_reg->virtual);
   assert(area != -1);
-  unsigned reg = get_UIVec(env->assoc_regs, area);
+  unsigned reg = get_UIVec(env->replaced_regs, area);
   assert(reg != -1);
 
   return new_virtual_Reg(size, reg);

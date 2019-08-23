@@ -1,8 +1,6 @@
 #include "mem2reg.h"
-
-DECLARE_VECTOR(unsigned, UIVec)
-static void release_unsigned(unsigned i) {}
-DEFINE_VECTOR(release_unsigned, unsigned, UIVec)
+#include "bit_set.h"
+#include "vector.h"
 
 typedef struct {
   IR* ir;

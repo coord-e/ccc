@@ -9,12 +9,12 @@ typedef struct {
   BitSet* candidates;
   BitSet* excluded;
   BitSet* in_stack;
-  UIVec* assoc_areas;  // addr reg -> stack
 
   BitSet* replaceable;
 
   // TODO: fix inefficient memory usage
-  UIVec* assoc_regs;  // stack -> replaced reg
+  UIVec* assoc_regs;   // stack -> replaced reg
+  UIVec* assoc_areas;  // addr reg -> stack
 } Env;
 
 static Env* init_Env(Function*, IR*);
@@ -109,7 +109,6 @@ static void collect_uses_insts(Env* env, IRInstList* l) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       set_as_in_stack(env, inst->rd);
-      add_assoc_reg(env, inst->stack_idx);
       add_assoc_area(env, inst->rd, inst->stack_idx);
       break;
     case IR_LOAD:
@@ -170,6 +169,8 @@ static void compute_replaceable(Env* env) {
     assert(s != -1);
     if (get_BitSet(ex_areas, s)) {
       set_BitSet(env->replaceable, i, false);
+    } else {
+      add_assoc_reg(env, s);
     }
   }
   release_BitSet(ex_areas);

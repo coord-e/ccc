@@ -9,6 +9,7 @@
 #include "ir.h"
 #include "lexer.h"
 #include "liveness.h"
+#include "mem2reg.h"
 #include "parser.h"
 #include "reg_alloc.h"
 #include "reorder.h"
@@ -161,6 +162,8 @@ int main(int argc, char** argv) {
     print_IR(f, ir);
     close_file(f);
   }
+
+  mem2reg(ir);
 
   arch(ir);
   if (opts.emit_ir2 != NULL) {

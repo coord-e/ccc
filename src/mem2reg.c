@@ -20,6 +20,7 @@ void mem2reg(IR* ir) {
 
     Env* env = init_Env(f);
     collect_uses(env, f);
+    compute_replaceable(env);
     apply_conversion(env, f);
     finish_Env(env);
 
@@ -30,11 +31,10 @@ void mem2reg(IR* ir) {
 static Env* init_Env(Function* f) {
   unsigned reg_count = f->reg_count;
 
-  Env* env         = malloc(sizeof(Env));
-  env->candidates  = zero_BitSet(reg_count);
-  env->excluded    = zero_BitSet(reg_count);
-  env->in_stack    = zero_BitSet(reg_count);
-  env->replaceable = zero_BitSet(reg_count);
+  Env* env        = malloc(sizeof(Env));
+  env->candidates = zero_BitSet(reg_count);
+  env->excluded   = zero_BitSet(reg_count);
+  env->in_stack   = zero_BitSet(reg_count);
   return env;
 }
 
@@ -100,4 +100,10 @@ static void collect_uses(Env* env, Function* ir) {
     collect_uses_insts(env, b->insts);
     l = tail_BBList(l);
   }
+}
+
+static void compute_replaceable(Env* env) {
+  env->replaceable = copy_BitSet(env->candidates);
+  diff_BitSet(env->replaceable, env->excluded);
+  and_BitSet(env->replaceable, env->in_stack);
 }

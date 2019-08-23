@@ -304,27 +304,6 @@ static Reg* new_imm(Env* env, int num, DataSize size) {
   return r;
 }
 
-static Reg* new_stack_load(Env* env, unsigned s, DataSize size) {
-  Reg* r       = new_reg(env, size);
-  IRInst* i    = new_inst_(env, IR_STACK_LOAD);
-  i->stack_idx = s;
-  i->rd        = r;
-  i->data_size = size;
-  add_inst(env, i);
-  return r;
-}
-
-static Reg* new_stack_store(Env* env, unsigned s, Reg* r, DataSize size) {
-  assert(r->size == size);
-
-  IRInst* i    = new_inst_(env, IR_STACK_STORE);
-  i->stack_idx = s;
-  push_RegVec(i->ras, copy_Reg(r));
-  i->data_size = size;
-  add_inst(env, i);
-  return r;
-}
-
 static Reg* new_stack_addr(Env* env, unsigned s) {
   Reg* r       = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* i    = new_inst_(env, IR_STACK_ADDR);

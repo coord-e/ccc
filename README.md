@@ -9,19 +9,19 @@ ccc is intended to be an optimizing compiler that produces code which is faster 
 # Roadmap
 
 - [ ] support C11 features
-  - [-] arithmetic operations
-  - [-] pointer arithmetic
-  - [-] arrays
-  - [-] type checker
+  - [x] arithmetic operations
+  - [x] pointer arithmetic
+  - [x] arrays
+  - [x] type checker
     - [ ] support type qualifiers
-  - [-] implicit type conversions
+  - [x] implicit type conversions
   - [ ] initializers
-    - [-] scalar
-    - [-] array
+    - [x] scalar
+    - [x] array
     - [ ] struct
     - [ ] designated initializers
   - [ ] a copy of struct
-    - [-] local assignment
+    - [x] local assignment
     - [ ] argument
     - [ ] return value
   - [ ] preprocessor
@@ -30,8 +30,8 @@ ccc is intended to be an optimizing compiler that produces code which is faster 
   - [ ] alignment specifiers
   - [ ] float-point values
 - [ ] optimizations
-  - [-] linear scan register allocation
-  - [-] naive mem2reg
+  - [x] linear scan register allocation
+  - [x] naive mem2reg
   - [ ] constant folding
   - [ ] copy propagation
   - [ ] dead code elimination

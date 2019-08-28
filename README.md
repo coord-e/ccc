@@ -50,7 +50,7 @@ To build ccc, run:
 make
 ```
 
-You'll see a compiled binary at `./build/ccc`.
+You'll see a compiled binary under `./build/`.
 
 You can add `DEBUG=0` to get an optimized build of `ccc`.
 

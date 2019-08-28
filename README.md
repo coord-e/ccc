@@ -6,7 +6,7 @@ a work-in-progress compiler for a tiny subset of C language.
 
 ccc is intended to be an optimizing compiler that produces code which is faster than gcc -O1 does, and compiles faster than that.
 
-# Roadmap
+## Roadmap
 
 - [ ] support C11 features
   - [x] arithmetic operations
@@ -41,3 +41,21 @@ ccc is intended to be an optimizing compiler that produces code which is faster 
   - [ ] improved error messages
   - [ ] better support of debuggers
   - [ ] support targets other than x86_64
+
+## Development
+
+To build ccc, run:
+
+```shell
+make
+```
+
+You'll see a compiled binary at `./build/ccc`.
+
+You can add `DEBUG=0` to get an optimized build of `ccc`.
+
+To run tests, use `test` target:
+
+```shell
+make test
+```

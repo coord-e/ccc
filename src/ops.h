@@ -23,6 +23,7 @@ typedef enum {
 } BinopKind;
 
 void print_binop(FILE*, BinopKind);
+long eval_binop(BinopKind, long, long);
 
 typedef enum {
   UNAOP_POSITIVE,
@@ -31,5 +32,6 @@ typedef enum {
 } UnaopKind;
 
 void print_unaop(FILE*, UnaopKind);
+long eval_unaop(UnaopKind, long);
 
 #endif

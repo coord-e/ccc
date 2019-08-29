@@ -5,6 +5,7 @@
 
 void const_fold_tree(AST*);
 
-Expr* fold_expr(Expr*);
+bool get_constant(Expr*, long*);
+void fold_expr(Expr*);
 
 #endif

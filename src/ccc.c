@@ -5,6 +5,7 @@
 
 #include "arch.h"
 #include "codegen.h"
+#include "const_fold_tree.h"
 #include "error.h"
 #include "ir.h"
 #include "lexer.h"
@@ -154,6 +155,8 @@ int main(int argc, char** argv) {
     print_AST(f, tree);
     close_file(f);
   }
+
+  const_fold_tree(tree);
 
   IR* ir = generate_IR(tree);
   release_AST(tree);

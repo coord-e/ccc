@@ -3,7 +3,7 @@
 void const_fold_initializer(Initializer* init) {
   switch (init->kind) {
     case IN_EXPR:
-      fold_expr(init->expr);
+      const_fold_expr(init->expr);
       break;
     case IN_LIST: {
       InitializerList* l = init->list;
@@ -33,18 +33,18 @@ void const_fold_items(BlockItemList* items);
 void const_fold_stmt(Statement* stmt) {
   switch (stmt->kind) {
     case ST_EXPRESSION:
-      fold_expr(stmt->expr);
+      const_fold_expr(stmt->expr);
       break;
     case ST_RETURN:
       if (stmt->expr != NULL) {
-        fold_expr(stmt->expr);
+        const_fold_expr(stmt->expr);
       }
       break;
     case ST_COMPOUND:
       const_fold_items(stmt->items);
       break;
     case ST_IF:
-      fold_expr(stmt->expr);
+      const_fold_expr(stmt->expr);
       long cond_c;
       if (get_constant(stmt->expr, &cond_c)) {
         if (cond_c) {
@@ -55,7 +55,7 @@ void const_fold_stmt(Statement* stmt) {
       }
       break;
     case ST_WHILE: {
-      fold_expr(stmt->expr);
+      const_fold_expr(stmt->expr);
       const_fold_stmt(stmt->body);
       long cond_c;
       if (get_constant(stmt->expr, &cond_c)) {
@@ -66,7 +66,7 @@ void const_fold_stmt(Statement* stmt) {
       break;
     }
     case ST_DO: {
-      fold_expr(stmt->expr);
+      const_fold_expr(stmt->expr);
       const_fold_stmt(stmt->body);
       long cond_c;
       if (get_constant(stmt->expr, &cond_c)) {
@@ -80,11 +80,11 @@ void const_fold_stmt(Statement* stmt) {
       if (stmt->init_decl != NULL) {
         const_fold_decl(stmt->init_decl);
       } else if (stmt->init != NULL) {
-        fold_expr(stmt->init);
+        const_fold_expr(stmt->init);
       }
-      fold_expr(stmt->before);
+      const_fold_expr(stmt->before);
       if (stmt->after != NULL) {
-        fold_expr(stmt->after);
+        const_fold_expr(stmt->after);
       }
       // TODO: optimize
       const_fold_stmt(stmt->body);
@@ -101,7 +101,7 @@ void const_fold_stmt(Statement* stmt) {
       break;
     case ST_SWITCH:
       // TODO: optimize
-      fold_expr(stmt->expr);
+      const_fold_expr(stmt->expr);
       const_fold_stmt(stmt->body);
       break;
     default:
@@ -161,11 +161,11 @@ long perform_trunc(Type* t, long c) {
 }
 
 // TODO: release (emplace)
-void fold_expr(Expr* e) {
+void const_fold_expr(Expr* e) {
   switch (e->kind) {
     case ND_BINOP: {
-      fold_expr(e->lhs);
-      fold_expr(e->rhs);
+      const_fold_expr(e->lhs);
+      const_fold_expr(e->rhs);
       long lhs_c, rhs_c;
       if (get_constant(e->lhs, &lhs_c) && get_constant(e->rhs, &rhs_c)) {
         *e = *new_node_num(eval_binop(e->binop, lhs_c, rhs_c));
@@ -173,7 +173,7 @@ void fold_expr(Expr* e) {
       return;
     }
     case ND_UNAOP: {
-      fold_expr(e->expr);
+      const_fold_expr(e->expr);
       long constant;
       if (get_constant(e->expr, &constant)) {
         *e = *new_node_num(eval_unaop(e->unaop, constant));
@@ -184,20 +184,20 @@ void fold_expr(Expr* e) {
     case ND_DEREF:
     case ND_ADDR_ARY:
     case ND_MEMBER:
-      fold_expr(e->expr);
+      const_fold_expr(e->expr);
       return;
     case ND_ASSIGN:
     case ND_COMPOUND_ASSIGN:
     case ND_COMMA:
-      fold_expr(e->lhs);
-      fold_expr(e->rhs);
+      const_fold_expr(e->lhs);
+      const_fold_expr(e->rhs);
       return;
     case ND_VAR:
     case ND_NUM:
     case ND_STRING:
       return;
     case ND_CAST: {
-      fold_expr(e->expr);
+      const_fold_expr(e->expr);
       long constant;
       if (get_constant(e->expr, &constant)) {
         *e = *new_node_num(perform_trunc(e->cast_type, constant));
@@ -205,9 +205,9 @@ void fold_expr(Expr* e) {
       return;
     }
     case ND_COND: {
-      fold_expr(e->cond);
-      fold_expr(e->then_);
-      fold_expr(e->else_);
+      const_fold_expr(e->cond);
+      const_fold_expr(e->then_);
+      const_fold_expr(e->else_);
       long cond_c;
       if (get_constant(e->cond, &cond_c)) {
         if (cond_c) {
@@ -219,9 +219,9 @@ void fold_expr(Expr* e) {
       return;
     }
     case ND_CALL:
-      fold_expr(e->lhs);
+      const_fold_expr(e->lhs);
       for (unsigned i = 0; i < length_ExprVec(e->args); i++) {
-        fold_expr(get_ExprVec(e->args, i));
+        const_fold_expr(get_ExprVec(e->args, i));
       }
       return;
     case ND_SIZEOF_EXPR:

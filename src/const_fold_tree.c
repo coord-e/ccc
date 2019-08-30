@@ -1,7 +1,148 @@
 #include "const_fold_tree.h"
 
-void const_fold_tree(AST* t) {
-  return;
+void const_fold_initializer(Initializer* init) {
+  switch (init->kind) {
+    case IN_EXPR:
+      fold_expr(init->expr);
+      break;
+    case IN_LIST: {
+      InitializerList* l = init->list;
+      while (is_nil_InitializerList(l)) {
+        const_fold_initializer(head_InitializerList(l));
+        l = tail_InitializerList(l);
+      }
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+void const_fold_decl(Declaration* decl) {
+  InitDeclaratorList* l = decl->declarators;
+  while (is_nil_InitDeclaratorList(l)) {
+    InitDeclarator* id = head_InitDeclaratorList(l);
+    const_fold_initializer(id->initializer);
+    l = tail_InitDeclaratorList(l);
+  }
+}
+
+void const_fold_items(BlockItemList* items);
+
+// TODO: release (emplace)
+void const_fold_stmt(Statement* stmt) {
+  switch (stmt->kind) {
+    case ST_EXPRESSION:
+      fold_expr(stmt->expr);
+      break;
+    case ST_RETURN:
+      if (stmt->expr != NULL) {
+        fold_expr(stmt->expr);
+      }
+      break;
+    case ST_COMPOUND:
+      const_fold_items(stmt->items);
+      break;
+    case ST_IF:
+      fold_expr(stmt->expr);
+      long cond_c;
+      if (get_constant(stmt->expr, &cond_c)) {
+        if (cond_c) {
+          *stmt = *stmt->then_;
+        } else {
+          *stmt = *stmt->else_;
+        }
+      }
+      break;
+    case ST_WHILE: {
+      fold_expr(stmt->expr);
+      const_fold_stmt(stmt->body);
+      long cond_c;
+      if (get_constant(stmt->expr, &cond_c)) {
+        if (!cond_c) {
+          *stmt = *new_statement(ST_NULL, NULL);
+        }
+      }
+      break;
+    }
+    case ST_DO: {
+      fold_expr(stmt->expr);
+      const_fold_stmt(stmt->body);
+      long cond_c;
+      if (get_constant(stmt->expr, &cond_c)) {
+        if (!cond_c) {
+          *stmt = *stmt->body;
+        }
+      }
+      break;
+    }
+    case ST_FOR:
+      if (stmt->init_decl != NULL) {
+        const_fold_decl(stmt->init_decl);
+      } else if (stmt->init != NULL) {
+        fold_expr(stmt->init);
+      }
+      fold_expr(stmt->before);
+      if (stmt->after != NULL) {
+        fold_expr(stmt->after);
+      }
+      // TODO: optimize
+      const_fold_stmt(stmt->body);
+      break;
+    case ST_BREAK:
+    case ST_CONTINUE:
+    case ST_NULL:
+    case ST_GOTO:
+      break;
+    case ST_LABEL:
+    case ST_CASE:
+    case ST_DEFAULT:
+      const_fold_stmt(stmt->body);
+      break;
+    case ST_SWITCH:
+      // TODO: optimize
+      fold_expr(stmt->expr);
+      const_fold_stmt(stmt->body);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+void const_fold_items(BlockItemList* items) {
+  while (is_nil_BlockItemList(items)) {
+    BlockItem* item = head_BlockItemList(items);
+    switch (item->kind) {
+      case BI_DECL:
+        const_fold_decl(item->decl);
+        break;
+      case BI_STMT:
+        const_fold_stmt(item->stmt);
+        break;
+      default:
+        CCC_UNREACHABLE;
+    }
+    items = tail_BlockItemList(items);
+  }
+}
+
+void const_fold_tree(AST* ast) {
+  TranslationUnit* l = ast;
+  while (is_nil_TranslationUnit(l)) {
+    ExternalDecl* d = head_TranslationUnit(l);
+    switch (d->kind) {
+      case EX_FUNC:
+        const_fold_items(d->func->items);
+        break;
+      case EX_FUNC_DECL:
+        break;
+      case EX_DECL:
+        const_fold_decl(d->decl);
+        break;
+      default:
+        CCC_UNREACHABLE;
+    }
+    l = tail_TranslationUnit(l);
+  }
 }
 
 bool get_constant(Expr* e, long* t) {

@@ -7,7 +7,7 @@ void const_fold_initializer(Initializer* init) {
       break;
     case IN_LIST: {
       InitializerList* l = init->list;
-      while (is_nil_InitializerList(l)) {
+      while (!is_nil_InitializerList(l)) {
         const_fold_initializer(head_InitializerList(l));
         l = tail_InitializerList(l);
       }
@@ -20,7 +20,7 @@ void const_fold_initializer(Initializer* init) {
 
 void const_fold_decl(Declaration* decl) {
   InitDeclaratorList* l = decl->declarators;
-  while (is_nil_InitDeclaratorList(l)) {
+  while (!is_nil_InitDeclaratorList(l)) {
     InitDeclarator* id = head_InitDeclaratorList(l);
     const_fold_initializer(id->initializer);
     l = tail_InitDeclaratorList(l);
@@ -109,7 +109,7 @@ void const_fold_stmt(Statement* stmt) {
   }
 }
 void const_fold_items(BlockItemList* items) {
-  while (is_nil_BlockItemList(items)) {
+  while (!is_nil_BlockItemList(items)) {
     BlockItem* item = head_BlockItemList(items);
     switch (item->kind) {
       case BI_DECL:
@@ -127,7 +127,7 @@ void const_fold_items(BlockItemList* items) {
 
 void const_fold_tree(AST* ast) {
   TranslationUnit* l = ast;
-  while (is_nil_TranslationUnit(l)) {
+  while (!is_nil_TranslationUnit(l)) {
     ExternalDecl* d = head_TranslationUnit(l);
     switch (d->kind) {
       case EX_FUNC:

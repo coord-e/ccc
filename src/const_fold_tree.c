@@ -22,7 +22,9 @@ void const_fold_decl(Declaration* decl) {
   InitDeclaratorList* l = decl->declarators;
   while (!is_nil_InitDeclaratorList(l)) {
     InitDeclarator* id = head_InitDeclaratorList(l);
-    const_fold_initializer(id->initializer);
+    if (id->initializer != NULL) {
+      const_fold_initializer(id->initializer);
+    }
     l = tail_InitDeclaratorList(l);
   }
 }

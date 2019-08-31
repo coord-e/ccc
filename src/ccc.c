@@ -10,7 +10,6 @@
 #include "error.h"
 #include "ir.h"
 #include "lexer.h"
-#include "liveness.h"
 #include "mem2reg.h"
 #include "parser.h"
 #include "propagation.h"
@@ -185,7 +184,6 @@ int main(int argc, char** argv) {
   propagation(ir);
 
   live_data_flow(ir);
-  liveness(ir);
   reg_alloc(num_regs, ir);
 
   if (opts.emit_ir3 != NULL) {

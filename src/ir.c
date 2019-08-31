@@ -1,7 +1,6 @@
 #include "ir.h"
 #include "const_fold_tree.h"
 #include "error.h"
-#include "liveness.h"
 #include "map.h"
 #include "parser.h"
 
@@ -1342,4 +1341,22 @@ void print_IR(FILE* p, IR* ir) {
   print_FunctionList(p, ir->functions);
   fprintf(p, "}\n");
   // TODO: print `ir->globals`
+}
+
+static void release_Interval(Interval* iv) {
+  free(iv);
+}
+DEFINE_VECTOR(release_Interval, Interval*, RegIntervals)
+
+static void print_Interval(FILE* p, Interval* iv) {
+  fprintf(p, "[%d, %d]", iv->from, iv->to);
+}
+
+void print_Intervals(FILE* p, RegIntervals* v) {
+  for (unsigned i = 0; i < length_RegIntervals(v); i++) {
+    Interval* iv = get_RegIntervals(v, i);
+    fprintf(p, "%d: ", i);
+    print_Interval(p, iv);
+    fputs("\n", p);
+  }
 }

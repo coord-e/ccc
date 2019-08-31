@@ -218,7 +218,9 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
         emit(p, "mov rax, 0");
       }
       emit(p, "call %s", nth_reg_of(0, h->ras));
-      assert(h->rd->real == rax_reg_id);
+      if (h->rd != NULL) {
+        assert(h->rd->real == rax_reg_id);
+      }
       break;
     default:
       CCC_UNREACHABLE;

@@ -199,8 +199,10 @@ static void walk_insts(Env* env, IRInstList* l) {
       bool is_vararg = inst->is_vararg;
 
       remove_IRInstList(l);
-      Reg* rax = rax_fixed_reg(env, rd->size);
-      insert_IRInstList(new_move(env, rd, rax), l);
+      if (rd != NULL) {
+        Reg* rax = rax_fixed_reg(env, rd->size);
+        insert_IRInstList(new_move(env, rd, rax), l);
+      }
       IRInst* call = new_call(env, rax, rf, is_vararg);
       release_Reg(rax);
       insert_IRInstList(call, l);
@@ -212,7 +214,11 @@ static void walk_insts(Env* env, IRInstList* l) {
         release_Reg(p);
       }
       // TODO: remove the redundant loop
-      tail = tail_IRInstList(tail_IRInstList(l));
+      if (rd != NULL) {
+        tail = tail_IRInstList(tail_IRInstList(l));
+      } else {
+        tail = tail_IRInstList(l);
+      }
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         tail = tail_IRInstList(tail);
       }

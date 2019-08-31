@@ -15,7 +15,7 @@ static void update_reach(Function* f, BitSet* reach, IRInst* inst) {
 static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRInst* inst) {
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
-    if (ra->kind != REG_VIRT) {
+    if (ra->irreplaceable) {
       continue;
     }
 

@@ -18,7 +18,7 @@ void data_flow(IR* ir) {
     compute_global_live_sets(f);
 
     // compute `reach_out` and `reach_in`
-    /* compute_global_reach_sets(f); */
+    compute_global_reach_sets(f);
 
     l = tail_FunctionList(l);
   }
@@ -104,6 +104,7 @@ static void compute_local_sets(Function* ir) {
   }
 }
 
+// TODO: Organize these similar iteration algorithms
 static void iter_succs(BasicBlock* b, BBList* l) {
   if (is_nil_BBList(l)) {
     return;
@@ -151,6 +152,60 @@ static void compute_global_live_sets(Function* ir) {
       BitSet* last = get_BSVec(lasts, i);
       changed      = changed || !equal_to_BitSet(b->live_in, last);
       copy_to_BitSet(last, b->live_in);
+    }
+  } while (changed);
+
+  release_BSVec(lasts);
+}
+
+static void iter_preds(BasicBlock* b, BBList* l) {
+  if (is_nil_BBList(l)) {
+    return;
+  }
+
+  BasicBlock* pre = head_BBList(l);
+  if (pre->reach_out != NULL) {
+    or_BitSet(b->reach_in, pre->reach_out);
+  }
+
+  iter_preds(b, tail_BBList(l));
+}
+
+static void compute_global_reach_sets(Function* ir) {
+  BBVec* v = ir->sorted_blocks;
+
+  // temporary vector to detect changes in `reach_out`
+  BSVec* lasts = new_BSVec(length_BBVec(v));
+  for (unsigned i = 0; i < length_BBVec(v); i++) {
+    push_BSVec(lasts, zero_BitSet(ir->inst_count));
+  }
+
+  bool changed;
+  bool is_first_loop = true;  // TODO: Improve the control flow
+  do {
+    // first two loops are performed unconditionally
+    changed       = is_first_loop;
+    is_first_loop = false;
+
+    // straight order
+    for (unsigned ti = length_BBVec(v); ti > 0; ti--) {
+      unsigned i    = ti - 1;
+      BasicBlock* b = get_BBVec(v, i);
+
+      b->reach_out = zero_BitSet(ir->inst_count);
+      if (b->reach_in == NULL) {
+        b->reach_in = zero_BitSet(ir->inst_count);
+      }
+
+      iter_preds(b, b->preds);
+
+      copy_to_BitSet(b->reach_out, b->reach_in);
+      diff_BitSet(b->reach_out, b->reach_kill);
+      or_BitSet(b->reach_out, b->reach_gen);
+
+      BitSet* last = get_BSVec(lasts, i);
+      changed      = changed || !equal_to_BitSet(b->reach_out, last);
+      copy_to_BitSet(last, b->reach_out);
     }
   } while (changed);
 

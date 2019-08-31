@@ -55,6 +55,15 @@ static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
           set_RegVec(inst->ras, i, copy_Reg(r));
           break;
         }
+        case IR_IMM: {
+          if (inst->kind != IR_MOV) {
+            break;
+          }
+          inst->kind = IR_IMM;
+          inst->imm  = def_inst->imm;
+          resize_RegVec(inst->ras, 0);
+          break;
+        }
         default:
           break;
       }

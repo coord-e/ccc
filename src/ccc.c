@@ -181,10 +181,10 @@ int main(int argc, char** argv) {
 
   reorder_blocks(ir);
 
-  data_flow(ir);
+  reach_data_flow(ir);
   propagation(ir);
-  // TODO: reduce the number of data-flow analysis
-  data_flow(ir);
+
+  live_data_flow(ir);
   liveness(ir);
   reg_alloc(num_regs, ir);
 

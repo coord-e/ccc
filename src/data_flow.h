@@ -3,6 +3,7 @@
 
 #include "ir.h"
 
-void data_flow(IR*);
+void live_data_flow(IR*);
+void reach_data_flow(IR*);
 
 #endif

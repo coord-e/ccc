@@ -1,11 +1,27 @@
 #include "data_flow.h"
 
 static void collect_defs(Function*);
-static void compute_local_sets(Function*);
+static void compute_local_live_sets(Function*);
+static void compute_local_reach_sets(Function*);
 static void compute_global_live_sets(Function*);
 static void compute_global_reach_sets(Function*);
 
-void data_flow(IR* ir) {
+void live_data_flow(IR* ir) {
+  FunctionList* l = ir->functions;
+  while (!is_nil_FunctionList(l)) {
+    Function* f = head_FunctionList(l);
+
+    // compute `live_gen` and `live_kill`
+    compute_local_live_sets(f);
+
+    // compute `live_out` and `live_in`
+    compute_global_live_sets(f);
+
+    l = tail_FunctionList(l);
+  }
+}
+
+void reach_data_flow(IR* ir) {
   FunctionList* l = ir->functions;
   while (!is_nil_FunctionList(l)) {
     Function* f = head_FunctionList(l);
@@ -13,11 +29,8 @@ void data_flow(IR* ir) {
     // compute `f->definitions`
     collect_defs(f);
 
-    // compute `*_gen` and `*_kill`
-    compute_local_sets(f);
-
-    // compute `live_out` and `live_in`
-    compute_global_live_sets(f);
+    // compute `reach_gen` and `reach_kill`
+    compute_local_reach_sets(f);
 
     // compute `reach_out` and `reach_in`
     compute_global_reach_sets(f);
@@ -91,16 +104,24 @@ static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstVec* insts) {
   }
 }
 
-static void compute_local_sets(Function* ir) {
+static void compute_local_live_sets(Function* ir) {
   BBVec* v = ir->sorted_blocks;
   for (unsigned i = length_BBVec(v); i > 0; i--) {
     BasicBlock* b = get_BBVec(v, i - 1);
     b->live_gen   = zero_BitSet(ir->reg_count);
     b->live_kill  = zero_BitSet(ir->reg_count);
+
+    iter_insts_forward(b, b->sorted_insts);
+  }
+}
+
+static void compute_local_reach_sets(Function* ir) {
+  BBVec* v = ir->sorted_blocks;
+  for (unsigned i = length_BBVec(v); i > 0; i--) {
+    BasicBlock* b = get_BBVec(v, i - 1);
     b->reach_gen  = zero_BitSet(ir->inst_count);
     b->reach_kill = zero_BitSet(ir->inst_count);
 
-    iter_insts_forward(b, b->sorted_insts);
     iter_insts_backward(ir->definitions, b, b->sorted_insts);
   }
 }

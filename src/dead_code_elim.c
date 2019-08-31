@@ -9,6 +9,12 @@ static void perform_dce(BitSet* live, IRInst* inst) {
     return;
   }
 
+  if (inst->kind == IR_CALL) {
+    release_Reg(inst->rd);
+    inst->rd = NULL;
+    return;
+  }
+
   release_Reg(inst->rd);
   inst->rd = NULL;
   resize_RegVec(inst->ras, 0);

@@ -199,12 +199,13 @@ static void walk_insts(Env* env, IRInstList* l) {
       bool is_vararg = inst->is_vararg;
 
       remove_IRInstList(l);
+      Reg* ret = NULL;
       if (rd != NULL) {
-        Reg* rax = rax_fixed_reg(env, rd->size);
-        insert_IRInstList(new_move(env, rd, rax), l);
+        ret = rax_fixed_reg(env, rd->size);
+        insert_IRInstList(new_move(env, rd, ret), l);
       }
-      IRInst* call = new_call(env, rax, rf, is_vararg);
-      release_Reg(rax);
+      IRInst* call = new_call(env, ret, rf, is_vararg);
+      release_Reg(ret);
       insert_IRInstList(call, l);
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg* r = get_RegVec(inst->ras, i);

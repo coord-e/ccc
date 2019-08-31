@@ -260,7 +260,10 @@ static void should_complete(Type* ty) {
   }
 }
 
-static int eval_constant(Expr* e) {
+static Type* sema_expr(Env* env, Expr* expr);
+
+static long eval_constant(Env* env, Expr* e) {
+  sema_expr(env, e);
   const_fold_expr(e);
   long c;
   if (get_constant(e, &c)) {
@@ -311,19 +314,21 @@ static Type* translate_base_type(BaseType t) {
 }
 
 static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* spec);
-static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type);
+static void extract_declarator(Env* env, Declarator* decl, Type* base, char** name, Type** type);
 
 typedef struct {
   StringVec* fields;
   FieldMap* field_map;
   unsigned current_offset;
+  Env* env;
 } StructTranslationEnv;
 
-static StructTranslationEnv* init_StructTranslationEnv() {
+static StructTranslationEnv* init_StructTranslationEnv(Env* e) {
   StructTranslationEnv* env = calloc(1, sizeof(StructTranslationEnv));
   env->fields               = new_StringVec(16);
   env->field_map            = new_FieldMap(16);
   env->current_offset       = 0;
+  env->env                  = e;
   return env;
 }
 
@@ -337,7 +342,7 @@ static void translate_struct_declarators(StructTranslationEnv* senv,
   Declarator* decl = head_DeclaratorList(l);
   char* name;
   Type* type;
-  extract_declarator(decl, base_ty, &name, &type);
+  extract_declarator(senv->env, decl, base_ty, &name, &type);
 
   push_StringVec(senv->fields, name);
   Field* f = new_Field(type, senv->current_offset);
@@ -375,7 +380,7 @@ static Type* translate_struct_specifier(Env* env, StructSpecifier* spec) {
       }
     }
     case SS_DECL: {
-      StructTranslationEnv* senv = init_StructTranslationEnv();
+      StructTranslationEnv* senv = init_StructTranslationEnv(env);
       translate_struct_declarations(env, senv, spec->declarations);
       if (spec->tag != NULL) {
         Type* type = struct_ty(strdup(spec->tag), senv->fields, senv->field_map);
@@ -411,7 +416,7 @@ static void translate_enumerators(Env* env, EnumTranslationEnv* eenv, Enumerator
   Enumerator* e = head_EnumeratorList(l);
   push_StringVec(eenv->enums, strdup(e->name));
   if (e->value != NULL) {
-    eenv->current_value = eval_constant(e->value);
+    eenv->current_value = eval_constant(env, e->value);
   } else {
     eenv->current_value++;
   }
@@ -462,7 +467,8 @@ static Type* translate_declaration_specifiers(Env* env, DeclarationSpecifiers* s
   }
 }
 
-static void extract_direct_declarator(DirectDeclarator* decl,
+static void extract_direct_declarator(Env* env,
+                                      DirectDeclarator* decl,
                                       Type* base,
                                       char** name,
                                       Type** type) {
@@ -480,7 +486,7 @@ static void extract_direct_declarator(DirectDeclarator* decl,
     case DE_ARRAY: {
       Type* t;
       if (decl->length != NULL) {
-        int length = eval_constant(decl->length);
+        int length = eval_constant(env, decl->length);
         if (length <= 0) {
           error("invalid size of array: %d", length);
         }
@@ -491,7 +497,7 @@ static void extract_direct_declarator(DirectDeclarator* decl,
         t = array_ty(base, false);
       }
 
-      extract_direct_declarator(decl->decl, t, name, type);
+      extract_direct_declarator(env, decl->decl, t, name, type);
       return;
     }
     default:
@@ -501,8 +507,8 @@ static void extract_direct_declarator(DirectDeclarator* decl,
 
 // extract `Decalrator` and store the result to `name` and `type`
 // if `name` is NULL, this accepts abstract declarator
-static void extract_declarator(Declarator* decl, Type* base, char** name, Type** type) {
-  extract_direct_declarator(decl->direct, ptrify(base, decl->num_ptrs), name, type);
+static void extract_declarator(Env* env, Declarator* decl, Type* base, char** name, Type** type) {
+  extract_direct_declarator(env, decl->direct, ptrify(base, decl->num_ptrs), name, type);
 }
 
 static Type* translate_type_name(Env* env, TypeName* t) {
@@ -511,7 +517,7 @@ static Type* translate_type_name(Env* env, TypeName* t) {
   }
   Type* base_ty = translate_declaration_specifiers(env, t->spec);
   Type* res;
-  extract_declarator(t->declarator, base_ty, NULL, &res);
+  extract_declarator(env, t->declarator, base_ty, NULL, &res);
   return res;
 }
 
@@ -670,8 +676,6 @@ static Type* promoted_type(Type* opr) {
 static Expr* indirect(Expr* e) {
   return shallow_copy_node(e);
 }
-
-static Type* sema_expr(Env* env, Expr* expr);
 
 // perform an integer promotion, if required
 // caller has an ownership of returned `Type*`
@@ -1327,7 +1331,7 @@ static void sema_init_declarator(Env* env,
                                  InitDeclarator* decl) {
   char* name;
   Type* ty;
-  extract_declarator(decl->declarator, base_ty, &name, &ty);
+  extract_declarator(env, decl->declarator, base_ty, &name, &ty);
 
   if (ty->kind == TY_ARRAY && !ty->is_length_known && decl->initializer != NULL) {
     // enable to guess the length of array!
@@ -1469,7 +1473,7 @@ static void sema_stmt(Env* env, Statement* stmt) {
     }
     case ST_CASE: {
       set_case(env, stmt);
-      stmt->case_value = eval_constant(stmt->expr);
+      stmt->case_value = eval_constant(env, stmt->expr);
       stmt->label_id   = add_anon_label(env);
       sema_stmt(env, stmt->body);
       break;
@@ -1526,7 +1530,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
 
     if (env->is_global_only) {
       Type* type;
-      extract_declarator(d->decl, base_ty, NULL, &type);
+      extract_declarator(env, d->decl, base_ty, NULL, &type);
       push_TypeVec(params, type);
     } else {
       // must be declarator
@@ -1535,7 +1539,7 @@ static TypeVec* param_types(Env* env, ParamList* cur) {
       }
       Type* type;
       char* name;
-      extract_declarator(d->decl, base_ty, &name, &type);
+      extract_declarator(env, d->decl, base_ty, &name, &type);
       push_TypeVec(params, type);
       add_var(env, name, copy_Type(type));
     }
@@ -1551,7 +1555,7 @@ static void sema_function(GlobalEnv* global, FunctionDef* f) {
   Type* base_ty = translate_declaration_specifiers(fake_env(global), f->spec);
   Type* ret;
   char* name;
-  extract_declarator(f->decl, base_ty, &name, &ret);
+  extract_declarator(fake_env(global), f->decl, base_ty, &name, &ret);
 
   Env* env        = init_Env(global, ret);
   TypeVec* params = param_types(env, f->params);
@@ -1585,7 +1589,7 @@ static void sema_translation_unit(GlobalEnv* global, TranslationUnit* l) {
       Type* base_ty = translate_declaration_specifiers(fake_env(global), f->spec);
       Type* ret;
       char* name;
-      extract_declarator(f->decl, base_ty, &name, &ret);
+      extract_declarator(fake_env(global), f->decl, base_ty, &name, &ret);
       TypeVec* params = param_types(fake_env(global), f->params);
       Type* ty        = func_ty(ret, params, f->is_vararg);
       f->type         = copy_Type(ty);

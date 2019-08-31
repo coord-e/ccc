@@ -1,12 +1,24 @@
 #include "propagation.h"
 
-static void update_reach(BitSet* reach, IRInst* inst) {
-  error("unimplemented");
+static void update_reach(Function* f, BitSet* reach, IRInst* inst) {
+  if (inst->rd == NULL) {
+    return;
+  }
+  unsigned id  = inst->local_id;
+  BitSet* defs = copy_BitSet(get_BSVec(f->definitions, inst->rd->virtual));
+  set_BitSet(defs, id, false);
+  diff_BitSet(reach, defs);
+  set_BitSet(reach, id, true);
+  release_BitSet(defs);
 }
 
 static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRInst* inst) {
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* ra      = get_RegVec(inst->ras, i);
+    Reg* ra = get_RegVec(inst->ras, i);
+    if (ra->kind != REG_VIRT) {
+      continue;
+    }
+
     BitSet* defs = copy_BitSet(get_BSVec(f->definitions, ra->virtual));
     and_BitSet(defs, reach);
     if (count_BitSet(defs) != 1) {
@@ -42,11 +54,11 @@ static void propagation_function(Function* f) {
       continue;
     }
 
-    BitSet* reach  = copy_BitSet(bb->reach_in);
+    BitSet* reach = copy_BitSet(bb->reach_in);
     for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
       IRInst* inst = get_IRInstVec(bb->sorted_insts, i);
       perform_propagation(f, bb, reach, inst);
-      update_reach(reach, inst);
+      update_reach(f, reach, inst);
     }
     l = tail_BBList(l);
   }

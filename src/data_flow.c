@@ -50,26 +50,23 @@ static BSVec* collect_defs(Function* f) {
   return defs;
 }
 
-static void iter_insts(BasicBlock* b, IRInstList* l) {
-  if (is_nil_IRInstList(l)) {
-    return;
-  }
-  IRInst* inst = head_IRInstList(l);
+static void iter_insts_forward(BasicBlock* b, IRInstVec* insts) {
+  for (unsigned j = 0; j < length_IRInstVec(insts); j++) {
+    IRInst* inst = get_IRInstVec(insts, j);
 
-  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* ra = get_RegVec(inst->ras, i);
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      Reg* ra = get_RegVec(inst->ras, i);
 
-    unsigned vi = ra->virtual;
-    if (!get_BitSet(b->live_kill, vi)) {
-      set_BitSet(b->live_gen, vi, true);
+      unsigned vi = ra->virtual;
+      if (!get_BitSet(b->live_kill, vi)) {
+        set_BitSet(b->live_gen, vi, true);
+      }
+    }
+
+    if (inst->rd != NULL) {
+      set_BitSet(b->live_kill, inst->rd->virtual, true);
     }
   }
-
-  if (inst->rd != NULL) {
-    set_BitSet(b->live_kill, inst->rd->virtual, true);
-  }
-
-  iter_insts(b, tail_IRInstList(l));
 }
 
 static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstVec* insts) {
@@ -102,7 +99,7 @@ static void compute_local_sets(Function* ir) {
     b->reach_gen  = zero_BitSet(ir->inst_count);
     b->reach_kill = zero_BitSet(ir->inst_count);
 
-    iter_insts(b, b->insts);
+    iter_insts_forward(b, b->sorted_insts);
     iter_insts_backward(defs, b, b->sorted_insts);
   }
 }

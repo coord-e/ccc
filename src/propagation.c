@@ -35,6 +35,9 @@ static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRIn
         case IR_MOV: {
           assert(def_inst->rd->virtual == ra->virtual);
           Reg* r = get_RegVec(def_inst->ras, 0);
+          if (r->irreplaceable) {
+            break;
+          }
           release_Reg(ra);
           set_RegVec(inst->ras, i, copy_Reg(r));
           break;

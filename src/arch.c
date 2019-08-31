@@ -48,7 +48,8 @@ static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
 }
 
 static Reg* new_fixed_reg(Env* env, unsigned id, DataSize size) {
-  Reg* r = new_fixed_Reg(size, env->reg_count++, id);
+  Reg* r           = new_fixed_Reg(size, env->reg_count++, id);
+  r->irreplaceable = true;
   set_BitSet(env->used_fixed_regs, id, true);
   return r;
 }
@@ -83,10 +84,13 @@ static IRInst* new_ret(Env* env, Reg* ra) {
 }
 
 static IRInst* new_binop(Env* env, BinopKind kind, Reg* rd, Reg* lhs, Reg* rhs) {
-  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
-  inst->binop  = kind;
-  inst->rd     = copy_Reg(rd);
-  push_RegVec(inst->ras, copy_Reg(lhs));
+  IRInst* inst            = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
+  inst->binop             = kind;
+  inst->rd                = copy_Reg(rd);
+  inst->rd->irreplaceable = true;
+  Reg* lhs_               = copy_Reg(lhs);
+  lhs_->irreplaceable     = true;
+  push_RegVec(inst->ras, lhs_);
   push_RegVec(inst->ras, copy_Reg(rhs));
   return inst;
 }

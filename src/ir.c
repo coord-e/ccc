@@ -1,7 +1,6 @@
 #include "ir.h"
 #include "const_fold_tree.h"
 #include "error.h"
-#include "liveness.h"
 #include "map.h"
 #include "parser.h"
 
@@ -74,6 +73,10 @@ static void release_BasicBlock(BasicBlock* bb) {
   release_BitSet(bb->live_kill);
   release_BitSet(bb->live_in);
   release_BitSet(bb->live_out);
+  release_BitSet(bb->reach_gen);
+  release_BitSet(bb->reach_kill);
+  release_BitSet(bb->reach_in);
+  release_BitSet(bb->reach_out);
 
   release_BitSet(bb->should_preserve);
 
@@ -83,12 +86,14 @@ static void release_BasicBlock(BasicBlock* bb) {
 DECLARE_MAP(BasicBlock*, BBMap)
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
+DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
 static void release_Function(Function* f) {
   free(f->name);
   release_BBList(f->blocks);
   release_RegIntervals(f->intervals);
   release_BitSet(f->used_fixed_regs);
+  release_BSVec(f->definitions);
   free(f);
 }
 
@@ -1139,6 +1144,9 @@ static void print_reg(FILE* p, Reg* r) {
     default:
       CCC_UNREACHABLE;
   }
+  if (r->irreplaceable) {
+    fputs("!", p);
+  }
 }
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
@@ -1333,4 +1341,22 @@ void print_IR(FILE* p, IR* ir) {
   print_FunctionList(p, ir->functions);
   fprintf(p, "}\n");
   // TODO: print `ir->globals`
+}
+
+static void release_Interval(Interval* iv) {
+  free(iv);
+}
+DEFINE_VECTOR(release_Interval, Interval*, RegIntervals)
+
+static void print_Interval(FILE* p, Interval* iv) {
+  fprintf(p, "[%d, %d]", iv->from, iv->to);
+}
+
+void print_Intervals(FILE* p, RegIntervals* v) {
+  for (unsigned i = 0; i < length_RegIntervals(v); i++) {
+    Interval* iv = get_RegIntervals(v, i);
+    fprintf(p, "%d: ", i);
+    print_Interval(p, iv);
+    fputs("\n", p);
+  }
 }

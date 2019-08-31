@@ -43,6 +43,7 @@ typedef struct {
   unsigned virtual;
   unsigned real;
   DataSize size;
+  bool irreplaceable;
 } Reg;
 
 Reg* new_Reg(RegKind, DataSize);
@@ -116,11 +117,15 @@ struct BasicBlock {
   // so mark as dead with this field instead of removing it
   bool dead;
 
-  // will filled in `liveness`
-  BitSet* live_gen;   // owned, NULL before analysis
-  BitSet* live_kill;  // owned, ditto
-  BitSet* live_in;    // owned, ditto
-  BitSet* live_out;   // owned, ditto
+  // will filled in `data_flow`
+  BitSet* live_in;     // owned, NULL before analysis
+  BitSet* live_out;    // owned, ditto
+  BitSet* live_gen;    // owned, ditto
+  BitSet* live_kill;   // owned, ditto
+  BitSet* reach_in;    // owned, ditto
+  BitSet* reach_out;   // owned, ditto
+  BitSet* reach_gen;   // owned, ditto
+  BitSet* reach_kill;  // owned, ditto
 
   // will filled in `reorder`
   // sorted in normal order
@@ -133,10 +138,28 @@ struct BasicBlock {
   BitSet* should_preserve;  // owned
 };
 
-DECLARE_VECTOR(BasicBlock*, BBVec)
+typedef enum {
+  IV_UNSET,
+  IV_VIRTUAL,
+  IV_FIXED,
+} IntervalKind;
 
-// forward decralation; will declared in `liveness.h`
-typedef struct RegIntervals RegIntervals;
+typedef struct {
+  IntervalKind kind;
+
+  // -1 for undefined
+  // TODO: stop using -1 to indicate undefined value
+  unsigned from;
+  unsigned to;
+
+  unsigned fixed_real;  // for IV_FIXED
+} Interval;
+
+DECLARE_VECTOR(Interval*, RegIntervals)
+void print_Intervals(FILE*, RegIntervals*);
+
+DECLARE_VECTOR(BasicBlock*, BBVec)
+DECLARE_VECTOR(BitSet*, BSVec)
 
 typedef struct {
   char* name;  // owned
@@ -159,6 +182,11 @@ typedef struct {
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
+  // sorted in normal order
+  IRInstVec* sorted_insts;  // not owned
+
+  // will filled in `data_flow`
+  BSVec* definitions;  // owned, virtual -> inst local id
 
   // will filled in `liveness`
   RegIntervals* intervals;  // owned

@@ -6,12 +6,13 @@
 #include "arch.h"
 #include "codegen.h"
 #include "const_fold_tree.h"
+#include "data_flow.h"
 #include "error.h"
 #include "ir.h"
 #include "lexer.h"
-#include "liveness.h"
 #include "mem2reg.h"
 #include "parser.h"
+#include "propagation.h"
 #include "reg_alloc.h"
 #include "reorder.h"
 #include "sema.h"
@@ -179,7 +180,10 @@ int main(int argc, char** argv) {
 
   reorder_blocks(ir);
 
-  liveness(ir);
+  reach_data_flow(ir);
+  propagation(ir);
+
+  live_data_flow(ir);
   reg_alloc(num_regs, ir);
 
   if (opts.emit_ir3 != NULL) {

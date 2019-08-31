@@ -13,6 +13,7 @@
 #include "liveness.h"
 #include "mem2reg.h"
 #include "parser.h"
+#include "propagation.h"
 #include "reg_alloc.h"
 #include "reorder.h"
 #include "sema.h"
@@ -181,6 +182,7 @@ int main(int argc, char** argv) {
   reorder_blocks(ir);
 
   data_flow(ir);
+  propagation(ir);
   liveness(ir);
   reg_alloc(num_regs, ir);
 

@@ -21,6 +21,8 @@ static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRIn
 
     BitSet* defs = copy_BitSet(get_BSVec(f->definitions, ra->virtual));
     and_BitSet(defs, reach);
+
+    assert(count_BitSet(defs) != 0);
     if (count_BitSet(defs) != 1) {
       continue;
     }
@@ -35,7 +37,8 @@ static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRIn
           Reg* r = get_RegVec(def_inst->ras, 0);
           release_Reg(ra);
           set_RegVec(inst->ras, i, copy_Reg(r));
-        } break;
+          break;
+        }
         default:
           break;
       }
@@ -60,6 +63,8 @@ static void propagation_function(Function* f) {
       perform_propagation(f, bb, reach, inst);
       update_reach(f, reach, inst);
     }
+    assert(equal_to_BitSet(bb->reach_out, reach));
+
     l = tail_BBList(l);
   }
 }

@@ -43,10 +43,9 @@ static void dead_code_elim_function(Function* f) {
     BitSet* live = copy_BitSet(bb->live_out);
     for (unsigned i = length_IRInstVec(bb->sorted_insts); i > 0; i--) {
       IRInst* inst = get_IRInstVec(bb->sorted_insts, i - 1);
-      update_live(live, inst);
       perform_dce(live, inst);
+      update_live(live, inst);
     }
-    assert(equal_to_BitSet(bb->live_in, live));
 
     l = tail_BBList(l);
   }

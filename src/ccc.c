@@ -5,6 +5,7 @@
 
 #include "arch.h"
 #include "codegen.h"
+#include "const_fold_tree.h"
 #include "error.h"
 #include "ir.h"
 #include "lexer.h"
@@ -155,6 +156,10 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
+  const_fold_tree(tree);
+
+  // TODO: reduce the number of semantic analysis
+  sema(tree);
   IR* ir = generate_IR(tree);
   release_AST(tree);
   if (opts.emit_ir1 != NULL) {

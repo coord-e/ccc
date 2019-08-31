@@ -1,4 +1,5 @@
 #include "ir.h"
+#include "const_fold_tree.h"
 #include "error.h"
 #include "liveness.h"
 #include "map.h"
@@ -867,31 +868,34 @@ static GlobalExpr* translate_initializer_lhs(GlobalEnv* env, Expr* expr) {
 }
 
 static GlobalExpr* translate_initializer_expr(GlobalEnv* env, Expr* expr) {
-  // TODO: Support more expressions
-  // TODO: Use the common evaluator with sema
   switch (expr->kind) {
-    case ND_NUM: {
-      GlobalExpr* e = new_GlobalExpr(GE_NUM);
-      e->num        = expr->num;
-      e->size       = to_data_size(sizeof_ty(expr->type));
-      return e;
-    }
     case ND_STRING: {
       GlobalExpr* e = new_GlobalExpr(GE_STRING);
       e->string     = strdup(expr->string);
       return e;
     }
+    case ND_ADDR:
+    case ND_ADDR_ARY:
+      return translate_initializer_lhs(env, expr->expr);
     case ND_CAST: {
       // TODO: strictly consider types in constant evaluation
       GlobalExpr* e = translate_initializer_expr(env, expr->expr);
       e->size       = to_data_size(sizeof_ty(expr->cast_type));
       return e;
     }
-    case ND_ADDR:
-    case ND_ADDR_ARY:
-      return translate_initializer_lhs(env, expr->expr);
-    default:
-      error("global initializer element is not constant");
+    default: {
+      unsigned size = to_data_size(sizeof_ty(expr->type));
+      const_fold_expr(expr);
+
+      long c;
+      if (!get_constant(expr, &c)) {
+        error("global initializer element is not constant");
+      }
+      GlobalExpr* e = new_GlobalExpr(GE_NUM);
+      e->num        = c;
+      e->size       = size;
+      return e;
+    }
   }
 }
 

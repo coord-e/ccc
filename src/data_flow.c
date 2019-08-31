@@ -1,21 +1,56 @@
 #include "data_flow.h"
 
-static void compute_local_live_sets(Function*);
+static void compute_local_sets(Function*);
 static void compute_global_live_sets(Function*);
+static void compute_global_reach_sets(Function*);
+
+DECLARE_VECTOR(BitSet*, BSVec)
+DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
 void data_flow(IR* ir) {
   FunctionList* l = ir->functions;
   while (!is_nil_FunctionList(l)) {
     Function* f = head_FunctionList(l);
 
-    compute_local_live_sets(f);
+    compute_local_sets(f);
+
+    // compute `live_out` and `live_in`
     compute_global_live_sets(f);
+
+    // compute `reach_out` and `reach_in`
+    compute_global_reach_sets(f);
 
     l = tail_FunctionList(l);
   }
 }
 
-static void iter_insts(BasicBlock* b, IRInstList* l) {
+static void collect_defs_insts(BBVec* defs, IRInstList* l) {
+  while (!is_nil_IRInstList(l)) {
+    IRInst* inst = head_IRInstList(l);
+    if (inst->rd != NULL) {
+      set_BitSet(get_BBVec(defs, inst->rd->virtual), inst->id, true);
+    }
+    l = tail_IRInstList(l);
+  }
+}
+
+static BBVec* collect_defs(Function* f) {
+  BBVec* defs = new_BBVec(f->reg_count);
+  for (unsigned i = 0; i < f->reg_count; i++) {
+    push_BBVec(defs, zero_BitSet(f->inst_count));
+  }
+
+  BBList* l = f->blocks;
+  while (!is_nil_BBList(l)) {
+    BasicBlock* b = head_BBList(l);
+    collect_defs_insts(defs, b->insts);
+    l = tail_BBList(l);
+  }
+
+  return defs;
+}
+
+static void iter_insts(BBVec* defs, BasicBlock* b, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
   }
@@ -32,17 +67,27 @@ static void iter_insts(BasicBlock* b, IRInstList* l) {
 
   if (inst->rd != NULL) {
     set_BitSet(b->live_kill, inst->rd->virtual, true);
+
+    BitSet* kill = copy_BitSet(get_BBVec(defs, inst->rd->virtual));
+    set_BitSet(kill, inst->id, false);
+    or_BitSet(b->reach_kill, kill);
+    release_BitSet(kill);
+
+    // hmm??
   }
 
-  iter_insts(b, tail_IRInstList(l));
+  iter_insts(defs, b, tail_IRInstList(l));
 }
 
-static void compute_local_live_sets(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
+static void compute_local_sets(Function* ir) {
+  BBVec* defs = collect_defs(ir);
+  BBVec* v    = ir->sorted_blocks;
   for (unsigned i = length_BBVec(v); i > 0; i--) {
     BasicBlock* b = get_BBVec(v, i - 1);
     b->live_gen   = zero_BitSet(ir->reg_count);
     b->live_kill  = zero_BitSet(ir->reg_count);
+    b->reach_gen  = zero_BitSet(ir->inst_count);
+    b->reach_kill = zero_BitSet(ir->inst_count);
 
     iter_insts(b, b->insts);
   }
@@ -60,9 +105,6 @@ static void iter_succs(BasicBlock* b, BBList* l) {
 
   iter_succs(b, tail_BBList(l));
 }
-
-DECLARE_VECTOR(BitSet*, BSVec)
-DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
 static void compute_global_live_sets(Function* ir) {
   BBVec* v = ir->sorted_blocks;

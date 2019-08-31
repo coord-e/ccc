@@ -117,10 +117,14 @@ struct BasicBlock {
   bool dead;
 
   // will filled in `liveness`
-  BitSet* live_gen;   // owned, NULL before analysis
-  BitSet* live_kill;  // owned, ditto
-  BitSet* live_in;    // owned, ditto
-  BitSet* live_out;   // owned, ditto
+  BitSet* live_in;     // owned, NULL before analysis
+  BitSet* live_out;    // owned, ditto
+  BitSet* live_gen;    // owned, ditto
+  BitSet* live_kill;   // owned, ditto
+  BitSet* reach_in;    // owned, ditto
+  BitSet* reach_out;   // owned, ditto
+  BitSet* reach_gen;   // owned, ditto
+  BitSet* reach_kill;  // owned, ditto
 
   // will filled in `reorder`
   // sorted in normal order

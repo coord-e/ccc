@@ -32,9 +32,9 @@ ccc is intended to be an optimizing compiler that produces code which is faster 
 - [ ] optimizations
   - [x] linear scan register allocation
   - [x] naive mem2reg
-  - [ ] constant folding
-  - [ ] copy propagation
-  - [ ] dead code elimination
+  - [x] constant folding
+  - [x] copy propagation
+  - [x] dead code elimination
   - [ ] tail call optimization
   - [ ] loop unwinding
 - [ ] misc

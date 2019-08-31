@@ -1,4 +1,5 @@
 #include "sema.h"
+#include "const_fold_tree.h"
 #include "map.h"
 #include "type.h"
 
@@ -260,13 +261,12 @@ static void should_complete(Type* ty) {
 }
 
 static int eval_constant(Expr* e) {
-  // TODO: Support more nodes
-  switch (e->kind) {
-    case ND_NUM:
-      return e->num;
-    default:
-      error("invalid constant expression");
+  const_fold_expr(e);
+  long c;
+  if (get_constant(e, &c)) {
+    return c;
   }
+  error("invalid constant expression");
 }
 
 static Type* translate_base_type(BaseType t) {

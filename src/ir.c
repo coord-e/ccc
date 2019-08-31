@@ -1145,6 +1145,9 @@ static void print_reg(FILE* p, Reg* r) {
     default:
       CCC_UNREACHABLE;
   }
+  if (r->irreplaceable) {
+    fputs("!", p);
+  }
 }
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)

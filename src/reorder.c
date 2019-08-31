@@ -34,7 +34,7 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   push_BBVec(env->bbs, b);
 }
 
-void traverse_insts(unsigned* count, IRInstVec* acc, IRInstList* l) {
+void traverse_insts(Function* f, unsigned* count, IRInstVec* acc, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
   }
@@ -42,18 +42,20 @@ void traverse_insts(unsigned* count, IRInstVec* acc, IRInstList* l) {
   IRInst* inst   = head_IRInstList(l);
   inst->local_id = (*count)++;
   push_IRInstVec(acc, inst);
+  push_IRInstVec(f->sorted_insts, inst);
 
-  traverse_insts(count, acc, tail_IRInstList(l));
+  traverse_insts(f, count, acc, tail_IRInstList(l));
 }
 
-void number_insts(BBVec* v) {
+void number_insts(Function* f, BBVec* v) {
+  f->sorted_insts     = new_IRInstVec(32);  // TODO: allocate accurate number of insts
   unsigned inst_count = 0;
   unsigned len_bbs    = length_BBVec(v);
   for (unsigned i = len_bbs; i > 0; i--) {
     BasicBlock* b   = get_BBVec(v, i - 1);
     b->local_id     = len_bbs - i;
     b->sorted_insts = new_IRInstVec(32);  // TODO: allocate accurate number of insts
-    traverse_insts(&inst_count, b->sorted_insts, b->insts);
+    traverse_insts(f, &inst_count, b->sorted_insts, b->insts);
   }
 }
 
@@ -99,7 +101,7 @@ static void reorder_blocks_function(Function* ir) {
   ir->sorted_blocks = env->bbs;
   release_BitSet(env->visited);
 
-  number_insts(ir->sorted_blocks);
+  number_insts(ir, ir->sorted_blocks);
 }
 
 static void reorder_blocks_functions(FunctionList* l) {

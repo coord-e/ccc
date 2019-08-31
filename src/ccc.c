@@ -7,6 +7,7 @@
 #include "codegen.h"
 #include "const_fold_tree.h"
 #include "data_flow.h"
+#include "dead_code_elim.h"
 #include "error.h"
 #include "ir.h"
 #include "lexer.h"
@@ -184,6 +185,7 @@ int main(int argc, char** argv) {
   propagation(ir);
 
   live_data_flow(ir);
+  dead_code_elim(ir);
   reg_alloc(num_regs, ir);
 
   if (opts.emit_ir3 != NULL) {

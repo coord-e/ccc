@@ -30,6 +30,7 @@ typedef enum {
   IR_SEXT,
   IR_TRUNC,
   IR_GLOBAL_ADDR,
+  IR_NOP,
 } IRInstKind;
 
 typedef enum {

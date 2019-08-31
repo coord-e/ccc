@@ -158,6 +158,7 @@ int main(int argc, char** argv) {
 
   const_fold_tree(tree);
 
+  sema(tree);
   IR* ir = generate_IR(tree);
   release_AST(tree);
   if (opts.emit_ir1 != NULL) {

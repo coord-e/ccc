@@ -12,7 +12,20 @@ static void update_reach(Function* f, BitSet* reach, IRInst* inst) {
   release_BitSet(defs);
 }
 
-static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRInst* inst) {
+static IRInst* lookup_inst(Function* f, unsigned target) {
+  for (unsigned i = 0; i < length_BBVec(f->sorted_blocks); i++) {
+    BasicBlock* bb = get_BBVec(f->sorted_blocks, i);
+    for (unsigned j = 0; j < length_IRInstVec(bb->sorted_insts); j++) {
+      IRInst* inst = get_IRInstVec(bb->sorted_insts, j);
+      if (inst->local_id == target) {
+        return inst;
+      }
+    }
+  }
+  CCC_UNREACHABLE;
+}
+
+static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
     if (ra->irreplaceable) {
@@ -30,7 +43,7 @@ static void perform_propagation(Function* f, BasicBlock* bb, BitSet* reach, IRIn
       if (!get_BitSet(defs, j)) {
         continue;
       }
-      IRInst* def_inst = get_IRInstVec(bb->sorted_insts, j);
+      IRInst* def_inst = lookup_inst(f, j);
       switch (def_inst->kind) {
         case IR_MOV: {
           assert(def_inst->rd->virtual == ra->virtual);
@@ -63,7 +76,7 @@ static void propagation_function(Function* f) {
     BitSet* reach = copy_BitSet(bb->reach_in);
     for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
       IRInst* inst = get_IRInstVec(bb->sorted_insts, i);
-      perform_propagation(f, bb, reach, inst);
+      perform_propagation(f, reach, inst);
       update_reach(f, reach, inst);
     }
     assert(equal_to_BitSet(bb->reach_out, reach));

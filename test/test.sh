@@ -658,4 +658,28 @@ int main() {
 }
 EOF
 
+# constant expressions
+items 24 "int a[sizeof(int) + 2]; return sizeof(a);"
+try_ 5 <<EOF
+char *strings[] = {"str1", "str2", "str3", "str4", "str5"};
+unsigned long length = sizeof(strings) / sizeof(*strings);
+
+int main(int argc, char** argv) {
+  return length;
+}
+EOF
+try_ 3 <<EOF
+enum E {
+  E1 = 0,
+  E2 = 2,
+  E3 = 4
+};
+
+int a[E3 - 1];
+
+int main(int argc, char** argv) {
+  return sizeof(a) / sizeof(int);
+}
+EOF
+
 echo OK

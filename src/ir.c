@@ -74,6 +74,10 @@ static void release_BasicBlock(BasicBlock* bb) {
   release_BitSet(bb->live_kill);
   release_BitSet(bb->live_in);
   release_BitSet(bb->live_out);
+  release_BitSet(bb->reach_gen);
+  release_BitSet(bb->reach_kill);
+  release_BitSet(bb->reach_in);
+  release_BitSet(bb->reach_out);
 
   release_BitSet(bb->should_preserve);
 

@@ -18,26 +18,26 @@ void data_flow(IR* ir) {
     compute_global_live_sets(f);
 
     // compute `reach_out` and `reach_in`
-    compute_global_reach_sets(f);
+    /* compute_global_reach_sets(f); */
 
     l = tail_FunctionList(l);
   }
 }
 
-static void collect_defs_insts(BBVec* defs, IRInstList* l) {
+static void collect_defs_insts(BSVec* defs, IRInstList* l) {
   while (!is_nil_IRInstList(l)) {
     IRInst* inst = head_IRInstList(l);
     if (inst->rd != NULL) {
-      set_BitSet(get_BBVec(defs, inst->rd->virtual), inst->id, true);
+      set_BitSet(get_BSVec(defs, inst->rd->virtual), inst->local_id, true);
     }
     l = tail_IRInstList(l);
   }
 }
 
-static BBVec* collect_defs(Function* f) {
-  BBVec* defs = new_BBVec(f->reg_count);
+static BSVec* collect_defs(Function* f) {
+  BSVec* defs = new_BSVec(f->reg_count);
   for (unsigned i = 0; i < f->reg_count; i++) {
-    push_BBVec(defs, zero_BitSet(f->inst_count));
+    push_BSVec(defs, zero_BitSet(f->inst_count));
   }
 
   BBList* l = f->blocks;
@@ -50,7 +50,7 @@ static BBVec* collect_defs(Function* f) {
   return defs;
 }
 
-static void iter_insts(BBVec* defs, BasicBlock* b, IRInstList* l) {
+static void iter_insts(BasicBlock* b, IRInstList* l) {
   if (is_nil_IRInstList(l)) {
     return;
   }
@@ -67,20 +67,33 @@ static void iter_insts(BBVec* defs, BasicBlock* b, IRInstList* l) {
 
   if (inst->rd != NULL) {
     set_BitSet(b->live_kill, inst->rd->virtual, true);
-
-    BitSet* kill = copy_BitSet(get_BBVec(defs, inst->rd->virtual));
-    set_BitSet(kill, inst->id, false);
-    or_BitSet(b->reach_kill, kill);
-    release_BitSet(kill);
-
-    // hmm??
   }
 
-  iter_insts(defs, b, tail_IRInstList(l));
+  iter_insts(b, tail_IRInstList(l));
+}
+
+static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstVec* insts) {
+  for (unsigned ti = length_IRInstVec(insts); ti > 0; ti--) {
+    IRInst* inst = get_IRInstVec(insts, ti - 1);
+    unsigned id  = inst->local_id;
+
+    if (inst->rd == NULL) {
+      continue;
+    }
+
+    if (!get_BitSet(b->reach_kill, id)) {
+      set_BitSet(b->reach_gen, id, true);
+    }
+
+    BitSet* kill = copy_BitSet(get_BSVec(defs, inst->rd->virtual));
+    set_BitSet(kill, id, false);
+    or_BitSet(b->reach_kill, kill);
+    release_BitSet(kill);
+  }
 }
 
 static void compute_local_sets(Function* ir) {
-  BBVec* defs = collect_defs(ir);
+  BSVec* defs = collect_defs(ir);
   BBVec* v    = ir->sorted_blocks;
   for (unsigned i = length_BBVec(v); i > 0; i--) {
     BasicBlock* b = get_BBVec(v, i - 1);
@@ -90,6 +103,7 @@ static void compute_local_sets(Function* ir) {
     b->reach_kill = zero_BitSet(ir->inst_count);
 
     iter_insts(b, b->insts);
+    iter_insts_backward(defs, b, b->sorted_insts);
   }
 }
 

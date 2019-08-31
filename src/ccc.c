@@ -6,6 +6,7 @@
 #include "arch.h"
 #include "codegen.h"
 #include "const_fold_tree.h"
+#include "data_flow.h"
 #include "error.h"
 #include "ir.h"
 #include "lexer.h"
@@ -179,6 +180,7 @@ int main(int argc, char** argv) {
 
   reorder_blocks(ir);
 
+  data_flow(ir);
   liveness(ir);
   reg_alloc(num_regs, ir);
 

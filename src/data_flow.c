@@ -1,17 +1,19 @@
 #include "data_flow.h"
 
+static void collect_defs(Function*);
 static void compute_local_sets(Function*);
 static void compute_global_live_sets(Function*);
 static void compute_global_reach_sets(Function*);
-
-DECLARE_VECTOR(BitSet*, BSVec)
-DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
 void data_flow(IR* ir) {
   FunctionList* l = ir->functions;
   while (!is_nil_FunctionList(l)) {
     Function* f = head_FunctionList(l);
 
+    // compute `f->definitions`
+    collect_defs(f);
+
+    // compute `*_gen` and `*_kill`
     compute_local_sets(f);
 
     // compute `live_out` and `live_in`
@@ -34,7 +36,7 @@ static void collect_defs_insts(BSVec* defs, IRInstList* l) {
   }
 }
 
-static BSVec* collect_defs(Function* f) {
+static void collect_defs(Function* f) {
   BSVec* defs = new_BSVec(f->reg_count);
   for (unsigned i = 0; i < f->reg_count; i++) {
     push_BSVec(defs, zero_BitSet(f->inst_count));
@@ -47,7 +49,7 @@ static BSVec* collect_defs(Function* f) {
     l = tail_BBList(l);
   }
 
-  return defs;
+  f->definitions = defs;
 }
 
 static void iter_insts_forward(BasicBlock* b, IRInstVec* insts) {
@@ -90,8 +92,7 @@ static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstVec* insts) {
 }
 
 static void compute_local_sets(Function* ir) {
-  BSVec* defs = collect_defs(ir);
-  BBVec* v    = ir->sorted_blocks;
+  BBVec* v = ir->sorted_blocks;
   for (unsigned i = length_BBVec(v); i > 0; i--) {
     BasicBlock* b = get_BBVec(v, i - 1);
     b->live_gen   = zero_BitSet(ir->reg_count);
@@ -100,7 +101,7 @@ static void compute_local_sets(Function* ir) {
     b->reach_kill = zero_BitSet(ir->inst_count);
 
     iter_insts_forward(b, b->sorted_insts);
-    iter_insts_backward(defs, b, b->sorted_insts);
+    iter_insts_backward(ir->definitions, b, b->sorted_insts);
   }
 }
 

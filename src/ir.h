@@ -116,7 +116,7 @@ struct BasicBlock {
   // so mark as dead with this field instead of removing it
   bool dead;
 
-  // will filled in `liveness`
+  // will filled in `data_flow`
   BitSet* live_in;     // owned, NULL before analysis
   BitSet* live_out;    // owned, ditto
   BitSet* live_gen;    // owned, ditto
@@ -138,6 +138,7 @@ struct BasicBlock {
 };
 
 DECLARE_VECTOR(BasicBlock*, BBVec)
+DECLARE_VECTOR(BitSet*, BSVec)
 
 // forward decralation; will declared in `liveness.h`
 typedef struct RegIntervals RegIntervals;
@@ -163,6 +164,9 @@ typedef struct {
   // will filled in `reorder`
   // sorted in reverse order
   BBVec* sorted_blocks;  // not owned
+
+  // will filled in `data_flow`
+  BSVec* definitions;  // owned, virtual -> inst local id
 
   // will filled in `liveness`
   RegIntervals* intervals;  // owned

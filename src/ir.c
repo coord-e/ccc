@@ -83,12 +83,14 @@ static void release_BasicBlock(BasicBlock* bb) {
 DECLARE_MAP(BasicBlock*, BBMap)
 DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
+DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
 static void release_Function(Function* f) {
   free(f->name);
   release_BBList(f->blocks);
   release_RegIntervals(f->intervals);
   release_BitSet(f->used_fixed_regs);
+  release_BSVec(f->definitions);
   free(f);
 }
 

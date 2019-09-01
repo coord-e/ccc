@@ -82,20 +82,10 @@ static bool mark_dead_iter(BasicBlock* entry, IntVec* visited, BBList* l, bool a
   return mark_dead_iter(entry, visited, tail_BBList(l), acc && b->dead);
 }
 
-static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
-  IntVec* visited = new_IntVec(bb_count);
-  resize_IntVec(visited, bb_count);
-  fill_IntVec(visited, -1);
-  mark_dead_iter(entry, visited, exit->preds, true);
-  release_IntVec(visited);
-}
-
 // change `local_id`s of `BasicBlock` and `IRInst`
 // and collect `BasicBlock`s to `sorted_blocks` in reversed order
 static void reorder_blocks_function(Function* ir) {
   Env* env = init_Env(ir->bb_count);
-
-  mark_dead(ir->bb_count, ir->entry, ir->exit);
 
   traverse_blocks(env, ir->entry);
   ir->sorted_blocks = env->bbs;
@@ -116,4 +106,27 @@ static void reorder_blocks_functions(FunctionList* l) {
 
 void reorder_blocks(IR* ir) {
   reorder_blocks_functions(ir->functions);
+}
+
+static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
+  IntVec* visited = new_IntVec(bb_count);
+  resize_IntVec(visited, bb_count);
+  fill_IntVec(visited, -1);
+  mark_dead_iter(entry, visited, exit->preds, true);
+  release_IntVec(visited);
+}
+
+static void mark_dead_functions(FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  Function* f = head_FunctionList(l);
+  mark_dead(f->bb_count, f->entry, f->exit);
+
+  reorder_blocks_functions(tail_FunctionList(l));
+}
+
+void mark_dead_blocks(IR* ir) {
+  mark_dead_functions(ir->functions);
 }

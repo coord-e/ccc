@@ -171,8 +171,6 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
-  merge_blocks(ir);
-
   mem2reg(ir);
 
   arch(ir);
@@ -182,6 +180,8 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
+  mark_dead_blocks(ir);
+  merge_blocks(ir);
   reorder_blocks(ir);
 
   reach_data_flow(ir);

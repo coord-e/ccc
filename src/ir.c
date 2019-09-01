@@ -62,7 +62,7 @@ DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
 
 DEFINE_VECTOR(release_Reg, Reg*, RegVec)
 
-static void release_BasicBlock(BasicBlock* bb) {
+void release_BasicBlock(BasicBlock* bb) {
   if (bb == NULL) {
     return;
   }

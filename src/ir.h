@@ -139,6 +139,8 @@ struct BasicBlock {
   BitSet* should_preserve;  // owned
 };
 
+void release_BasicBlock(BasicBlock*);
+
 typedef enum {
   IV_UNSET,
   IV_VIRTUAL,

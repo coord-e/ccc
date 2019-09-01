@@ -1,9 +1,40 @@
 #include "merge.h"
 
-void merge_two(BasicBlock* from, BasicBlock* to) {
-  assert(is_single_BBList(from->succs));
-  assert(is_single_BBList(to->preds));
-  assert(head_BBList(from->succs)->global_id == head_BBList(to->preds)->global_id);
+static bool has_single(BBList* l, BasicBlock** dst) {
+  BasicBlock* encounted = NULL;
+  while (!is_nil_BBList(l)) {
+    BasicBlock* bb = head_BBList(l);
+    if (!bb->dead) {
+      if (encounted != NULL) {
+        return false;
+      }
+      encounted = bb;
+    }
+    l = tail_BBList(l);
+  }
+  if (encounted != NULL) {
+    if (dst != NULL) {
+      *dst = encounted;
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
+
+static bool merge_assertion(BasicBlock* from, BasicBlock* to) {
+  BasicBlock *fb, *tb;
+  if (!has_single(from->succs, &fb)) {
+    return false;
+  }
+  if (!has_single(to->preds, &tb)) {
+    return false;
+  }
+  return from->global_id == tb->global_id && to->global_id == fb->global_id;
+}
+
+static void merge_two(BasicBlock* from, BasicBlock* to) {
+  assert(merge_assertion(from, to));
 
   // TODO: efficiency (list last)
   IRInstList* from_last  = last_IRInstList(from->insts);
@@ -40,9 +71,13 @@ void merge_blocks_search(Function* f, BasicBlock* b1) {
     l = tail_BBList(l);
   }
 
-  if (is_single_BBList(b1->preds)) {
-    BasicBlock* t = head_BBList(b1->preds);
-    if (is_single_BBList(t->succs)) {
+  if (b1->dead) {
+    return;
+  }
+
+  BasicBlock* t;
+  if (has_single(b1->preds, &t)) {
+    if (has_single(t->succs, NULL)) {
       if (f->exit == b1) {
         f->exit = t;
       }

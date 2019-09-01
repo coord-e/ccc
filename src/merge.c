@@ -32,17 +32,21 @@ void merge_two(BasicBlock* from, BasicBlock* to) {
   }
 }
 
-void merge_blocks_search(BasicBlock* b1) {
+void merge_blocks_search(Function* f, BasicBlock* b1) {
   BBList* l = b1->preds;
   while (!is_nil_BBList(l)) {
     BasicBlock* b2 = head_BBList(l);
-    merge_blocks_search(b2);
+    merge_blocks_search(f, b2);
     l = tail_BBList(l);
   }
 
   if (is_single_BBList(b1->preds)) {
     BasicBlock* t = head_BBList(b1->preds);
     if (is_single_BBList(t->succs)) {
+      if (f->exit == b1) {
+        f->exit = t;
+      }
+
       merge_two(t, b1);
     }
   }
@@ -52,7 +56,7 @@ void merge_blocks(IR* ir) {
   FunctionList* l = ir->functions;
   while (!is_nil_FunctionList(l)) {
     Function* f = head_FunctionList(l);
-    merge_blocks_search(f->exit);
+    merge_blocks_search(f, f->exit);
     l = tail_FunctionList(l);
   }
 }

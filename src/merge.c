@@ -55,8 +55,9 @@ static void merge_two(BasicBlock* from, BasicBlock* to) {
       remove_IRInstList(from_last);
       remove_IRInstList(to_head);
       append_IRInstList(from->insts, to->insts);
-      from->succs = to->succs;
-      release_BasicBlock(to);
+      to->insts = nil_IRInstList();
+      from->succs = copy_BBList(to->succs);
+      to->dead    = true;
       break;
     default:
       CCC_UNREACHABLE;

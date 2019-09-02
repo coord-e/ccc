@@ -65,16 +65,21 @@ static void merge_two(BasicBlock* from, BasicBlock* to) {
   }
 }
 
-void merge_blocks_search(Function* f, BasicBlock* b1) {
-  BBList* l = b1->preds;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* b2 = head_BBList(l);
-    merge_blocks_search(f, b2);
-    l = tail_BBList(l);
+void merge_blocks_search(BitSet* visited, Function* f, BasicBlock* b1) {
+  if (get_BitSet(visited, b1->local_id)) {
+    return;
   }
+  set_BitSet(visited, b1->local_id, true);
 
   if (b1->dead) {
     return;
+  }
+
+  BBList* l = b1->preds;
+  while (!is_nil_BBList(l)) {
+    BasicBlock* b2 = head_BBList(l);
+    merge_blocks_search(visited, f, b2);
+    l = tail_BBList(l);
   }
 
   BasicBlock* t;
@@ -93,7 +98,11 @@ void merge_blocks(IR* ir) {
   FunctionList* l = ir->functions;
   while (!is_nil_FunctionList(l)) {
     Function* f = head_FunctionList(l);
-    merge_blocks_search(f, f->exit);
+
+    BitSet* visited = zero_BitSet(f->bb_count);
+    merge_blocks_search(visited, f, f->exit);
+    release_BitSet(visited);
+
     l = tail_FunctionList(l);
   }
 }

@@ -113,11 +113,6 @@ struct BasicBlock {
   // "call bb" is a bb with one call inst
   bool is_call_bb;
 
-  // it costs too much to remove all references from `preds` and `succs`
-  // and remove from `blocks`,
-  // so mark as dead with this field instead of removing it
-  bool dead;
-
   // will filled in `data_flow`
   BitSet* live_in;     // owned, NULL before analysis
   BitSet* live_out;    // owned, ditto
@@ -138,6 +133,11 @@ struct BasicBlock {
   // a set of physical registers that lives through this bb
   BitSet* should_preserve;  // owned
 };
+
+typedef struct Function Function;
+
+void detach_BasicBlock(Function*, BasicBlock*);
+void release_BasicBlock(BasicBlock*);
 
 typedef enum {
   IV_UNSET,
@@ -162,7 +162,7 @@ void print_Intervals(FILE*, RegIntervals*);
 DECLARE_VECTOR(BasicBlock*, BBVec)
 DECLARE_VECTOR(BitSet*, BSVec)
 
-typedef struct {
+struct Function {
   char* name;  // owned
 
   BBList* blocks;  // owned
@@ -194,7 +194,7 @@ typedef struct {
 
   // will filled in `reg_alloc`
   BitSet* used_regs;  // owned
-} Function;
+};
 
 DECLARE_LIST(Function*, FunctionList)
 

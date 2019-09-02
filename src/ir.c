@@ -1130,6 +1130,36 @@ void release_IR(IR* ir) {
   release_GlobalVarVec(ir->globals);
 }
 
+void detach_BasicBlock(Function* f, BasicBlock* b) {
+  // detach a block from IR and enable it to be destructed safely.
+  // - check entry/exit
+  // - remove from succs/preds
+  // - remove from blocks
+
+  assert(f->sorted_blocks == NULL);
+  assert(f->entry != b);
+  assert(f->exit != b);
+
+  {
+    BBList* l = b->succs;
+    while (!is_nil_BBList(l)) {
+      BasicBlock* suc = head_BBList(l);
+      erase_one_BBList(suc->preds, b);
+      l = tail_BBList(l);
+    }
+  }
+  {
+    BBList* l = b->preds;
+    while (!is_nil_BBList(l)) {
+      BasicBlock* pre = head_BBList(l);
+      erase_one_BBList(pre->succs, b);
+      l = tail_BBList(l);
+    }
+  }
+
+  erase_one_BBList(f->blocks, b);
+}
+
 static void print_reg(FILE* p, Reg* r) {
   switch (r->kind) {
     case REG_VIRT:

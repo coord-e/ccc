@@ -50,6 +50,7 @@ static void merge_two(BasicBlock* from, BasicBlock* to) {
     case IR_RET:
       assert(to_last_inst->kind == IR_RET);
       assert(length_RegVec(to_last_inst->ras) == 0);
+      push_RegVec(to_last_inst->ras, copy_Reg(get_RegVec(from_last_inst->ras, 0)));
       // fallthrough
     case IR_JUMP:
       remove_IRInstList(from_last);

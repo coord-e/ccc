@@ -380,16 +380,12 @@ static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
   assign_reg_num_iter_insts(env, tail);
 }
 
-static void assign_reg_num(Env* env, BBList* l) {
-  if (is_nil_BBList(l)) {
+static void assign_reg_num(Env* env, BBListIterator* it) {
+  if (is_nil_BBListIterator(it)) {
     return;
   }
 
-  BasicBlock* b = head_BBList(l);
-  if (b->dead) {
-    assign_reg_num(env, tail_BBList(l));
-    return;
-  }
+  BasicBlock* b = data_BBListIterator(it);
 
   assign_reg_num_iter_insts(env, b->insts);
   b->sorted_insts = NULL;
@@ -410,7 +406,7 @@ static void assign_reg_num(Env* env, BBList* l) {
     release_BitSet(s);
   }
 
-  assign_reg_num(env, tail_BBList(l));
+  assign_reg_num(env, next_BBListIterator(it));
 }
 
 static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, Function* ir) {
@@ -422,7 +418,7 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
 
   release_UIList(ordered_regs);
 
-  assign_reg_num(env, ir->blocks);
+  assign_reg_num(env, front_BBList(ir->blocks));
 
   ir->used_regs = zero_BitSet(num_regs);
   for (unsigned i = 0; i < length_UIVec(env->result); i++) {

@@ -55,11 +55,11 @@ static void collect_defs(Function* f) {
     push_BSVec(defs, zero_BitSet(f->inst_count));
   }
 
-  BBList* l = f->blocks;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* b = head_BBList(l);
+  BBListIterator* it = front_BBList(f->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
     collect_defs_insts(defs, b->insts);
-    l = tail_BBList(l);
+    it = next_BBListIterator(it);
   }
 
   f->definitions = defs;
@@ -127,17 +127,17 @@ static void compute_local_reach_sets(Function* ir) {
 }
 
 // TODO: Organize these similar iteration algorithms
-static void iter_succs(BasicBlock* b, BBList* l) {
-  if (is_nil_BBList(l)) {
+static void iter_succs(BasicBlock* b, BBListIterator* l) {
+  if (is_nil_BBListIterator(l)) {
     return;
   }
 
-  BasicBlock* sux = head_BBList(l);
+  BasicBlock* sux = data_BBListIterator(l);
   if (sux->live_in != NULL) {
     or_BitSet(b->live_out, sux->live_in);
   }
 
-  iter_succs(b, tail_BBList(l));
+  iter_succs(b, next_BBListIterator(l));
 }
 
 static void compute_global_live_sets(Function* ir) {
@@ -165,7 +165,7 @@ static void compute_global_live_sets(Function* ir) {
         b->live_in = zero_BitSet(ir->reg_count);
       }
 
-      iter_succs(b, b->succs);
+      iter_succs(b, front_BBList(b->succs));
 
       copy_to_BitSet(b->live_in, b->live_out);
       diff_BitSet(b->live_in, b->live_kill);
@@ -180,17 +180,17 @@ static void compute_global_live_sets(Function* ir) {
   release_BSVec(lasts);
 }
 
-static void iter_preds(BasicBlock* b, BBList* l) {
-  if (is_nil_BBList(l)) {
+static void iter_preds(BasicBlock* b, BBListIterator* l) {
+  if (is_nil_BBListIterator(l)) {
     return;
   }
 
-  BasicBlock* pre = head_BBList(l);
+  BasicBlock* pre = data_BBListIterator(l);
   if (pre->reach_out != NULL) {
     or_BitSet(b->reach_in, pre->reach_out);
   }
 
-  iter_preds(b, tail_BBList(l));
+  iter_preds(b, next_BBListIterator(l));
 }
 
 static void compute_global_reach_sets(Function* ir) {
@@ -219,7 +219,7 @@ static void compute_global_reach_sets(Function* ir) {
         b->reach_in = zero_BitSet(ir->inst_count);
       }
 
-      iter_preds(b, b->preds);
+      iter_preds(b, front_BBList(b->preds));
 
       copy_to_BitSet(b->reach_out, b->reach_in);
       diff_BitSet(b->reach_out, b->reach_kill);

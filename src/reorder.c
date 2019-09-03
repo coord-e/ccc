@@ -14,14 +14,14 @@ Env* init_Env(unsigned expected_bb_count) {
 
 void traverse_blocks(Env* env, BasicBlock* b);
 
-void traverse_bblist(Env* env, BBList* l) {
-  if (is_nil_BBList(l)) {
+void traverse_bblist(Env* env, BBListIterator* it) {
+  if (is_nil_BBListIterator(it)) {
     return;
   }
 
-  traverse_blocks(env, head_BBList(l));
+  traverse_blocks(env, data_BBListIterator(it));
 
-  traverse_bblist(env, tail_BBList(l));
+  traverse_bblist(env, next_BBListIterator(it));
 }
 
 void traverse_blocks(Env* env, BasicBlock* b) {
@@ -30,7 +30,7 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   }
   set_BitSet(env->visited, b->local_id, true);
 
-  traverse_bblist(env, b->succs);
+  traverse_bblist(env, front_BBList(b->succs));
   push_BBVec(env->bbs, b);
 }
 
@@ -95,7 +95,7 @@ static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
 static void reorder_blocks_function(Function* ir) {
   Env* env = init_Env(ir->bb_count);
 
-  mark_dead(ir->bb_count, ir->entry, ir->exit);
+  remove_dead(ir, ir->entry);
 
   traverse_blocks(env, ir->entry);
   ir->sorted_blocks = env->bbs;

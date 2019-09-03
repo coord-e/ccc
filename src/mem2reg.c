@@ -131,11 +131,11 @@ static void collect_uses_insts(Env* env, IRInstList* l) {
 }
 
 static void collect_uses(Env* env, Function* ir) {
-  BBList* l = ir->blocks;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* b = head_BBList(l);
+  BBListIterator* it = front_BBList(ir->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
     collect_uses_insts(env, b->insts);
-    l = tail_BBList(l);
+    it = next_BBListIterator(it);
   }
 }
 
@@ -246,10 +246,10 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
 }
 
 static void apply_conversion(Env* env, Function* ir) {
-  BBList* l = ir->blocks;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* b = head_BBList(l);
+  BBListIterator* it = front_BBList(ir->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
     apply_conversion_insts(env, b->insts);
-    l = tail_BBList(l);
+    it = next_BBListIterator(it);
   }
 }

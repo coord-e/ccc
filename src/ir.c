@@ -62,7 +62,7 @@ DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
 
 DEFINE_VECTOR(release_Reg, Reg*, RegVec)
 
-static void release_BasicBlock(BasicBlock* bb) {
+void release_BasicBlock(BasicBlock* bb) {
   if (bb == NULL) {
     return;
   }
@@ -84,7 +84,7 @@ static void release_BasicBlock(BasicBlock* bb) {
 }
 
 DECLARE_MAP(BasicBlock*, BBMap)
-DEFINE_LIST(release_BasicBlock, BasicBlock*, BBList)
+DEFINE_DLIST(release_BasicBlock, BasicBlock*, BBList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 

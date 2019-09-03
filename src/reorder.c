@@ -59,35 +59,34 @@ void number_insts(Function* f, BBVec* v) {
   }
 }
 
-static bool mark_dead_iter(BasicBlock* entry, IntVec* visited, BBList* l, bool acc) {
-  if (is_nil_BBList(l)) {
-    return acc;
+static void mark_visited(BitSet* visited, BasicBlock* target) {
+  if (get_BitSet(visited, target->local_id)) {
+    return;
   }
+  set_BitSet(visited, target->local_id, true);
 
-  BasicBlock* b = head_BBList(l);
-
-  int v = get_IntVec(visited, b->local_id);
-  if (v != -1) {
-    return mark_dead_iter(entry, visited, tail_BBList(l), acc && v);
+  BBListIterator* it = front_BBList(target->succs);
+  if (!is_nil_BBListIterator(it)) {
+    BasicBlock* suc = data_BBListIterator(it);
+    mark_visited(visited, suc);
+    it = next_BBListIterator(it);
   }
-
-  set_IntVec(visited, b->local_id, false);
-
-  if (b->local_id != entry->local_id && mark_dead_iter(entry, visited, b->preds, true)) {
-    b->dead = true;
-  }
-
-  set_IntVec(visited, b->local_id, b->dead);
-
-  return mark_dead_iter(entry, visited, tail_BBList(l), acc && b->dead);
 }
 
-static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
-  IntVec* visited = new_IntVec(bb_count);
-  resize_IntVec(visited, bb_count);
-  fill_IntVec(visited, -1);
-  mark_dead_iter(entry, visited, exit->preds, true);
-  release_IntVec(visited);
+static void remove_dead(Function* f, BasicBlock* entry) {
+  BitSet* visited = zero_BitSet(f->bb_count);
+  mark_visited(visited, entry);
+
+  BBListIterator* it = front_BBList(f->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* bb = data_BBListIterator(it);
+    if (!get_BitSet(visited, bb->local_id)) {
+      remove_BBListIterator(it);
+    } else {
+      it = next_BBListIterator(it);
+    }
+  }
+  release_BitSet(visited);
 }
 
 // change `local_id`s of `BasicBlock` and `IRInst`

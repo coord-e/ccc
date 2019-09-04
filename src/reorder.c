@@ -59,6 +59,32 @@ void number_insts(Function* f, BBVec* v) {
   }
 }
 
+// change `local_id`s of `BasicBlock` and `IRInst`
+// and collect `BasicBlock`s to `sorted_blocks` in reversed order
+static void reorder_blocks_function(Function* ir) {
+  Env* env = init_Env(ir->bb_count);
+
+  traverse_blocks(env, ir->entry);
+  ir->sorted_blocks = env->bbs;
+  release_BitSet(env->visited);
+
+  number_insts(ir, ir->sorted_blocks);
+}
+
+static void reorder_blocks_functions(FunctionList* l) {
+  if (is_nil_FunctionList(l)) {
+    return;
+  }
+
+  reorder_blocks_function(head_FunctionList(l));
+
+  reorder_blocks_functions(tail_FunctionList(l));
+}
+
+void reorder_blocks(IR* ir) {
+  reorder_blocks_functions(ir->functions);
+}
+
 static void mark_visited(BitSet* visited, BasicBlock* target) {
   if (get_BitSet(visited, target->local_id)) {
     return;
@@ -88,53 +114,17 @@ static void remove_dead(Function* f, BasicBlock* entry) {
   release_BitSet(visited);
 }
 
-// change `local_id`s of `BasicBlock` and `IRInst`
-// and collect `BasicBlock`s to `sorted_blocks` in reversed order
-static void reorder_blocks_function(Function* ir) {
-  Env* env = init_Env(ir->bb_count);
-
-  remove_dead(ir, ir->entry);
-
-  traverse_blocks(env, ir->entry);
-  ir->sorted_blocks = env->bbs;
-  release_BitSet(env->visited);
-
-  number_insts(ir, ir->sorted_blocks);
-}
-
-static void reorder_blocks_functions(FunctionList* l) {
-  if (is_nil_FunctionList(l)) {
-    return;
-  }
-
-  reorder_blocks_function(head_FunctionList(l));
-
-  reorder_blocks_functions(tail_FunctionList(l));
-}
-
-void reorder_blocks(IR* ir) {
-  reorder_blocks_functions(ir->functions);
-}
-
-static void mark_dead(unsigned bb_count, BasicBlock* entry, BasicBlock* exit) {
-  IntVec* visited = new_IntVec(bb_count);
-  resize_IntVec(visited, bb_count);
-  fill_IntVec(visited, -1);
-  mark_dead_iter(entry, visited, exit->preds, true);
-  release_IntVec(visited);
-}
-
-static void mark_dead_functions(FunctionList* l) {
+static void remove_dead_functions(FunctionList* l) {
   if (is_nil_FunctionList(l)) {
     return;
   }
 
   Function* f = head_FunctionList(l);
-  mark_dead(f->bb_count, f->entry, f->exit);
+  remove_dead(f, f->entry);
 
   reorder_blocks_functions(tail_FunctionList(l));
 }
 
-void mark_dead_blocks(IR* ir) {
-  mark_dead_functions(ir->functions);
+void remove_dead_blocks(IR* ir) {
+  remove_dead_functions(ir->functions);
 }

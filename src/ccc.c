@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
-  mark_dead_blocks(ir);
+  remove_dead_blocks(ir);
   merge_blocks(ir);
   reorder_blocks(ir);
 

@@ -17,7 +17,7 @@
   Name##Iterator* prev_##Name##Iterator(const Name##Iterator* iter);                               \
   Name##Iterator* next_##Name##Iterator(const Name##Iterator* iter);                               \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter);                                        \
-  void remove_##Name##Iterator(Name##Iterator* iter);                                              \
+  Name##Iterator* remove_##Name##Iterator(Name##Iterator* iter);                                   \
   Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value);                          \
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
@@ -26,6 +26,8 @@
   T last_##Name(Name* list);                                                                       \
   void push_front_##Name(Name* list, T value);                                                     \
   void push_back_##Name(Name* list, T value);                                                      \
+  Name##Iterator* find_##Name(Name* list, T value);                                                \
+  void erase_one_##Name(Name* list, T value);                                                      \
   Name* shallow_copy_##Name(const Name* list);                                                     \
   void release_##Name(Name* list);
 
@@ -103,15 +105,17 @@
   Name##Iterator* front_##Name(Name* list) { return list->init->next; }                            \
   Name##Iterator* back_##Name(Name* list) { return list->last->prev; }                             \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter) { return iter->is_nil; }                \
-  void remove_##Name##Iterator(Name##Iterator* iter) {                                             \
+  Name##Iterator* remove_##Name##Iterator(Name##Iterator* iter) {                                  \
     if (iter->is_nil) {                                                                            \
       error("removing nil");                                                                       \
     }                                                                                              \
-    iter->prev->next = iter->next;                                                                 \
-    iter->next->prev = iter->prev;                                                                 \
-    iter->prev       = NULL;                                                                       \
-    iter->next       = NULL;                                                                       \
+    Name##Iterator* next = iter->next;                                                             \
+    iter->prev->next     = iter->next;                                                             \
+    iter->next->prev     = iter->prev;                                                             \
+    iter->prev           = NULL;                                                                   \
+    iter->next           = NULL;                                                                   \
     release_##Name##Iterator(iter);                                                                \
+    return next;                                                                                   \
   }                                                                                                \
   Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value) {                         \
     if (iter->prev == NULL) {                                                                      \
@@ -139,6 +143,22 @@
       error("last");                                                                               \
     }                                                                                              \
     return list->last->prev->data;                                                                 \
+  }                                                                                                \
+  Name##Iterator* find_##Name(Name* list, T value) {                                               \
+    Name##Iterator* it = front_##Name(list);                                                       \
+    while (!is_nil_##Name##Iterator(it)) {                                                         \
+      if (data_##Name##Iterator(it) == value) {                                                    \
+        return it;                                                                                 \
+      }                                                                                            \
+      it = next_##Name##Iterator(it);                                                              \
+    }                                                                                              \
+    return NULL;                                                                                   \
+  }                                                                                                \
+  void erase_one_##Name(Name* list, T value) {                                                     \
+    Name##Iterator* it = find_##Name(list, value);                                                 \
+    if (it != NULL) {                                                                              \
+      remove_##Name##Iterator(it);                                                                 \
+    }                                                                                              \
   }                                                                                                \
   Name* shallow_copy_##Name(const Name* list) {                                                    \
     Name* new          = new_##Name();                                                             \

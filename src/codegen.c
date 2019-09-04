@@ -332,20 +332,16 @@ static void codegen_binop(FILE* p, IRInst* inst) {
   }
 }
 
-static void codegen_blocks(FILE* p, Function* f, BBList* l) {
-  if (is_nil_BBList(l)) {
+static void codegen_blocks(FILE* p, Function* f, BBListIterator* it) {
+  if (is_nil_BBListIterator(it)) {
     return;
   }
 
-  BasicBlock* b = head_BBList(l);
-  if (b->dead) {
-    codegen_blocks(p, f, tail_BBList(l));
-    return;
-  }
+  BasicBlock* b = data_BBListIterator(it);
 
   codegen_insts(p, f, b, b->insts);
 
-  codegen_blocks(p, f, tail_BBList(l));
+  codegen_blocks(p, f, next_BBListIterator(it));
 }
 
 static void codegen_functions(FILE* p, FunctionList* l) {
@@ -357,7 +353,7 @@ static void codegen_functions(FILE* p, FunctionList* l) {
   emit(p, ".global %s", f->name);
   emit_label(p, f->name);
   emit_prologue(p, f);
-  codegen_blocks(p, f, f->blocks);
+  codegen_blocks(p, f, front_BBList(f->blocks));
 
   codegen_functions(p, tail_FunctionList(l));
 }

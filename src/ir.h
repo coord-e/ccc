@@ -5,6 +5,7 @@
 
 #include "ast.h"
 #include "bit_set.h"
+#include "double_list.h"
 #include "lexer.h"
 #include "list.h"
 #include "ops.h"
@@ -97,7 +98,8 @@ IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
-DECLARE_LIST(BasicBlock*, BBList)
+DECLARE_DLIST(BasicBlock*, BBList)
+DECLARE_DLIST(BasicBlock*, BBRefList)
 DECLARE_VECTOR(IRInst*, IRInstVec)
 
 // `BasicBlock` forms a control flow graph
@@ -107,8 +109,8 @@ struct BasicBlock {
 
   IRInstList* insts;  // owned
 
-  BBList* succs;  // not owned (owned by `IR`)
-  BBList* preds;  // not owned (owned by `IR`)
+  BBRefList* succs;  // not owned (owned by `IR`)
+  BBRefList* preds;  // not owned (owned by `IR`)
 
   // "call bb" is a bb with one call inst
   bool is_call_bb;

@@ -32,13 +32,9 @@ static void update_live(BitSet* live, IRInst* inst) {
 }
 
 static void dead_code_elim_function(Function* f) {
-  BBList* l = f->blocks;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* bb = head_BBList(l);
-    if (bb->dead) {
-      l = tail_BBList(l);
-      continue;
-    }
+  BBListIterator* it = front_BBList(f->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* bb = data_BBListIterator(it);
 
     BitSet* live = copy_BitSet(bb->live_out);
     for (unsigned i = length_IRInstVec(bb->sorted_insts); i > 0; i--) {
@@ -47,7 +43,7 @@ static void dead_code_elim_function(Function* f) {
       update_live(live, inst);
     }
 
-    l = tail_BBList(l);
+    it = next_BBListIterator(it);
   }
 }
 

@@ -122,7 +122,7 @@ static void remove_dead_functions(FunctionList* l) {
   Function* f = head_FunctionList(l);
   remove_dead(f, f->entry);
 
-  reorder_blocks_functions(tail_FunctionList(l));
+  remove_dead_functions(tail_FunctionList(l));
 }
 
 void remove_dead_blocks(IR* ir) {

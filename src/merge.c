@@ -1,39 +1,30 @@
 #include "merge.h"
 
-static bool has_single(BBList* l, BasicBlock** dst) {
-  BasicBlock* encounted = NULL;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* bb = head_BBList(l);
-    if (!bb->dead) {
-      if (encounted != NULL) {
-        return false;
-      }
-      encounted = bb;
-    }
-    l = tail_BBList(l);
-  }
-  if (encounted != NULL) {
-    if (dst != NULL) {
-      *dst = encounted;
-    }
-    return true;
-  } else {
-    return false;
+static void reconnect_blocks(BasicBlock* from, BBRefList* l) {
+  BBRefListIterator* it = front_BBRefList(l);
+  while (!is_nil_BBRefListIterator(it)) {
+    BasicBlock* to = data_BBRefListIterator(it);
+    connect_BasicBlock(from, to);
+    it = next_BBRefListIterator(it);
   }
 }
 
 static bool merge_assertion(BasicBlock* from, BasicBlock* to) {
-  BasicBlock *fb, *tb;
-  if (!has_single(from->succs, &fb)) {
+  if (from->is_call_bb || to->is_call_bb) {
     return false;
   }
-  if (!has_single(to->preds, &tb)) {
+  if (!is_single_BBRefList(from->succs)) {
     return false;
   }
+  if (!is_single_BBRefList(to->preds)) {
+    return false;
+  }
+  BasicBlock* fb = head_BBRefList(from->succs);
+  BasicBlock* tb = head_BBRefList(to->preds);
   return from->global_id == tb->global_id && to->global_id == fb->global_id;
 }
 
-static void merge_two(BasicBlock* from, BasicBlock* to) {
+static void merge_two(Function* f, BasicBlock* from, BasicBlock* to) {
   assert(merge_assertion(from, to));
 
   // TODO: efficiency (list last)
@@ -56,9 +47,10 @@ static void merge_two(BasicBlock* from, BasicBlock* to) {
       remove_IRInstList(from_last);
       remove_IRInstList(to_head);
       append_IRInstList(from->insts, to->insts);
-      to->insts = nil_IRInstList();
-      from->succs = copy_BBList(to->succs);
-      to->dead    = true;
+      to->insts        = nil_IRInstList();
+      BBRefList* succs = shallow_copy_BBRefList(to->succs);
+      detach_BasicBlock(f, to);
+      reconnect_blocks(from, succs);
       break;
     default:
       CCC_UNREACHABLE;
@@ -71,25 +63,21 @@ void merge_blocks_search(BitSet* visited, Function* f, BasicBlock* b1) {
   }
   set_BitSet(visited, b1->local_id, true);
 
-  if (b1->dead) {
-    return;
-  }
-
-  BBList* l = b1->preds;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* b2 = head_BBList(l);
+  BBRefListIterator* it = front_BBRefList(b1->preds);
+  while (!is_nil_BBRefListIterator(it)) {
+    BasicBlock* b2 = data_BBRefListIterator(it);
+    it             = next_BBRefListIterator(it);
     merge_blocks_search(visited, f, b2);
-    l = tail_BBList(l);
   }
 
-  BasicBlock* t;
-  if (has_single(b1->preds, &t)) {
-    if (has_single(t->succs, NULL)) {
+  if (!b1->is_call_bb && is_single_BBRefList(b1->preds)) {
+    BasicBlock* t = head_BBRefList(b1->preds);
+    if (!t->is_call_bb && is_single_BBRefList(t->succs)) {
       if (f->exit == b1) {
         f->exit = t;
       }
 
-      merge_two(t, b1);
+      merge_two(f, t, b1);
     }
   }
 }

@@ -12,6 +12,7 @@
 #include "ir.h"
 #include "lexer.h"
 #include "mem2reg.h"
+#include "merge.h"
 #include "parser.h"
 #include "propagation.h"
 #include "reg_alloc.h"
@@ -179,6 +180,8 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
+  remove_dead_blocks(ir);
+  merge_blocks(ir);
   reorder_blocks(ir);
 
   reach_data_flow(ir);

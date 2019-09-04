@@ -4,5 +4,6 @@
 #include "ir.h"
 
 void reorder_blocks(IR*);
+void remove_dead_blocks(IR*);
 
 #endif

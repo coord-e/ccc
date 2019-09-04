@@ -230,7 +230,7 @@ static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
   return env;
 }
 
-static void connect_bb(BasicBlock* from, BasicBlock* to) {
+void connect_BasicBlock(BasicBlock* from, BasicBlock* to) {
   push_back_BBRefList(from->succs, to);
   push_back_BBRefList(to->preds, from);
 }
@@ -410,7 +410,7 @@ void new_jump(Env* env, BasicBlock* jump, BasicBlock* next) {
   i->jump   = jump;
   add_inst(env, i);
 
-  connect_bb(env->cur, jump);
+  connect_BasicBlock(env->cur, jump);
 
   create_or_start_bb(env, next);
 }
@@ -422,7 +422,7 @@ static void new_exit_ret(Env* env) {
 static void new_void_ret(Env* env, BasicBlock* next) {
   add_inst(env, new_inst_(env, IR_RET));
 
-  connect_bb(env->cur, env->exit);
+  connect_BasicBlock(env->cur, env->exit);
   create_or_start_bb(env, next);
 }
 
@@ -431,7 +431,7 @@ static Reg* new_ret(Env* env, Reg* r, BasicBlock* next) {
   push_RegVec(i->ras, copy_Reg(r));
   add_inst(env, i);
 
-  connect_bb(env->cur, env->exit);
+  connect_BasicBlock(env->cur, env->exit);
   create_or_start_bb(env, next);
 
   return r;
@@ -444,8 +444,8 @@ static void new_br(Env* env, Reg* r, BasicBlock* then_, BasicBlock* else_, Basic
   i->else_ = else_;
   add_inst(env, i);
 
-  connect_bb(env->cur, then_);
-  connect_bb(env->cur, else_);
+  connect_BasicBlock(env->cur, then_);
+  connect_BasicBlock(env->cur, else_);
 
   create_or_start_bb(env, next);
 }

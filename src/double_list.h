@@ -22,6 +22,7 @@
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
   bool is_empty_##Name(Name* list);                                                                \
+  bool is_single_##Name(Name* list);                                                               \
   T head_##Name(Name* list);                                                                       \
   T last_##Name(Name* list);                                                                       \
   void push_front_##Name(Name* list, T value);                                                     \
@@ -131,6 +132,13 @@
   bool is_empty_##Name(Name* list) {                                                               \
     assert(list->init->next->is_nil == list->last->prev->is_nil);                                  \
     return list->init->next->is_nil;                                                               \
+  }                                                                                                \
+  bool is_single_##Name(Name* list) {                                                              \
+    if (is_empty_##Name(list)) {                                                                   \
+      return false;                                                                                \
+    }                                                                                              \
+    assert(list->init->next->next->is_nil == list->last->prev->prev->is_nil);                      \
+    return list->init->next->next->is_nil;                                                         \
   }                                                                                                \
   T head_##Name(Name* list) {                                                                      \
     if (list->init->next->is_nil) {                                                                \

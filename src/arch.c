@@ -260,21 +260,21 @@ static void walk_insts(Env* env, IRInstList* l) {
   walk_insts(env, tail);
 }
 
-static void walk_blocks(Env* env, BBList* l) {
-  if (is_nil_BBList(l)) {
+static void walk_blocks(Env* env, BBListIterator* it) {
+  if (is_nil_BBListIterator(it)) {
     return;
   }
 
-  BasicBlock* b = head_BBList(l);
+  BasicBlock* b = data_BBListIterator(it);
   walk_insts(env, b->insts);
 
-  walk_blocks(env, tail_BBList(l));
+  walk_blocks(env, next_BBListIterator(it));
 }
 
 static void transform_function(unsigned* inst_count, Function* f) {
   Env* env = init_Env(*inst_count, f);
 
-  walk_blocks(env, f->blocks);
+  walk_blocks(env, front_BBList(f->blocks));
 
   finish_Env(env, inst_count, f);
 }

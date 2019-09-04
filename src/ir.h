@@ -5,6 +5,7 @@
 
 #include "ast.h"
 #include "bit_set.h"
+#include "double_list.h"
 #include "lexer.h"
 #include "list.h"
 #include "ops.h"
@@ -97,7 +98,8 @@ IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);
 
 DECLARE_LIST(IRInst*, IRInstList)
-DECLARE_LIST(BasicBlock*, BBList)
+DECLARE_DLIST(BasicBlock*, BBList)
+DECLARE_DLIST(BasicBlock*, BBRefList)
 DECLARE_VECTOR(IRInst*, IRInstVec)
 
 // `BasicBlock` forms a control flow graph
@@ -107,16 +109,11 @@ struct BasicBlock {
 
   IRInstList* insts;  // owned
 
-  BBList* succs;  // not owned (owned by `IR`)
-  BBList* preds;  // not owned (owned by `IR`)
+  BBRefList* succs;  // not owned (owned by `IR`)
+  BBRefList* preds;  // not owned (owned by `IR`)
 
   // "call bb" is a bb with one call inst
   bool is_call_bb;
-
-  // it costs too much to remove all references from `preds` and `succs`
-  // and remove from `blocks`,
-  // so mark as dead with this field instead of removing it
-  bool dead;
 
   // will filled in `data_flow`
   BitSet* live_in;     // owned, NULL before analysis
@@ -138,6 +135,11 @@ struct BasicBlock {
   // a set of physical registers that lives through this bb
   BitSet* should_preserve;  // owned
 };
+
+typedef struct Function Function;
+
+void detach_BasicBlock(Function*, BasicBlock*);
+void release_BasicBlock(BasicBlock*);
 
 typedef enum {
   IV_UNSET,
@@ -162,7 +164,7 @@ void print_Intervals(FILE*, RegIntervals*);
 DECLARE_VECTOR(BasicBlock*, BBVec)
 DECLARE_VECTOR(BitSet*, BSVec)
 
-typedef struct {
+struct Function {
   char* name;  // owned
 
   BBList* blocks;  // owned
@@ -194,7 +196,7 @@ typedef struct {
 
   // will filled in `reg_alloc`
   BitSet* used_regs;  // owned
-} Function;
+};
 
 DECLARE_LIST(Function*, FunctionList)
 

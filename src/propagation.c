@@ -61,13 +61,9 @@ static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
 }
 
 static void propagation_function(Function* f) {
-  BBList* l = f->blocks;
-  while (!is_nil_BBList(l)) {
-    BasicBlock* bb = head_BBList(l);
-    if (bb->dead) {
-      l = tail_BBList(l);
-      continue;
-    }
+  BBListIterator* it = front_BBList(f->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* bb = data_BBListIterator(it);
 
     BitSet* reach = copy_BitSet(bb->reach_in);
     for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
@@ -77,7 +73,7 @@ static void propagation_function(Function* f) {
     }
     assert(equal_to_BitSet(bb->reach_out, reach));
 
-    l = tail_BBList(l);
+    it = next_BBListIterator(it);
   }
 }
 

@@ -17,7 +17,7 @@
   Name##Iterator* prev_##Name##Iterator(const Name##Iterator* iter);                               \
   Name##Iterator* next_##Name##Iterator(const Name##Iterator* iter);                               \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter);                                        \
-  void remove_##Name##Iterator(Name##Iterator* iter);                                              \
+  Name##Iterator* remove_##Name##Iterator(Name##Iterator* iter);                                   \
   Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value);                          \
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
@@ -105,15 +105,17 @@
   Name##Iterator* front_##Name(Name* list) { return list->init->next; }                            \
   Name##Iterator* back_##Name(Name* list) { return list->last->prev; }                             \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter) { return iter->is_nil; }                \
-  void remove_##Name##Iterator(Name##Iterator* iter) {                                             \
+  Name##Iterator* remove_##Name##Iterator(Name##Iterator* iter) {                                  \
     if (iter->is_nil) {                                                                            \
       error("removing nil");                                                                       \
     }                                                                                              \
-    iter->prev->next = iter->next;                                                                 \
-    iter->next->prev = iter->prev;                                                                 \
-    iter->prev       = NULL;                                                                       \
-    iter->next       = NULL;                                                                       \
+    Name##Iterator* next = iter->next;                                                             \
+    iter->prev->next     = iter->next;                                                             \
+    iter->next->prev     = iter->prev;                                                             \
+    iter->prev           = NULL;                                                                   \
+    iter->next           = NULL;                                                                   \
     release_##Name##Iterator(iter);                                                                \
+    return next;                                                                                   \
   }                                                                                                \
   Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value) {                         \
     if (iter->prev == NULL) {                                                                      \

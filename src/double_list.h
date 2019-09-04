@@ -26,6 +26,8 @@
   T last_##Name(Name* list);                                                                       \
   void push_front_##Name(Name* list, T value);                                                     \
   void push_back_##Name(Name* list, T value);                                                      \
+  Name##Iterator* find_##Name(Name* list, T value);                                                \
+  void erase_one_##Name(Name* list, T value);                                                      \
   Name* shallow_copy_##Name(const Name* list);                                                     \
   void release_##Name(Name* list);
 
@@ -139,6 +141,22 @@
       error("last");                                                                               \
     }                                                                                              \
     return list->last->prev->data;                                                                 \
+  }                                                                                                \
+  Name##Iterator* find_##Name(Name* list, T value) {                                               \
+    Name##Iterator* it = front_##Name(list);                                                       \
+    while (!is_nil_##Name##Iterator(it)) {                                                         \
+      if (data_##Name##Iterator(it) == value) {                                                    \
+        return it;                                                                                 \
+      }                                                                                            \
+      it = next_##Name##Iterator(it);                                                              \
+    }                                                                                              \
+    return NULL;                                                                                   \
+  }                                                                                                \
+  void erase_one_##Name(Name* list, T value) {                                                     \
+    Name##Iterator* it = find_##Name(list, value);                                                 \
+    if (it != NULL) {                                                                              \
+      remove_##Name##Iterator(it);                                                                 \
+    }                                                                                              \
   }                                                                                                \
   Name* shallow_copy_##Name(const Name* list) {                                                    \
     Name* new          = new_##Name();                                                             \

@@ -85,6 +85,8 @@ void release_BasicBlock(BasicBlock* bb) {
 
 DECLARE_MAP(BasicBlock*, BBMap)
 DEFINE_DLIST(release_BasicBlock, BasicBlock*, BBList)
+static void release_ref(void* p) {}
+DEFINE_DLIST(release_ref, BasicBlock*, BBRefList)
 DEFINE_VECTOR(release_BasicBlock, BasicBlock*, BBVec)
 DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 
@@ -203,8 +205,8 @@ static BasicBlock* new_bb(Env* env) {
   bb->local_id  = local_id;
   bb->global_id = global_id;
   bb->insts     = single_IRInstList(inst);
-  bb->succs     = new_BBList();
-  bb->preds     = new_BBList();
+  bb->succs     = new_BBRefList();
+  bb->preds     = new_BBRefList();
 
   push_back_BBList(env->blocks, bb);
 
@@ -229,8 +231,8 @@ static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
 }
 
 static void connect_bb(BasicBlock* from, BasicBlock* to) {
-  push_back_BBList(from->succs, to);
-  push_back_BBList(to->preds, from);
+  push_back_BBRefList(from->succs, to);
+  push_back_BBRefList(to->preds, from);
 }
 
 static void start_bb(Env* env, BasicBlock* bb) {
@@ -1131,7 +1133,7 @@ void release_IR(IR* ir) {
 }
 
 void detach_BasicBlock(Function* f, BasicBlock* b) {
-  // detach a block from IR and enable it to be destructed safely.
+  // detach a block from IR and release it safely.
   // - check entry/exit
   // - remove from succs/preds
   // - remove from blocks
@@ -1141,19 +1143,19 @@ void detach_BasicBlock(Function* f, BasicBlock* b) {
   assert(f->exit != b);
 
   {
-    BBListIterator* it = front_BBList(b->succs);
-    while (!is_nil_BBListIterator(it)) {
-      BasicBlock* suc = data_BBListIterator(it);
-      erase_one_BBList(suc->preds, b);
-      it = next_BBListIterator(it);
+    BBRefListIterator* it = front_BBRefList(b->succs);
+    while (!is_nil_BBRefListIterator(it)) {
+      BasicBlock* suc = data_BBRefListIterator(it);
+      erase_one_BBRefList(suc->preds, b);
+      it = next_BBRefListIterator(it);
     }
   }
   {
-    BBListIterator* it = front_BBList(b->preds);
-    while (!is_nil_BBListIterator(it)) {
-      BasicBlock* pre = data_BBListIterator(it);
-      erase_one_BBList(pre->succs, b);
-      it = next_BBListIterator(it);
+    BBRefListIterator* it = front_BBRefList(b->preds);
+    while (!is_nil_BBRefListIterator(it)) {
+      BasicBlock* pre = data_BBRefListIterator(it);
+      erase_one_BBRefList(pre->succs, b);
+      it = next_BBRefListIterator(it);
     }
   }
 
@@ -1298,17 +1300,17 @@ static unsigned print_graph_insts(FILE* p, IRInstList* l) {
 
 static void print_graph_bb(FILE* p, BasicBlock* bb);
 
-static void print_graph_succs(FILE* p, unsigned id, BBListIterator* it) {
-  if (is_nil_BBListIterator(it)) {
+static void print_graph_succs(FILE* p, unsigned id, BBRefListIterator* it) {
+  if (is_nil_BBRefListIterator(it)) {
     return;
   }
-  BasicBlock* head = data_BBListIterator(it);
+  BasicBlock* head = data_BBRefListIterator(it);
   if (is_nil_IRInstList(head->insts)) {
     error("unexpected empty basic block %d", head->global_id);
   }
 
   fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->global_id);
-  print_graph_succs(p, id, next_BBListIterator(it));
+  print_graph_succs(p, id, next_BBRefListIterator(it));
 }
 
 static void print_graph_bb(FILE* p, BasicBlock* bb) {
@@ -1344,7 +1346,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
   unsigned last_id = print_graph_insts(p, bb->insts);
 
   fputs("}\n", p);
-  print_graph_succs(p, last_id, front_BBList(bb->succs));
+  print_graph_succs(p, last_id, front_BBRefList(bb->succs));
 }
 
 static void print_graph_blocks(FILE* p, BBListIterator* it) {

@@ -14,14 +14,14 @@ Env* init_Env(unsigned expected_bb_count) {
 
 void traverse_blocks(Env* env, BasicBlock* b);
 
-void traverse_bblist(Env* env, BBListIterator* it) {
-  if (is_nil_BBListIterator(it)) {
+void traverse_bblist(Env* env, BBRefListIterator* it) {
+  if (is_nil_BBRefListIterator(it)) {
     return;
   }
 
-  traverse_blocks(env, data_BBListIterator(it));
+  traverse_blocks(env, data_BBRefListIterator(it));
 
-  traverse_bblist(env, next_BBListIterator(it));
+  traverse_bblist(env, next_BBRefListIterator(it));
 }
 
 void traverse_blocks(Env* env, BasicBlock* b) {
@@ -30,7 +30,7 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   }
   set_BitSet(env->visited, b->local_id, true);
 
-  traverse_bblist(env, front_BBList(b->succs));
+  traverse_bblist(env, front_BBRefList(b->succs));
   push_BBVec(env->bbs, b);
 }
 
@@ -65,11 +65,11 @@ static void mark_visited(BitSet* visited, BasicBlock* target) {
   }
   set_BitSet(visited, target->local_id, true);
 
-  BBListIterator* it = front_BBList(target->succs);
-  if (!is_nil_BBListIterator(it)) {
-    BasicBlock* suc = data_BBListIterator(it);
+  BBRefListIterator* it = front_BBRefList(target->succs);
+  if (!is_nil_BBRefListIterator(it)) {
+    BasicBlock* suc = data_BBRefListIterator(it);
     mark_visited(visited, suc);
-    it = next_BBListIterator(it);
+    it = next_BBRefListIterator(it);
   }
 }
 

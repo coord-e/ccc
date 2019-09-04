@@ -66,7 +66,7 @@ static void mark_visited(BitSet* visited, BasicBlock* target) {
   set_BitSet(visited, target->local_id, true);
 
   BBRefListIterator* it = front_BBRefList(target->succs);
-  if (!is_nil_BBRefListIterator(it)) {
+  while (!is_nil_BBRefListIterator(it)) {
     BasicBlock* suc = data_BBRefListIterator(it);
     mark_visited(visited, suc);
     it = next_BBRefListIterator(it);

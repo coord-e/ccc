@@ -47,6 +47,8 @@ static void merge_two(Function* f, BasicBlock* from, BasicBlock* to) {
       remove_IRInstList(from_last);
       remove_IRInstList(to_head);
       append_IRInstList(from->insts, to->insts);
+      // prevent `to->insts` (which is now included in `from->insts`)
+      // from being released by detaching of `to`
       to->insts        = nil_IRInstList();
       BBRefList* succs = shallow_copy_BBRefList(to->succs);
       detach_BasicBlock(f, to);

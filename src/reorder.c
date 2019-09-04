@@ -80,10 +80,9 @@ static void remove_dead(Function* f, BasicBlock* entry) {
   BBListIterator* it = front_BBList(f->blocks);
   while (!is_nil_BBListIterator(it)) {
     BasicBlock* bb = data_BBListIterator(it);
+    it             = next_BBListIterator(it);
     if (!get_BitSet(visited, bb->local_id)) {
-      it = remove_BBListIterator(it);
-    } else {
-      it = next_BBListIterator(it);
+      detach_BasicBlock(f, bb);
     }
   }
   release_BitSet(visited);

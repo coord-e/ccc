@@ -273,7 +273,7 @@ static bool get_var(Env* env, char* name, unsigned* dest) {
 }
 
 static void add_inst(Env* env, IRInst* inst) {
-  env->inst_cur = snoc_IRInstList(inst, env->inst_cur);
+  push_back_IRInstList(env->inst_cur, inst);
 }
 
 static Reg* new_binop(Env* env, BinopKind op, Reg* lhs, Reg* rhs) {
@@ -1281,19 +1281,19 @@ static void print_inst(FILE* p, IRInst* i) {
 }
 
 // NOTE: printers below are to print CFG in dot language
-static unsigned print_graph_insts(FILE* p, IRInstList* l) {
-  IRInst* i1    = head_IRInstList(l);
-  IRInstList* t = tail_IRInstList(l);
+static unsigned print_graph_insts(FILE* p, IRInstListIterator* it) {
+  IRInst* i1            = data_IRInstListIterator(it);
+  IRInstListIterator* t = next_IRInstListIterator(it);
 
   fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->global_id, i1->global_id);
   print_inst(p, i1);
   fputs("\"];\n", p);
 
-  if (is_nil_IRInstList(t)) {
+  if (is_nil_IRInstListIterator(t)) {
     return i1->global_id;
   }
 
-  IRInst* i2 = head_IRInstList(t);
+  IRInst* i2 = data_IRInstListIterator(t);
   fprintf(p, "inst_%d -> inst_%d;\n", i1->global_id, i2->global_id);
   return print_graph_insts(p, t);
 }
@@ -1305,7 +1305,7 @@ static void print_graph_succs(FILE* p, unsigned id, BBRefListIterator* it) {
     return;
   }
   BasicBlock* head = data_BBRefListIterator(it);
-  if (is_nil_IRInstList(head->insts)) {
+  if (is_empty_IRInstList(head->insts)) {
     error("unexpected empty basic block %d", head->global_id);
   }
 
@@ -1340,10 +1340,10 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
 
   fprintf(p, "\";\n");
 
-  if (is_nil_IRInstList(bb->insts)) {
+  if (is_empty_IRInstList(bb->insts)) {
     error("unexpected empty basic block %d", bb->global_id);
   }
-  unsigned last_id = print_graph_insts(p, bb->insts);
+  unsigned last_id = print_graph_insts(p, front_IRInstList(bb->insts));
 
   fputs("}\n", p);
   print_graph_succs(p, last_id, front_BBRefList(bb->succs));

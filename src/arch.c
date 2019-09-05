@@ -111,13 +111,13 @@ static IRInst* new_call(Env* env, Reg* rd, Reg* rf, bool is_vararg) {
   return inst;
 }
 
-static void walk_insts(Env* env, IRInstList* l) {
-  if (is_nil_IRInstList(l)) {
+static void walk_insts(Env* env, IRInstListIterator* it) {
+  if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
-  IRInst* inst     = head_IRInstList(l);
-  IRInstList* tail = tail_IRInstList(l);
+  IRInst* inst             = data_IRInstListIterator(it);
+  IRInstListIterator* next = next_IRInstListIterator(it);
   switch (inst->kind) {
     case IR_BIN: {
       Reg* rd  = inst->rd;
@@ -130,11 +130,11 @@ static void walk_insts(Env* env, IRInstList* l) {
           IRInst* i2 = new_binop(env, inst->binop, rax, rax, rhs);
           IRInst* i3 = new_move(env, rd, rax);
           release_Reg(rax);
-          remove_IRInstList(l);
-          insert_IRInstList(i3, l);
-          insert_IRInstList(i2, l);
-          insert_IRInstList(i1, l);
-          tail = tail_IRInstList(tail_IRInstList(tail_IRInstList(l)));
+
+          it = remove_IRInstListIterator(it);
+          insert_IRInstListIterator(it, i1);
+          insert_IRInstListIterator(it, i2);
+          insert_IRInstListIterator(it, i3);
           break;
         }
         case BINOP_REM: {
@@ -146,11 +146,10 @@ static void walk_insts(Env* env, IRInstList* l) {
           release_Reg(rax);
           release_Reg(rdx);
 
-          remove_IRInstList(l);
-          insert_IRInstList(i3, l);
-          insert_IRInstList(i2, l);
-          insert_IRInstList(i1, l);
-          tail = tail_IRInstList(tail_IRInstList(tail_IRInstList(l)));
+          it = remove_IRInstListIterator(it);
+          insert_IRInstListIterator(it, i1);
+          insert_IRInstListIterator(it, i2);
+          insert_IRInstListIterator(it, i3);
           break;
         }
         case BINOP_SHIFT_LEFT:
@@ -161,21 +160,19 @@ static void walk_insts(Env* env, IRInstList* l) {
           IRInst* i3 = new_binop(env, inst->binop, rd, rd, rcx);
           release_Reg(rcx);
 
-          remove_IRInstList(l);
-          insert_IRInstList(i3, l);
-          insert_IRInstList(i2, l);
-          insert_IRInstList(i1, l);
-          tail = tail_IRInstList(tail_IRInstList(tail_IRInstList(l)));
+          it = remove_IRInstListIterator(it);
+          insert_IRInstListIterator(it, i1);
+          insert_IRInstListIterator(it, i2);
+          insert_IRInstListIterator(it, i3);
           break;
         }
         default: {
           IRInst* i1 = new_move(env, rd, lhs);
           IRInst* i2 = new_binop(env, inst->binop, rd, rd, rhs);
 
-          remove_IRInstList(l);
-          insert_IRInstList(i2, l);
-          insert_IRInstList(i1, l);
-          tail = tail_IRInstList(tail_IRInstList(l));
+          it = remove_IRInstListIterator(it);
+          insert_IRInstListIterator(it, i1);
+          insert_IRInstListIterator(it, i2);
           break;
         }
       }
@@ -187,10 +184,9 @@ static void walk_insts(Env* env, IRInstList* l) {
       IRInst* i1 = new_move(env, rd, opr);
       IRInst* i2 = new_unaop(env, inst->unaop, rd, rd);
 
-      remove_IRInstList(l);
-      insert_IRInstList(i2, l);
-      insert_IRInstList(i1, l);
-      tail = tail_IRInstList(tail_IRInstList(l));
+      it = remove_IRInstListIterator(it);
+      insert_IRInstListIterator(it, i1);
+      insert_IRInstListIterator(it, i2);
       break;
     }
     case IR_CALL: {
@@ -198,30 +194,24 @@ static void walk_insts(Env* env, IRInstList* l) {
       Reg* rf        = get_RegVec(inst->ras, 0);
       bool is_vararg = inst->is_vararg;
 
-      remove_IRInstList(l);
       Reg* ret = NULL;
       if (rd != NULL) {
         ret = rax_fixed_reg(env, rd->size);
-        insert_IRInstList(new_move(env, rd, ret), l);
       }
       IRInst* call = new_call(env, ret, rf, is_vararg);
       release_Reg(ret);
-      insert_IRInstList(call, l);
+
+      it = remove_IRInstListIterator(it);
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg* r = get_RegVec(inst->ras, i);
         Reg* p = nth_arg_fixed_reg(env, i - 1, r->size);
         push_RegVec(call->ras, copy_Reg(p));
-        insert_IRInstList(new_move(env, p, r), l);
+        insert_IRInstListIterator(it, new_move(env, p, r));
         release_Reg(p);
       }
-      // TODO: remove the redundant loop
+      insert_IRInstListIterator(it, call);
       if (rd != NULL) {
-        tail = tail_IRInstList(tail_IRInstList(l));
-      } else {
-        tail = tail_IRInstList(l);
-      }
-      for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
-        tail = tail_IRInstList(tail);
+        insert_IRInstListIterator(it, new_move(env, rd, ret));
       }
       break;
     }
@@ -232,9 +222,8 @@ static void walk_insts(Env* env, IRInstList* l) {
       IRInst* inst = new_move(env, rd, ra);
       release_Reg(ra);
 
-      remove_IRInstList(l);
-      insert_IRInstList(inst, l);
-      tail = tail_IRInstList(l);
+      it = remove_IRInstListIterator(it);
+      insert_IRInstListIterator(it, inst);
       break;
     }
     case IR_RET:
@@ -248,16 +237,15 @@ static void walk_insts(Env* env, IRInstList* l) {
       IRInst* i2 = new_ret(env, rax);
       release_Reg(rax);
 
-      remove_IRInstList(l);
-      insert_IRInstList(i2, l);
-      insert_IRInstList(i1, l);
-      tail = tail_IRInstList(tail_IRInstList(l));
+      it = remove_IRInstListIterator(it);
+      insert_IRInstListIterator(it, i1);
+      insert_IRInstListIterator(it, i2);
       break;
     default:
       break;
   }
 
-  walk_insts(env, tail);
+  walk_insts(env, next);
 }
 
 static void walk_blocks(Env* env, BBListIterator* it) {
@@ -266,7 +254,7 @@ static void walk_blocks(Env* env, BBListIterator* it) {
   }
 
   BasicBlock* b = data_BBListIterator(it);
-  walk_insts(env, b->insts);
+  walk_insts(env, front_IRInstList(b->insts));
 
   walk_blocks(env, next_BBListIterator(it));
 }

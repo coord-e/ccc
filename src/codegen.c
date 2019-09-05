@@ -118,12 +118,12 @@ static void emit_epilogue(FILE* p, Function* f) {
 static void codegen_binop(FILE* p, IRInst* inst);
 static void codegen_unaop(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* insts) {
-  if (is_nil_IRInstList(insts)) {
+static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterator* it) {
+  if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
-  IRInst* h = head_IRInstList(insts);
+  IRInst* h = data_IRInstListIterator(it);
   switch (h->kind) {
     case IR_NOP:
       break;
@@ -226,7 +226,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstList* inst
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, bb, tail_IRInstList(insts));
+  codegen_insts(p, f, bb, next_IRInstListIterator(it));
 }
 
 static void codegen_cmp(FILE* p, const char* s, Reg* rd, Reg* rhs) {
@@ -339,7 +339,7 @@ static void codegen_blocks(FILE* p, Function* f, BBListIterator* it) {
 
   BasicBlock* b = data_BBListIterator(it);
 
-  codegen_insts(p, f, b, b->insts);
+  codegen_insts(p, f, b, front_IRInstList(b->insts));
 
   codegen_blocks(p, f, next_BBListIterator(it));
 }

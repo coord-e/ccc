@@ -57,7 +57,7 @@ void release_inst(IRInst* i) {
   free(i);
 }
 
-DEFINE_LIST(release_inst, IRInst*, IRInstList)
+DEFINE_DLIST(release_inst, IRInst*, IRInstList)
 DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
 
 DEFINE_VECTOR(release_Reg, Reg*, RegVec)

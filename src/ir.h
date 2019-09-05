@@ -97,7 +97,7 @@ typedef struct IRInst {
 IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);
 
-DECLARE_LIST(IRInst*, IRInstList)
+DECLARE_DLIST(IRInst*, IRInstList)
 DECLARE_DLIST(BasicBlock*, BBList)
 DECLARE_DLIST(BasicBlock*, BBRefList)
 DECLARE_VECTOR(IRInst*, IRInstVec)

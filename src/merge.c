@@ -27,13 +27,12 @@ static bool merge_assertion(BasicBlock* from, BasicBlock* to) {
 static void merge_two(Function* f, BasicBlock* from, BasicBlock* to) {
   assert(merge_assertion(from, to));
 
-  // TODO: efficiency (list last)
-  IRInstList* from_last  = last_IRInstList(from->insts);
-  IRInstList* to_last    = last_IRInstList(to->insts);
-  IRInstList* to_head    = to->insts;
-  IRInst* from_last_inst = head_IRInstList(from_last);
-  IRInst* to_last_inst   = head_IRInstList(to_last);
-  IRInst* to_head_inst   = head_IRInstList(to_head);
+  IRInstListIterator* from_last = back_IRInstList(from->insts);
+  IRInstListIterator* to_last   = back_IRInstList(to->insts);
+  IRInstListIterator* to_head   = front_IRInstList(to->insts);
+  IRInst* from_last_inst        = data_IRInstListIterator(from_last);
+  IRInst* to_last_inst          = data_IRInstListIterator(to_last);
+  IRInst* to_head_inst          = data_IRInstListIterator(to_head);
 
   assert(to_head_inst->kind == IR_LABEL);
 
@@ -44,12 +43,12 @@ static void merge_two(Function* f, BasicBlock* from, BasicBlock* to) {
       push_RegVec(to_last_inst->ras, copy_Reg(get_RegVec(from_last_inst->ras, 0)));
       // fallthrough
     case IR_JUMP:
-      remove_IRInstList(from_last);
-      remove_IRInstList(to_head);
+      remove_IRInstListIterator(from_last);
+      remove_IRInstListIterator(to_head);
       append_IRInstList(from->insts, to->insts);
       // prevent `to->insts` (which is now included in `from->insts`)
       // from being released by detaching of `to`
-      to->insts        = nil_IRInstList();
+      to->insts        = new_IRInstList();
       BBRefList* succs = shallow_copy_BBRefList(to->succs);
       detach_BasicBlock(f, to);
       reconnect_blocks(from, succs);

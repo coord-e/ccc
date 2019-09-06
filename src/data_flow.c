@@ -39,13 +39,13 @@ void reach_data_flow(IR* ir) {
   }
 }
 
-static void collect_defs_insts(BSVec* defs, IRInstList* l) {
-  while (!is_nil_IRInstList(l)) {
-    IRInst* inst = head_IRInstList(l);
+static void collect_defs_insts(BSVec* defs, IRInstListIterator* it) {
+  while (!is_nil_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
     if (inst->rd != NULL) {
       set_BitSet(get_BSVec(defs, inst->rd->virtual), inst->local_id, true);
     }
-    l = tail_IRInstList(l);
+    it = next_IRInstListIterator(it);
   }
 }
 
@@ -58,7 +58,7 @@ static void collect_defs(Function* f) {
   BBListIterator* it = front_BBList(f->blocks);
   while (!is_nil_BBListIterator(it)) {
     BasicBlock* b = data_BBListIterator(it);
-    collect_defs_insts(defs, b->insts);
+    collect_defs_insts(defs, front_IRInstList(b->insts));
     it = next_BBListIterator(it);
   }
 

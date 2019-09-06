@@ -98,12 +98,12 @@ static void allocate_replaced_reg_for(Env* env, unsigned s) {
   set_UIVec(env->replaced_regs, s, env->function->reg_count++);
 }
 
-static void collect_uses_insts(Env* env, IRInstList* l) {
-  if (is_nil_IRInstList(l)) {
+static void collect_uses_insts(Env* env, IRInstListIterator* it) {
+  if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
-  IRInst* inst = head_IRInstList(l);
+  IRInst* inst = data_IRInstListIterator(it);
   switch (inst->kind) {
     case IR_STACK_ADDR:
       set_as_in_stack(env, inst->rd);
@@ -127,14 +127,14 @@ static void collect_uses_insts(Env* env, IRInstList* l) {
       break;
   }
 
-  collect_uses_insts(env, tail_IRInstList(l));
+  collect_uses_insts(env, next_IRInstListIterator(it));
 }
 
 static void collect_uses(Env* env, Function* ir) {
   BBListIterator* it = front_BBList(ir->blocks);
   while (!is_nil_BBListIterator(it)) {
     BasicBlock* b = data_BBListIterator(it);
-    collect_uses_insts(env, b->insts);
+    collect_uses_insts(env, front_IRInstList(b->insts));
     it = next_BBListIterator(it);
   }
 }
@@ -202,18 +202,16 @@ static Reg* assoc_reg(Env* env, Reg* addr_reg, DataSize size) {
   return new_virtual_Reg(size, reg);
 }
 
-static void apply_conversion_insts(Env* env, IRInstList* l) {
-  if (is_nil_IRInstList(l)) {
+static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
+  if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
-  IRInst* inst     = head_IRInstList(l);
-  IRInstList* tail = tail_IRInstList(l);
+  IRInst* inst = data_IRInstListIterator(it);
   switch (inst->kind) {
     case IR_STACK_ADDR:
       if (is_replaceable(env, inst->rd)) {
-        remove_IRInstList(l);
-        tail = l;
+        remove_IRInstListIterator(it);
       }
       break;
     case IR_LOAD: {
@@ -221,9 +219,9 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
       if (is_replaceable(env, addr_reg)) {
         Reg* dest_reg = inst->rd;
         IRInst* m = new_move(env, copy_Reg(dest_reg), assoc_reg(env, addr_reg, inst->data_size));
-        remove_IRInstList(l);
-        insert_IRInstList(m, l);
-        tail = tail_IRInstList(l);
+
+        it = remove_IRInstListIterator(it);
+        insert_IRInstListIterator(it, m);
       }
       break;
     }
@@ -232,9 +230,9 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
       if (is_replaceable(env, addr_reg)) {
         Reg* value_reg = get_RegVec(inst->ras, 1);
         IRInst* m = new_move(env, assoc_reg(env, addr_reg, inst->data_size), copy_Reg(value_reg));
-        remove_IRInstList(l);
-        insert_IRInstList(m, l);
-        tail = tail_IRInstList(l);
+
+        it = remove_IRInstListIterator(it);
+        insert_IRInstListIterator(it, m);
       }
       break;
     }
@@ -242,14 +240,14 @@ static void apply_conversion_insts(Env* env, IRInstList* l) {
       break;
   }
 
-  apply_conversion_insts(env, tail);
+  apply_conversion_insts(env, next_IRInstListIterator(it));
 }
 
 static void apply_conversion(Env* env, Function* ir) {
   BBListIterator* it = front_BBList(ir->blocks);
   while (!is_nil_BBListIterator(it)) {
     BasicBlock* b = data_BBListIterator(it);
-    apply_conversion_insts(env, b->insts);
+    apply_conversion_insts(env, front_IRInstList(b->insts));
     it = next_BBListIterator(it);
   }
 }

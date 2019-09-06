@@ -207,7 +207,8 @@ static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
     return;
   }
 
-  IRInst* inst = data_IRInstListIterator(it);
+  IRInst* inst             = data_IRInstListIterator(it);
+  IRInstListIterator* next = next_IRInstListIterator(it);
   switch (inst->kind) {
     case IR_STACK_ADDR:
       if (is_replaceable(env, inst->rd)) {
@@ -240,7 +241,7 @@ static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
       break;
   }
 
-  apply_conversion_insts(env, next_IRInstListIterator(it));
+  apply_conversion_insts(env, next);
 }
 
 static void apply_conversion(Env* env, Function* ir) {

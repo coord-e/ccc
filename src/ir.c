@@ -398,7 +398,7 @@ static void create_or_start_bb(Env* env, BasicBlock* bb) {
   if (!bb) {
     bb = new_bb(env);
   }
-  if (!is_exit(head_IRInstList(env->inst_cur)->kind)) {
+  if (!is_exit(last_IRInstList(env->inst_cur)->kind)) {
     new_jump(env, bb, bb);
   } else {
     start_bb(env, bb);

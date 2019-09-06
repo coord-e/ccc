@@ -199,9 +199,10 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
         ret = rax_fixed_reg(env, rd->size);
       }
       IRInst* call = new_call(env, ret, rf, is_vararg);
-      release_Reg(ret);
 
-      it = remove_IRInstListIterator(it);
+      IRInstListIterator* save_it = it;
+      // `save_it` can't be removed while `inst` is used
+      it = next_IRInstListIterator(it);
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg* r = get_RegVec(inst->ras, i);
         Reg* p = nth_arg_fixed_reg(env, i - 1, r->size);
@@ -213,6 +214,8 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       if (rd != NULL) {
         insert_IRInstListIterator(it, new_move(env, rd, ret));
       }
+      release_Reg(ret);
+      remove_IRInstListIterator(save_it);
       break;
     }
     case IR_ARG: {

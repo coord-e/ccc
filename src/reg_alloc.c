@@ -330,54 +330,47 @@ static bool assign_reg(Env* env, Reg* r) {
   return false;
 }
 
-static IRInstList* emit_spill_load(Env* env, Reg* r, IRInstList** lref) {
-  IRInstList* l = *lref;
-
+static void emit_spill_load(Env* env, Reg* r, IRInstListIterator* it) {
   IRInst* inst    = new_inst_(env, IR_STACK_LOAD);
   inst->rd        = copy_Reg(r);
   inst->stack_idx = get_UIVec(env->locations, r->virtual);
   inst->data_size = r->size;
-  insert_IRInstList(inst, l);
-
-  IRInstList* t = tail_IRInstList(l);
-  *lref         = t;
-  return tail_IRInstList(t);
+  insert_IRInstListIterator(it, inst);
 }
 
-static IRInstList* emit_spill_store(Env* env, Reg* r, IRInstList* l) {
+static void emit_spill_store(Env* env, Reg* r, IRInstListIterator* it) {
   IRInst* inst = new_inst_(env, IR_STACK_STORE);
   push_RegVec(inst->ras, copy_Reg(r));
   inst->stack_idx = get_UIVec(env->locations, r->virtual);
   inst->data_size = r->size;
 
-  IRInstList* t = tail_IRInstList(l);
-  insert_IRInstList(inst, t);
-  return tail_IRInstList(t);
+  insert_IRInstListIterator(it, inst);
 }
 
-static void assign_reg_num_iter_insts(Env* env, IRInstList* l) {
-  if (is_nil_IRInstList(l)) {
+static void assign_reg_num_iter_insts(Env* env, IRInstListIterator* it) {
+  if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
-  IRInst* inst     = head_IRInstList(l);
-  IRInstList* tail = tail_IRInstList(l);
+  IRInst* inst             = data_IRInstListIterator(it);
+  IRInstListIterator* next = next_IRInstListIterator(it);
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
 
     if (assign_reg(env, ra)) {
-      tail = emit_spill_load(env, ra, &l);
+      emit_spill_load(env, ra, it);
     }
   }
 
   if (inst->rd != NULL) {
     if (assign_reg(env, inst->rd)) {
-      tail = emit_spill_store(env, inst->rd, l);
+      emit_spill_store(env, inst->rd, next);
+      next = next_IRInstListIterator(next);
     }
   }
 
-  assign_reg_num_iter_insts(env, tail);
+  assign_reg_num_iter_insts(env, next);
 }
 
 static void assign_reg_num(Env* env, BBListIterator* it) {
@@ -387,7 +380,7 @@ static void assign_reg_num(Env* env, BBListIterator* it) {
 
   BasicBlock* b = data_BBListIterator(it);
 
-  assign_reg_num_iter_insts(env, b->insts);
+  assign_reg_num_iter_insts(env, front_IRInstList(b->insts));
   b->sorted_insts = NULL;
 
   if (b->is_call_bb) {

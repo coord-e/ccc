@@ -27,6 +27,7 @@
   T last_##Name(Name* list);                                                                       \
   void push_front_##Name(Name* list, T value);                                                     \
   void push_back_##Name(Name* list, T value);                                                      \
+  void append_##Name(Name* list1, Name* list2);                                                    \
   Name##Iterator* find_##Name(Name* list, T value);                                                \
   void erase_one_##Name(Name* list, T value);                                                      \
   Name* shallow_copy_##Name(const Name* list);                                                     \
@@ -151,6 +152,14 @@
       error("last");                                                                               \
     }                                                                                              \
     return list->last->prev->data;                                                                 \
+  }                                                                                                \
+  void append_##Name(Name* list1, Name* list2) {                                                   \
+    list1->last->prev->next = list2->init->next;                                                   \
+    list2->init->next->prev = list1->last->prev;                                                   \
+    list1->last->prev       = list2->last->prev;                                                   \
+    list2->last->prev->next = list1->last;                                                         \
+    release_##Name##Iterator(list2->init);                                                         \
+    release_##Name##Iterator(list2->last);                                                         \
   }                                                                                                \
   Name##Iterator* find_##Name(Name* list, T value) {                                               \
     Name##Iterator* it = front_##Name(list);                                                       \

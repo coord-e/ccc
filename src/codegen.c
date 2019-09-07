@@ -272,7 +272,7 @@ static void codegen_una(FILE* p, IRInst* inst) {
 
   assert(rd->real == opr->real);
 
-  switch (inst->unaop) {
+  switch (inst->unary_op) {
     case UNAOP_POSITIVE:
       return;
     case UNAOP_INTEGER_NEG:
@@ -296,11 +296,11 @@ static void codegen_bin(FILE* p, IRInst* inst) {
 
   // rem operator is exceptionally avoided
   // rdx = rax % reg
-  if (inst->binop != ARITH_REM) {
+  if (inst->binary_op != ARITH_REM) {
     assert(rd->real == lhs->real);
   }
 
-  switch (inst->binop) {
+  switch (inst->binary_op) {
     case ARITH_ADD:
       emit(p, "add %s, %s", reg_of(rd), reg_of(rhs));
       return;

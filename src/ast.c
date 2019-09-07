@@ -503,14 +503,14 @@ static void print_expr(FILE* p, Expr* expr) {
     case ND_COMPOUND_ASSIGN:
       fprintf(p, "(");
       print_expr(p, expr->lhs);
-      print_binop(p, expr->binop);
+      print_BinaryOp(p, expr->binop);
       fprintf(p, "= ");
       print_expr(p, expr->rhs);
       fprintf(p, ")");
       return;
     case ND_BINOP:
       fprintf(p, "(");
-      print_binop(p, expr->binop);
+      print_BinaryOp(p, expr->binop);
       fprintf(p, " ");
       print_expr(p, expr->lhs);
       fprintf(p, " ");
@@ -519,7 +519,7 @@ static void print_expr(FILE* p, Expr* expr) {
       return;
     case ND_UNAOP:
       fprintf(p, "(");
-      print_unaop(p, expr->unaop);
+      print_UnaryOp(p, expr->unaop);
       fprintf(p, " ");
       print_expr(p, expr->expr);
       fprintf(p, ")");

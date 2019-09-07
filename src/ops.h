@@ -28,8 +28,8 @@ typedef enum {
   BINOP_SHIFT_LEFT,
 } BinaryOp;
 
-void print_binop(FILE*, BinaryOp);
-long eval_binop(BinaryOp, long, long);
+void print_BinaryOp(FILE*, BinaryOp);
+long eval_BinaryOp(BinaryOp, long, long);
 BinaryOpKind kind_of_BinaryOp(BinaryOp);
 
 typedef enum {
@@ -68,7 +68,7 @@ typedef enum {
   UNAOP_BITWISE_NEG,
 } UnaryOp;
 
-void print_unaop(FILE*, UnaryOp);
-long eval_unaop(UnaryOp, long);
+void print_UnaryOp(FILE*, UnaryOp);
+long eval_UnaryOp(UnaryOp, long);
 
 #endif

@@ -3,7 +3,7 @@
 #include "error.h"
 #include "ops.h"
 
-void print_binop(FILE* p, BinaryOp op) {
+void print_BinaryOp(FILE* p, BinaryOp op) {
   switch (kind_of_BinaryOp(op)) {
     case BINOP_ARITH:
       print_ArithOp(p, as_ArithOp(op));
@@ -16,7 +16,7 @@ void print_binop(FILE* p, BinaryOp op) {
   }
 }
 
-long eval_binop(BinaryOp op, long lhs, long rhs) {
+long eval_BinaryOp(BinaryOp op, long lhs, long rhs) {
   switch (kind_of_BinaryOp(op)) {
     case BINOP_ARITH:
       return eval_ArithOp(as_ArithOp(op), lhs, rhs);
@@ -170,7 +170,7 @@ CompareOp as_CompareOp(BinaryOp op) {
   return (CompareOp)op;
 }
 
-void print_unaop(FILE* p, UnaryOp kind) {
+void print_UnaryOp(FILE* p, UnaryOp kind) {
   switch (kind) {
     case UNAOP_POSITIVE:
       fprintf(p, "+");
@@ -186,7 +186,7 @@ void print_unaop(FILE* p, UnaryOp kind) {
   }
 }
 
-long eval_unaop(UnaryOp kind, long opr) {
+long eval_UnaryOp(UnaryOp kind, long opr) {
   switch (kind) {
     case UNAOP_POSITIVE:
       return +opr;

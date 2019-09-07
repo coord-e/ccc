@@ -284,8 +284,8 @@ static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
   IRInst* inst;
   switch (kind_of_BinaryOp(op)) {
     case BINOP_ARITH:
-      inst        = new_inst_(env, IR_BIN);
-      inst->binop = as_ArithOp(op);
+      inst            = new_inst_(env, IR_BIN);
+      inst->binary_op = as_ArithOp(op);
       break;
     case BINOP_COMPARE:
       inst               = new_inst_(env, IR_CMP);
@@ -305,9 +305,9 @@ static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
 static Reg* new_unaop(Env* env, UnaryOp op, Reg* opr) {
   Reg* dest = new_reg(env, opr->size);
 
-  IRInst* i2 = new_inst_(env, IR_UNA);
-  i2->unaop  = op;
-  i2->rd     = dest;
+  IRInst* i2   = new_inst_(env, IR_UNA);
+  i2->unary_op = op;
+  i2->rd       = dest;
   push_RegVec(i2->ras, copy_Reg(opr));
   add_inst(env, i2);
 
@@ -1257,7 +1257,7 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
-      print_escaped_ArithOp(p, i->binop);
+      print_escaped_ArithOp(p, i->binary_op);
       fprintf(p, " ");
       break;
     case IR_CMP:
@@ -1267,7 +1267,7 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_UNA:
       fprintf(p, "UNA ");
-      print_unaop(p, i->unaop);
+      print_UnaryOp(p, i->unary_op);
       fprintf(p, " ");
       break;
     case IR_STACK_ADDR:

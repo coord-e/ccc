@@ -26,6 +26,28 @@ void print_binop(FILE*, BinopKind);
 long eval_binop(BinopKind, long, long);
 
 typedef enum {
+  ARITH_ADD         = BINOP_ADD,
+  ARITH_SUB         = BINOP_SUB,
+  ARITH_MUL         = BINOP_MUL,
+  ARITH_DIV         = BINOP_DIV,
+  ARITH_REM         = BINOP_REM,
+  ARITH_OR          = BINOP_OR,
+  ARITH_XOR         = BINOP_XOR,
+  ARITH_AND         = BINOP_AND,
+  ARITH_SHIFT_RIGHT = BINOP_SHIFT_RIGHT,
+  ARITH_SHIFT_LEFT  = BINOP_SHIFT_RIGHT,
+} ArithOp;
+
+typedef enum {
+  CMP_EQ = BINOP_EQ,
+  CMP_NE = BINOP_NE,
+  CMP_GT = BINOP_GT,
+  CMP_GE = BINOP_GE,
+  CMP_LT = BINOP_LT,
+  CMP_LE = BINOP_LE,
+} CompareOp;
+
+typedef enum {
   UNAOP_POSITIVE,
   UNAOP_INTEGER_NEG,
   UNAOP_BITWISE_NEG,

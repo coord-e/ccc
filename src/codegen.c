@@ -238,6 +238,8 @@ static void codegen_cmp(FILE* p, IRInst* inst) {
   Reg* lhs = get_RegVec(inst->ras, 0);
   Reg* rhs = get_RegVec(inst->ras, 1);
 
+  assert(rd->size == SIZE_BYTE);
+
   emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
 
   switch (inst->predicate_op) {

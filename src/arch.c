@@ -77,13 +77,20 @@ static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
   return inst;
 }
 
+static IRInst* new_sext(Env* env, Reg* rd, Reg* ra) {
+  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_SEXT);
+  inst->rd     = copy_Reg(rd);
+  push_RegVec(inst->ras, copy_Reg(ra));
+  return inst;
+}
+
 static IRInst* new_ret(Env* env, Reg* ra) {
   IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_RET);
   push_RegVec(inst->ras, copy_Reg(ra));
   return inst;
 }
 
-static IRInst* new_binop(Env* env, BinaryOp kind, Reg* rd, Reg* lhs, Reg* rhs) {
+static IRInst* new_binop(Env* env, ArithOp kind, Reg* rd, Reg* lhs, Reg* rhs) {
   IRInst* inst            = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
   inst->binop             = kind;
   inst->rd                = copy_Reg(rd);
@@ -187,6 +194,17 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       it = remove_IRInstListIterator(it);
       insert_IRInstListIterator(it, i1);
       insert_IRInstListIterator(it, i2);
+      break;
+    }
+    case IR_CMP: {
+      Reg* rd1 = inst->rd;
+      Reg* rd2 = copy_Reg(rd1);
+
+      rd1->size    = SIZE_BYTE;
+      IRInst* inst = new_sext(env, rd2, rd1);
+      release_Reg(rd2);
+
+      insert_IRInstListIterator(next_IRInstListIterator(it), inst);
       break;
     }
     case IR_CALL: {

@@ -115,8 +115,9 @@ static void emit_epilogue(FILE* p, Function* f) {
   emit(p, "pop rbp");
 }
 
-static void codegen_binop(FILE* p, IRInst* inst);
-static void codegen_unaop(FILE* p, IRInst* inst);
+static void codegen_bin(FILE* p, IRInst* inst);
+static void codegen_cmp(FILE* p, IRInst* inst);
+static void codegen_una(FILE* p, IRInst* inst);
 
 static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterator* it) {
   if (is_nil_IRInstListIterator(it)) {
@@ -144,6 +145,9 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
     case IR_SEXT:
       emit(p, "movsx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
+    case IR_ZEXT:
+      emit(p, "movzx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
+      break;
     case IR_RET:
       assert(!bb->is_call_bb);
       if (length_RegVec(h->ras) != 0) {
@@ -154,10 +158,13 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
       emit(p, "ret");
       break;
     case IR_BIN:
-      codegen_binop(p, h);
+      codegen_bin(p, h);
+      break;
+    case IR_CMP:
+      codegen_cmp(p, h);
       break;
     case IR_UNA:
-      codegen_unaop(p, h);
+      codegen_una(p, h);
       break;
     case IR_STACK_ADDR:
       emit(p, "lea %s, [rbp - %d]", reg_of(h->rd), h->stack_idx);
@@ -229,19 +236,46 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
   codegen_insts(p, f, bb, next_IRInstListIterator(it));
 }
 
-static void codegen_cmp(FILE* p, const char* s, Reg* rd, Reg* rhs) {
-  emit(p, "cmp %s, %s", reg_of(rd), reg_of(rhs));
-  emit(p, "set%s %s", s, regs8[rd->real]);
-  emit(p, "movzb %s, %s", reg_of(rd), regs8[rd->real]);
+static void codegen_cmp(FILE* p, IRInst* inst) {
+  Reg* rd  = inst->rd;
+  Reg* lhs = get_RegVec(inst->ras, 0);
+  Reg* rhs = get_RegVec(inst->ras, 1);
+
+  assert(rd->size == SIZE_BYTE);
+
+  emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
+
+  switch (inst->predicate_op) {
+    case CMP_EQ:
+      emit(p, "sete %s", reg_of(rd));
+      break;
+    case CMP_NE:
+      emit(p, "setne %s", reg_of(rd));
+      break;
+    case CMP_GT:
+      emit(p, "setg %s", reg_of(rd));
+      break;
+    case CMP_GE:
+      emit(p, "setge %s", reg_of(rd));
+      break;
+    case CMP_LT:
+      emit(p, "setl %s", reg_of(rd));
+      break;
+    case CMP_LE:
+      emit(p, "setle %s", reg_of(rd));
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
 }
 
-static void codegen_unaop(FILE* p, IRInst* inst) {
+static void codegen_una(FILE* p, IRInst* inst) {
   Reg* rd  = inst->rd;
   Reg* opr = get_RegVec(inst->ras, 0);
 
   assert(rd->real == opr->real);
 
-  switch (inst->unaop) {
+  switch (inst->unary_op) {
     case UNAOP_POSITIVE:
       return;
     case UNAOP_INTEGER_NEG:
@@ -255,7 +289,7 @@ static void codegen_unaop(FILE* p, IRInst* inst) {
   }
 }
 
-static void codegen_binop(FILE* p, IRInst* inst) {
+static void codegen_bin(FILE* p, IRInst* inst) {
   Reg* rd  = inst->rd;
   Reg* lhs = get_RegVec(inst->ras, 0);
   Reg* rhs = get_RegVec(inst->ras, 1);
@@ -265,66 +299,48 @@ static void codegen_binop(FILE* p, IRInst* inst) {
 
   // rem operator is exceptionally avoided
   // rdx = rax % reg
-  if (inst->binop != BINOP_REM) {
+  if (inst->binary_op != ARITH_REM) {
     assert(rd->real == lhs->real);
   }
 
-  switch (inst->binop) {
-    case BINOP_ADD:
+  switch (inst->binary_op) {
+    case ARITH_ADD:
       emit(p, "add %s, %s", reg_of(rd), reg_of(rhs));
       return;
-    case BINOP_SUB:
+    case ARITH_SUB:
       emit(p, "sub %s, %s", reg_of(rd), reg_of(rhs));
       return;
-    case BINOP_MUL:
+    case ARITH_MUL:
       emit(p, "imul %s, %s", reg_of(rd), reg_of(rhs));
       return;
-    case BINOP_DIV:
+    case ARITH_DIV:
       assert(lhs->real == rax_reg_id);
       assert(rd->real == rax_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
       return;
-    case BINOP_REM:
+    case ARITH_REM:
       assert(lhs->real == rax_reg_id);
       assert(rd->real == rdx_reg_id);
       emit(p, "cqo");
       emit(p, "idiv %s", reg_of(rhs));
       return;
-    case BINOP_EQ:
-      codegen_cmp(p, "e", rd, rhs);
-      return;
-    case BINOP_NE:
-      codegen_cmp(p, "ne", rd, rhs);
-      return;
-    case BINOP_GT:
-      codegen_cmp(p, "g", rd, rhs);
-      return;
-    case BINOP_GE:
-      codegen_cmp(p, "ge", rd, rhs);
-      return;
-    case BINOP_LT:
-      codegen_cmp(p, "l", rd, rhs);
-      return;
-    case BINOP_LE:
-      codegen_cmp(p, "le", rd, rhs);
-      return;
-    case BINOP_SHIFT_RIGHT:
+    case ARITH_SHIFT_RIGHT:
       assert(rhs->real == rcx_reg_id);
       // TODO: Consider signedness
       emit(p, "sar %s, cl", reg_of(rd));
       return;
-    case BINOP_SHIFT_LEFT:
+    case ARITH_SHIFT_LEFT:
       assert(rhs->real == rcx_reg_id);
       emit(p, "shl %s, cl", reg_of(rd));
       return;
-    case BINOP_AND:
+    case ARITH_AND:
       emit(p, "and %s, %s", reg_of(rd), reg_of(rhs));
       return;
-    case BINOP_XOR:
+    case ARITH_XOR:
       emit(p, "xor %s, %s", reg_of(rd), reg_of(rhs));
       return;
-    case BINOP_OR:
+    case ARITH_OR:
       emit(p, "or %s, %s", reg_of(rd), reg_of(rhs));
       return;
     default:

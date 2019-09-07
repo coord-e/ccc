@@ -115,6 +115,14 @@ expr 239 "237 | 106"
 expr 135 "237 ^ 106"
 expr 104 "237 & 106"
 
+try_ 0 <<EOF
+int main() {
+  unsigned char c = 255;
+  int i = c; // zext is expected, not sext
+  return i == -1; // false
+}
+EOF
+
 # return statements
 items 1 "return 1;";
 items 42 "return 2*21;";

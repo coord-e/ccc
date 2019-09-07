@@ -211,14 +211,14 @@ struct Expr {
 
   TypeName* sizeof_;  // for ND_SIZEOF_TYPE, owned
 
-  BinopKind binop;  // for ND_BINOP, ND_COMPOUND_ASSIGN
-  UnaopKind unaop;  // for ND_UNAOP
-  char* var;        // for ND_VAR, owned
-  int num;          // for ND_NUM
-  char* string;     // for ND_STRING, owned
-  size_t str_len;   // for ND_STRING
-  ExprVec* args;    // for ND_CALL, owned
-  char* member;     // for ND_MEMBER, owned
+  BinaryOp binop;  // for ND_BINOP, ND_COMPOUND_ASSIGN
+  UnaryOp unaop;   // for ND_UNAOP
+  char* var;       // for ND_VAR, owned
+  int num;         // for ND_NUM
+  char* string;    // for ND_STRING, owned
+  size_t str_len;  // for ND_STRING
+  ExprVec* args;   // for ND_CALL, owned
+  char* member;    // for ND_MEMBER, owned
 
   Expr* cond;   // for ND_COND, owned
   Expr* then_;  // for ND_COND, owned
@@ -233,14 +233,14 @@ Expr* new_node(ExprKind kind, Expr* lhs, Expr* rhs);
 Expr* new_node_num(int num);
 Expr* new_node_var(const char* ident);
 Expr* new_node_string(const char* s, size_t len);
-Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs);
-Expr* new_node_unaop(UnaopKind kind, Expr* expr);
+Expr* new_node_binop(BinaryOp kind, Expr* lhs, Expr* rhs);
+Expr* new_node_unaop(UnaryOp kind, Expr* expr);
 Expr* new_node_addr(Expr* expr);
 Expr* new_node_addr_ary(Expr* expr);
 Expr* new_node_deref(Expr* expr);
 Expr* new_node_assign(Expr* lhs, Expr* rhs);
 Expr* new_node_comma(Expr* lhs, Expr* rhs);
-Expr* new_node_compound_assign(BinopKind, Expr* lhs, Expr* rhs);
+Expr* new_node_compound_assign(BinaryOp, Expr* lhs, Expr* rhs);
 Expr* new_node_cast(TypeName* ty, Expr* opr);
 Expr* new_node_cond(Expr* cond, Expr* then_, Expr* else_);
 Expr* new_node_sizeof_type(TypeName*);

@@ -1,54 +1,87 @@
-#include "ops.h"
-#include "error.h"
+#include <assert.h>
 
-void print_binop(FILE* p, BinopKind kind) {
-  switch (kind) {
+#include "error.h"
+#include "ops.h"
+
+void print_BinaryOp(FILE* p, BinaryOp op) {
+  switch (kind_of_BinaryOp(op)) {
+    case OP_ARITH:
+      print_ArithOp(p, as_ArithOp(op));
+      return;
+    case OP_COMPARE:
+      print_CompareOp(p, as_CompareOp(op));
+      return;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+long eval_BinaryOp(BinaryOp op, long lhs, long rhs) {
+  switch (kind_of_BinaryOp(op)) {
+    case OP_ARITH:
+      return eval_ArithOp(as_ArithOp(op), lhs, rhs);
+    case OP_COMPARE:
+      return eval_CompareOp(as_CompareOp(op), lhs, rhs);
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+BinaryOpKind kind_of_BinaryOp(BinaryOp op) {
+  switch (op) {
     case BINOP_ADD:
+    case BINOP_SUB:
+    case BINOP_MUL:
+    case BINOP_DIV:
+    case BINOP_REM:
+    case BINOP_OR:
+    case BINOP_XOR:
+    case BINOP_AND:
+    case BINOP_SHIFT_RIGHT:
+    case BINOP_SHIFT_LEFT:
+      return OP_ARITH;
+    case BINOP_EQ:
+    case BINOP_NE:
+    case BINOP_GT:
+    case BINOP_GE:
+    case BINOP_LT:
+    case BINOP_LE:
+      return OP_COMPARE;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+void print_ArithOp(FILE* p, ArithOp op) {
+  switch (op) {
+    case ARITH_ADD:
       fprintf(p, "+");
       return;
-    case BINOP_SUB:
+    case ARITH_SUB:
       fprintf(p, "-");
       return;
-    case BINOP_MUL:
+    case ARITH_MUL:
       fprintf(p, "*");
       return;
-    case BINOP_DIV:
+    case ARITH_DIV:
       fprintf(p, "/");
       return;
-    case BINOP_REM:
+    case ARITH_REM:
       fprintf(p, "%%");
       return;
-    case BINOP_EQ:
-      fprintf(p, "==");
-      return;
-    case BINOP_NE:
-      fprintf(p, "!=");
-      return;
-    case BINOP_GT:
-      fprintf(p, ">");
-      return;
-    case BINOP_GE:
-      fprintf(p, ">=");
-      return;
-    case BINOP_LT:
-      fprintf(p, "<");
-      return;
-    case BINOP_LE:
-      fprintf(p, "<=");
-      return;
-    case BINOP_OR:
+    case ARITH_OR:
       fprintf(p, "|");
       return;
-    case BINOP_XOR:
+    case ARITH_XOR:
       fprintf(p, "^");
       return;
-    case BINOP_AND:
+    case ARITH_AND:
       fprintf(p, "&");
       return;
-    case BINOP_SHIFT_RIGHT:
+    case ARITH_SHIFT_RIGHT:
       fprintf(p, ">>");
       return;
-    case BINOP_SHIFT_LEFT:
+    case ARITH_SHIFT_LEFT:
       fprintf(p, "<<");
       return;
     default:
@@ -56,46 +89,88 @@ void print_binop(FILE* p, BinopKind kind) {
   }
 }
 
-long eval_binop(BinopKind kind, long lhs, long rhs) {
-  switch (kind) {
-    case BINOP_ADD:
+long eval_ArithOp(ArithOp op, long lhs, long rhs) {
+  switch (op) {
+    case ARITH_ADD:
       return lhs + rhs;
-    case BINOP_SUB:
+    case ARITH_SUB:
       return lhs - rhs;
-    case BINOP_MUL:
+    case ARITH_MUL:
       return lhs * rhs;
-    case BINOP_DIV:
+    case ARITH_DIV:
       return lhs / rhs;
-    case BINOP_REM:
+    case ARITH_REM:
       return lhs % rhs;
-    case BINOP_EQ:
-      return lhs == rhs;
-    case BINOP_NE:
-      return lhs != rhs;
-    case BINOP_GT:
-      return lhs > rhs;
-    case BINOP_GE:
-      return lhs >= rhs;
-    case BINOP_LT:
-      return lhs < rhs;
-    case BINOP_LE:
-      return lhs <= rhs;
-    case BINOP_OR:
+    case ARITH_OR:
       return lhs | rhs;
-    case BINOP_XOR:
+    case ARITH_XOR:
       return lhs ^ rhs;
-    case BINOP_AND:
+    case ARITH_AND:
       return lhs & rhs;
-    case BINOP_SHIFT_RIGHT:
+    case ARITH_SHIFT_RIGHT:
       return lhs >> rhs;
-    case BINOP_SHIFT_LEFT:
+    case ARITH_SHIFT_LEFT:
       return lhs << rhs;
     default:
       CCC_UNREACHABLE;
   }
 }
 
-void print_unaop(FILE* p, UnaopKind kind) {
+ArithOp as_ArithOp(BinaryOp op) {
+  assert(kind_of_BinaryOp(op) == OP_ARITH);
+  return (ArithOp)op;
+}
+
+void print_CompareOp(FILE* p, CompareOp op) {
+  switch (op) {
+    case CMP_EQ:
+      fprintf(p, "==");
+      return;
+    case CMP_NE:
+      fprintf(p, "!=");
+      return;
+    case CMP_GT:
+      fprintf(p, ">");
+      return;
+    case CMP_GE:
+      fprintf(p, ">=");
+      return;
+    case CMP_LT:
+      fprintf(p, "<");
+      return;
+    case CMP_LE:
+      fprintf(p, "<=");
+      return;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+bool eval_CompareOp(CompareOp op, long lhs, long rhs) {
+  switch (op) {
+    case CMP_EQ:
+      return lhs == rhs;
+    case CMP_NE:
+      return lhs != rhs;
+    case CMP_GT:
+      return lhs > rhs;
+    case CMP_GE:
+      return lhs >= rhs;
+    case CMP_LT:
+      return lhs < rhs;
+    case CMP_LE:
+      return lhs <= rhs;
+    default:
+      CCC_UNREACHABLE;
+  }
+}
+
+CompareOp as_CompareOp(BinaryOp op) {
+  assert(kind_of_BinaryOp(op) == OP_COMPARE);
+  return (CompareOp)op;
+}
+
+void print_UnaryOp(FILE* p, UnaryOp kind) {
   switch (kind) {
     case UNAOP_POSITIVE:
       fprintf(p, "+");
@@ -111,7 +186,7 @@ void print_unaop(FILE* p, UnaopKind kind) {
   }
 }
 
-long eval_unaop(UnaopKind kind, long opr) {
+long eval_UnaryOp(UnaryOp kind, long opr) {
   switch (kind) {
     case UNAOP_POSITIVE:
       return +opr;

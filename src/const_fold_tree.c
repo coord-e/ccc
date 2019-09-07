@@ -171,7 +171,7 @@ void const_fold_expr(Expr* e) {
       const_fold_expr(e->rhs);
       long lhs_c, rhs_c;
       if (get_constant(e->lhs, &lhs_c) && get_constant(e->rhs, &rhs_c)) {
-        *e = *new_node_num(eval_binop(e->binop, lhs_c, rhs_c));
+        *e = *new_node_num(eval_BinaryOp(e->binop, lhs_c, rhs_c));
       }
       return;
     }
@@ -179,7 +179,7 @@ void const_fold_expr(Expr* e) {
       const_fold_expr(e->expr);
       long constant;
       if (get_constant(e->expr, &constant)) {
-        *e = *new_node_num(eval_unaop(e->unaop, constant));
+        *e = *new_node_num(eval_UnaryOp(e->unaop, constant));
       }
       return;
     }

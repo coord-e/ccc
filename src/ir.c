@@ -276,27 +276,38 @@ static void add_inst(Env* env, IRInst* inst) {
   push_back_IRInstList(env->inst_cur, inst);
 }
 
-static Reg* new_binop(Env* env, BinopKind op, Reg* lhs, Reg* rhs) {
+static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
   assert(lhs->size == rhs->size);
 
   Reg* dest = new_reg(env, lhs->size);
 
-  IRInst* i2 = new_inst_(env, IR_BIN);
-  i2->binop  = op;
-  i2->rd     = dest;
-  push_RegVec(i2->ras, copy_Reg(lhs));
-  push_RegVec(i2->ras, copy_Reg(rhs));
-  add_inst(env, i2);
+  IRInst* inst;
+  switch (kind_of_BinaryOp(op)) {
+    case OP_ARITH:
+      inst            = new_inst_(env, IR_BIN);
+      inst->binary_op = as_ArithOp(op);
+      break;
+    case OP_COMPARE:
+      inst               = new_inst_(env, IR_CMP);
+      inst->predicate_op = as_CompareOp(op);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+  inst->rd = dest;
+  push_RegVec(inst->ras, copy_Reg(lhs));
+  push_RegVec(inst->ras, copy_Reg(rhs));
+  add_inst(env, inst);
 
   return dest;
 }
 
-static Reg* new_unaop(Env* env, UnaopKind op, Reg* opr) {
+static Reg* new_unaop(Env* env, UnaryOp op, Reg* opr) {
   Reg* dest = new_reg(env, opr->size);
 
-  IRInst* i2 = new_inst_(env, IR_UNA);
-  i2->unaop  = op;
-  i2->rd     = dest;
+  IRInst* i2   = new_inst_(env, IR_UNA);
+  i2->unary_op = op;
+  i2->rd       = dest;
   push_RegVec(i2->ras, copy_Reg(opr));
   add_inst(env, i2);
 
@@ -346,6 +357,18 @@ static Reg* new_sext(Env* env, Reg* t, DataSize to) {
 
   Reg* r    = new_reg(env, to);
   IRInst* i = new_inst_(env, IR_SEXT);
+  push_RegVec(i->ras, copy_Reg(t));
+  i->rd        = r;
+  i->data_size = to;
+  add_inst(env, i);
+  return r;
+}
+
+static Reg* new_zext(Env* env, Reg* t, DataSize to) {
+  assert(t->size < to);
+
+  Reg* r    = new_reg(env, to);
+  IRInst* i = new_inst_(env, IR_ZEXT);
   push_RegVec(i->ras, copy_Reg(t));
   i->rd        = r;
   i->data_size = to;
@@ -514,14 +537,20 @@ static DataSize datasize_of_node(Expr* e) {
 Reg* gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST: {
-      // TODO: signedness?
-      unsigned cast_size = sizeof_ty(node->cast_type);
-      unsigned expr_size = sizeof_ty(node->expr->type);
-      Reg* r             = gen_expr(env, node->expr);
-      if (cast_size > expr_size) {
-        return new_sext(env, r, cast_size);
-      } else if (cast_size < expr_size) {
-        return new_trunc(env, r, cast_size);
+      Type* from_ty      = node->expr->type;
+      Type* to_ty        = node->cast_type;
+      unsigned to_size   = sizeof_ty(to_ty);
+      unsigned from_size = sizeof_ty(from_ty);
+
+      Reg* r = gen_expr(env, node->expr);
+      if (to_size > from_size) {
+        if (from_ty->kind == TY_INT && from_ty->is_signed) {
+          return new_sext(env, r, to_size);
+        } else {
+          return new_zext(env, r, to_size);
+        }
+      } else if (to_size < from_size) {
+        return new_trunc(env, r, to_size);
       } else {
         return r;
       }
@@ -1183,24 +1212,33 @@ static void print_reg(FILE* p, Reg* r) {
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
 
-void print_escaped_binop(FILE* p, BinopKind kind) {
-  switch (kind) {
-    case BINOP_GT:
-    case BINOP_GE:
-    case BINOP_LT:
-    case BINOP_LE:
-    case BINOP_OR:
+void print_escaped_CompareOp(FILE* p, CompareOp op) {
+  switch (op) {
+    case CMP_GT:
+    case CMP_GE:
+    case CMP_LT:
+    case CMP_LE:
       fputs("\\", p);
-      print_binop(p, kind);
+      // fallthrough
+    default:
+      print_CompareOp(p, op);
       return;
-    case BINOP_SHIFT_RIGHT:
+  }
+}
+
+void print_escaped_ArithOp(FILE* p, ArithOp op) {
+  switch (op) {
+    case ARITH_OR:
+      fputs("\\|", p);
+      return;
+    case ARITH_SHIFT_RIGHT:
       fprintf(p, "\\>\\>");
       return;
-    case BINOP_SHIFT_LEFT:
+    case ARITH_SHIFT_LEFT:
       fprintf(p, "\\<\\<");
       return;
     default:
-      print_binop(p, kind);
+      print_ArithOp(p, op);
       return;
   }
 }
@@ -1229,6 +1267,9 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_SEXT:
       fprintf(p, "SEXT ");
       break;
+    case IR_ZEXT:
+      fprintf(p, "ZEXT ");
+      break;
     case IR_TRUNC:
       fprintf(p, "TRUNC ");
       break;
@@ -1237,12 +1278,17 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
-      print_escaped_binop(p, i->binop);
+      print_escaped_ArithOp(p, i->binary_op);
+      fprintf(p, " ");
+      break;
+    case IR_CMP:
+      fprintf(p, "CMP ");
+      print_escaped_CompareOp(p, i->predicate_op);
       fprintf(p, " ");
       break;
     case IR_UNA:
       fprintf(p, "UNA ");
-      print_unaop(p, i->unaop);
+      print_UnaryOp(p, i->unary_op);
       fprintf(p, " ");
       break;
     case IR_STACK_ADDR:

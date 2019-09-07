@@ -77,8 +77,8 @@ static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
   return inst;
 }
 
-static IRInst* new_sext(Env* env, Reg* rd, Reg* ra) {
-  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_SEXT);
+static IRInst* new_zext(Env* env, Reg* rd, Reg* ra) {
+  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_ZEXT);
   inst->rd     = copy_Reg(rd);
   push_RegVec(inst->ras, copy_Reg(ra));
   return inst;
@@ -201,7 +201,7 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       Reg* rd2 = copy_Reg(rd1);
 
       rd1->size    = SIZE_BYTE;
-      IRInst* inst = new_sext(env, rd2, rd1);
+      IRInst* inst = new_zext(env, rd2, rd1);
       release_Reg(rd2);
 
       insert_IRInstListIterator(next_IRInstListIterator(it), inst);

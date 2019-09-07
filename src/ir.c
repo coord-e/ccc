@@ -364,6 +364,18 @@ static Reg* new_sext(Env* env, Reg* t, DataSize to) {
   return r;
 }
 
+static Reg* new_zext(Env* env, Reg* t, DataSize to) {
+  assert(t->size < to);
+
+  Reg* r    = new_reg(env, to);
+  IRInst* i = new_inst_(env, IR_ZEXT);
+  push_RegVec(i->ras, copy_Reg(t));
+  i->rd        = r;
+  i->data_size = to;
+  add_inst(env, i);
+  return r;
+}
+
 static Reg* new_trunc(Env* env, Reg* t, DataSize to) {
   assert(t->size > to);
 
@@ -525,14 +537,20 @@ static DataSize datasize_of_node(Expr* e) {
 Reg* gen_expr(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_CAST: {
-      // TODO: signedness?
-      unsigned cast_size = sizeof_ty(node->cast_type);
-      unsigned expr_size = sizeof_ty(node->expr->type);
-      Reg* r             = gen_expr(env, node->expr);
-      if (cast_size > expr_size) {
-        return new_sext(env, r, cast_size);
-      } else if (cast_size < expr_size) {
-        return new_trunc(env, r, cast_size);
+      Type* from_ty      = node->expr->type;
+      Type* to_ty        = node->cast_type;
+      unsigned to_size   = sizeof_ty(to_ty);
+      unsigned from_size = sizeof_ty(from_ty);
+
+      Reg* r = gen_expr(env, node->expr);
+      if (to_size > from_size) {
+        if (from_ty->kind == TY_INT && from_ty->is_signed) {
+          return new_sext(env, r, to_size);
+        } else {
+          return new_zext(env, r, to_size);
+        }
+      } else if (to_size < from_size) {
+        return new_trunc(env, r, to_size);
       } else {
         return r;
       }

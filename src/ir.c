@@ -302,6 +302,30 @@ static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
   return dest;
 }
 
+static Reg* new_binop_imm(Env* env, BinaryOp op, Reg* lhs, long rhs) {
+  Reg* dest = new_reg(env, lhs->size);
+
+  IRInst* inst;
+  switch (kind_of_BinaryOp(op)) {
+    case OP_ARITH:
+      inst            = new_inst_(env, IR_BIN_IMM);
+      inst->binary_op = as_ArithOp(op);
+      break;
+    case OP_COMPARE:
+      inst               = new_inst_(env, IR_CMP_IMM);
+      inst->predicate_op = as_CompareOp(op);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+  inst->rd = dest;
+  push_RegVec(inst->ras, copy_Reg(lhs));
+  inst->imm = rhs;
+  add_inst(env, inst);
+
+  return dest;
+}
+
 static Reg* new_unaop(Env* env, UnaryOp op, Reg* opr) {
   Reg* dest = new_reg(env, opr->size);
 
@@ -1277,11 +1301,13 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "CALL ");
       break;
     case IR_BIN:
+    case IR_BIN_IMM:
       fprintf(p, "BIN ");
       print_escaped_ArithOp(p, i->binary_op);
       fprintf(p, " ");
       break;
     case IR_CMP:
+    case IR_CMP_IMM:
       fprintf(p, "CMP ");
       print_escaped_CompareOp(p, i->predicate_op);
       fprintf(p, " ");
@@ -1323,6 +1349,14 @@ static void print_inst(FILE* p, IRInst* i) {
   }
   if (i->ras != NULL) {
     print_RegVec(p, i->ras);
+  }
+  switch (i->kind) {
+    case IR_BIN_IMM:
+    case IR_CMP_IMM:
+      fprintf(p, " %d", i->imm);
+      break;
+    default:
+      break;
   }
 }
 

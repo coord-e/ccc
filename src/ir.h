@@ -34,6 +34,8 @@ typedef enum {
   IR_TRUNC,
   IR_GLOBAL_ADDR,
   IR_NOP,
+  IR_BIN_IMM,
+  IR_CMP_IMM,
 } IRInstKind;
 
 typedef enum {
@@ -73,10 +75,10 @@ typedef struct IRInst {
   unsigned local_id;   // unique in `Function`
   unsigned global_id;  // unique in `IR`
 
-  ArithOp binary_op;       // for IR_BIN
+  ArithOp binary_op;       // for IR_BIN, IR_BIN_IMM
   UnaryOp unary_op;        // for IR_UNA
-  CompareOp predicate_op;  // for IR_CMP
-  int imm;                 // for IR_IMM
+  CompareOp predicate_op;  // for IR_CMP, IR_CMP_IMM
+  int imm;                 // for IR_IMM, IR_BIN_IMM, IR_CMP_IMM
   unsigned stack_idx;      // for IR_STACK_*
   unsigned argument_idx;   // for IR_ARG
   DataSize data_size;      // for IR_{LOAD, STORE, STACK_LOAD, STACK_STORE}

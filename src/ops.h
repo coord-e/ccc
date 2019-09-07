@@ -1,7 +1,13 @@
 #ifndef CCC_OPS_H
 #define CCC_OPS_H
 
+#include <stdbool.h>
 #include <stdio.h>
+
+typedef enum {
+  BINOP_ARITH,
+  BINOP_COMPARE,
+} BinaryOpKind;
 
 typedef enum {
   BINOP_ADD,
@@ -24,6 +30,7 @@ typedef enum {
 
 void print_binop(FILE*, BinaryOp);
 long eval_binop(BinaryOp, long, long);
+BinaryOpKind kind_of_BinaryOp(BinaryOp);
 
 typedef enum {
   ARITH_ADD         = BINOP_ADD,
@@ -35,8 +42,12 @@ typedef enum {
   ARITH_XOR         = BINOP_XOR,
   ARITH_AND         = BINOP_AND,
   ARITH_SHIFT_RIGHT = BINOP_SHIFT_RIGHT,
-  ARITH_SHIFT_LEFT  = BINOP_SHIFT_RIGHT,
+  ARITH_SHIFT_LEFT  = BINOP_SHIFT_LEFT,
 } ArithOp;
+
+void print_ArithOp(FILE*, ArithOp);
+long eval_ArithOp(ArithOp, long, long);
+ArithOp as_ArithOp(BinaryOp);
 
 typedef enum {
   CMP_EQ = BINOP_EQ,
@@ -46,6 +57,10 @@ typedef enum {
   CMP_LT = BINOP_LT,
   CMP_LE = BINOP_LE,
 } CompareOp;
+
+void print_CompareOp(FILE*, CompareOp);
+bool eval_CompareOp(CompareOp, long, long);
+CompareOp as_CompareOp(BinaryOp);
 
 typedef enum {
   UNAOP_POSITIVE,

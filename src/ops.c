@@ -5,10 +5,10 @@
 
 void print_BinaryOp(FILE* p, BinaryOp op) {
   switch (kind_of_BinaryOp(op)) {
-    case BINOP_ARITH:
+    case OP_ARITH:
       print_ArithOp(p, as_ArithOp(op));
       return;
-    case BINOP_COMPARE:
+    case OP_COMPARE:
       print_CompareOp(p, as_CompareOp(op));
       return;
     default:
@@ -18,9 +18,9 @@ void print_BinaryOp(FILE* p, BinaryOp op) {
 
 long eval_BinaryOp(BinaryOp op, long lhs, long rhs) {
   switch (kind_of_BinaryOp(op)) {
-    case BINOP_ARITH:
+    case OP_ARITH:
       return eval_ArithOp(as_ArithOp(op), lhs, rhs);
-    case BINOP_COMPARE:
+    case OP_COMPARE:
       return eval_CompareOp(as_CompareOp(op), lhs, rhs);
     default:
       CCC_UNREACHABLE;
@@ -39,14 +39,14 @@ BinaryOpKind kind_of_BinaryOp(BinaryOp op) {
     case BINOP_AND:
     case BINOP_SHIFT_RIGHT:
     case BINOP_SHIFT_LEFT:
-      return BINOP_ARITH;
+      return OP_ARITH;
     case BINOP_EQ:
     case BINOP_NE:
     case BINOP_GT:
     case BINOP_GE:
     case BINOP_LT:
     case BINOP_LE:
-      return BINOP_COMPARE;
+      return OP_COMPARE;
     default:
       CCC_UNREACHABLE;
   }
@@ -117,7 +117,7 @@ long eval_ArithOp(ArithOp op, long lhs, long rhs) {
 }
 
 ArithOp as_ArithOp(BinaryOp op) {
-  assert(kind_of_BinaryOp(op) == BINOP_ARITH);
+  assert(kind_of_BinaryOp(op) == OP_ARITH);
   return (ArithOp)op;
 }
 
@@ -166,7 +166,7 @@ bool eval_CompareOp(CompareOp op, long lhs, long rhs) {
 }
 
 CompareOp as_CompareOp(BinaryOp op) {
-  assert(kind_of_BinaryOp(op) == BINOP_COMPARE);
+  assert(kind_of_BinaryOp(op) == OP_COMPARE);
   return (CompareOp)op;
 }
 

@@ -5,8 +5,8 @@
 #include <stdio.h>
 
 typedef enum {
-  BINOP_ARITH,
-  BINOP_COMPARE,
+  OP_ARITH,
+  OP_COMPARE,
 } BinaryOpKind;
 
 typedef enum {

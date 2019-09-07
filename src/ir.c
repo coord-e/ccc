@@ -283,11 +283,11 @@ static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
 
   IRInst* inst;
   switch (kind_of_BinaryOp(op)) {
-    case BINOP_ARITH:
+    case OP_ARITH:
       inst            = new_inst_(env, IR_BIN);
       inst->binary_op = as_ArithOp(op);
       break;
-    case BINOP_COMPARE:
+    case OP_COMPARE:
       inst               = new_inst_(env, IR_CMP);
       inst->predicate_op = as_CompareOp(op);
       break;

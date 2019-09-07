@@ -1183,24 +1183,24 @@ static void print_reg(FILE* p, Reg* r) {
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
 
-void print_escaped_binop(FILE* p, BinaryOp kind) {
-  switch (kind) {
-    case BINOP_GT:
-    case BINOP_GE:
-    case BINOP_LT:
-    case BINOP_LE:
-    case BINOP_OR:
+void print_escaped_ArithOp(FILE* p, ArithOp op) {
+  switch (op) {
+    case ARITH_GT:
+    case ARITH_GE:
+    case ARITH_LT:
+    case ARITH_LE:
+    case ARITH_OR:
       fputs("\\", p);
-      print_binop(p, kind);
+      print_ArithOp(p, op);
       return;
-    case BINOP_SHIFT_RIGHT:
+    case ARITH_SHIFT_RIGHT:
       fprintf(p, "\\>\\>");
       return;
-    case BINOP_SHIFT_LEFT:
+    case ARITH_SHIFT_LEFT:
       fprintf(p, "\\<\\<");
       return;
     default:
-      print_binop(p, kind);
+      print_ArithOp(p, op);
       return;
   }
 }
@@ -1237,7 +1237,12 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_BIN:
       fprintf(p, "BIN ");
-      print_escaped_binop(p, i->binop);
+      print_escaped_ArithOp(p, i->binop);
+      fprintf(p, " ");
+      break;
+    case IR_CMP:
+      fprintf(p, "CMP ");
+      print_CompareOp(p, i->predicate_op);
       fprintf(p, " ");
       break;
     case IR_UNA:

@@ -281,12 +281,23 @@ static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
 
   Reg* dest = new_reg(env, lhs->size);
 
-  IRInst* i2 = new_inst_(env, IR_BIN);
-  i2->binop  = op;
-  i2->rd     = dest;
-  push_RegVec(i2->ras, copy_Reg(lhs));
-  push_RegVec(i2->ras, copy_Reg(rhs));
-  add_inst(env, i2);
+  IRInst* inst;
+  switch (kind_of_BinaryOp(op)) {
+    case BINOP_ARITH:
+      inst        = new_inst_(env, IR_BIN);
+      inst->binop = as_ArithOp(op);
+      break;
+    case BINOP_COMPARE:
+      inst               = new_inst_(env, IR_CMP);
+      inst->predicate_op = as_CompareOp(op);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+  inst->rd = dest;
+  push_RegVec(inst->ras, copy_Reg(lhs));
+  push_RegVec(inst->ras, copy_Reg(rhs));
+  add_inst(env, inst);
 
   return dest;
 }
@@ -1183,15 +1194,24 @@ static void print_reg(FILE* p, Reg* r) {
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
 
+void print_escaped_CompareOp(FILE* p, CompareOp op) {
+  switch (op) {
+    case CMP_GT:
+    case CMP_GE:
+    case CMP_LT:
+    case CMP_LE:
+      fputs("\\", p);
+      // fallthrough
+    default:
+      print_CompareOp(p, op);
+      return;
+  }
+}
+
 void print_escaped_ArithOp(FILE* p, ArithOp op) {
   switch (op) {
-    case ARITH_GT:
-    case ARITH_GE:
-    case ARITH_LT:
-    case ARITH_LE:
     case ARITH_OR:
-      fputs("\\", p);
-      print_ArithOp(p, op);
+      fputs("\\|", p);
       return;
     case ARITH_SHIFT_RIGHT:
       fprintf(p, "\\>\\>");
@@ -1242,7 +1262,7 @@ static void print_inst(FILE* p, IRInst* i) {
       break;
     case IR_CMP:
       fprintf(p, "CMP ");
-      print_CompareOp(p, i->predicate_op);
+      print_escaped_CompareOp(p, i->predicate_op);
       fprintf(p, " ");
       break;
     case IR_UNA:

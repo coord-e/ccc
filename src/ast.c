@@ -779,13 +779,13 @@ Expr* new_node_var(const char* ident) {
   return node;
 }
 
-Expr* new_node_binop(BinopKind kind, Expr* lhs, Expr* rhs) {
+Expr* new_node_binop(BinaryOp kind, Expr* lhs, Expr* rhs) {
   Expr* node  = new_node(ND_BINOP, lhs, rhs);
   node->binop = kind;
   return node;
 }
 
-Expr* new_node_unaop(UnaopKind kind, Expr* expr) {
+Expr* new_node_unaop(UnaryOp kind, Expr* expr) {
   Expr* node  = new_node(ND_UNAOP, NULL, NULL);
   node->unaop = kind;
   node->expr  = expr;
@@ -818,7 +818,7 @@ Expr* new_node_comma(Expr* lhs, Expr* rhs) {
   return new_node(ND_COMMA, lhs, rhs);
 }
 
-Expr* new_node_compound_assign(BinopKind kind, Expr* lhs, Expr* rhs) {
+Expr* new_node_compound_assign(BinaryOp kind, Expr* lhs, Expr* rhs) {
   Expr* node  = new_node(ND_COMPOUND_ASSIGN, lhs, rhs);
   node->binop = kind;
   return node;

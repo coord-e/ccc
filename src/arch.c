@@ -83,7 +83,7 @@ static IRInst* new_ret(Env* env, Reg* ra) {
   return inst;
 }
 
-static IRInst* new_binop(Env* env, BinopKind kind, Reg* rd, Reg* lhs, Reg* rhs) {
+static IRInst* new_binop(Env* env, BinaryOp kind, Reg* rd, Reg* lhs, Reg* rhs) {
   IRInst* inst            = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
   inst->binop             = kind;
   inst->rd                = copy_Reg(rd);
@@ -95,7 +95,7 @@ static IRInst* new_binop(Env* env, BinopKind kind, Reg* rd, Reg* lhs, Reg* rhs) 
   return inst;
 }
 
-static IRInst* new_unaop(Env* env, UnaopKind kind, Reg* rd, Reg* opr) {
+static IRInst* new_unaop(Env* env, UnaryOp kind, Reg* rd, Reg* opr) {
   IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_UNA);
   inst->unaop  = kind;
   inst->rd     = copy_Reg(rd);

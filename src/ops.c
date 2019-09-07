@@ -1,7 +1,7 @@
 #include "ops.h"
 #include "error.h"
 
-void print_binop(FILE* p, BinopKind kind) {
+void print_binop(FILE* p, BinaryOp kind) {
   switch (kind) {
     case BINOP_ADD:
       fprintf(p, "+");
@@ -56,7 +56,7 @@ void print_binop(FILE* p, BinopKind kind) {
   }
 }
 
-long eval_binop(BinopKind kind, long lhs, long rhs) {
+long eval_binop(BinaryOp kind, long lhs, long rhs) {
   switch (kind) {
     case BINOP_ADD:
       return lhs + rhs;
@@ -95,7 +95,7 @@ long eval_binop(BinopKind kind, long lhs, long rhs) {
   }
 }
 
-void print_unaop(FILE* p, UnaopKind kind) {
+void print_unaop(FILE* p, UnaryOp kind) {
   switch (kind) {
     case UNAOP_POSITIVE:
       fprintf(p, "+");
@@ -111,7 +111,7 @@ void print_unaop(FILE* p, UnaopKind kind) {
   }
 }
 
-long eval_unaop(UnaopKind kind, long opr) {
+long eval_unaop(UnaryOp kind, long opr) {
   switch (kind) {
     case UNAOP_POSITIVE:
       return +opr;

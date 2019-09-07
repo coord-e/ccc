@@ -276,7 +276,7 @@ static void add_inst(Env* env, IRInst* inst) {
   push_back_IRInstList(env->inst_cur, inst);
 }
 
-static Reg* new_binop(Env* env, BinopKind op, Reg* lhs, Reg* rhs) {
+static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
   assert(lhs->size == rhs->size);
 
   Reg* dest = new_reg(env, lhs->size);
@@ -291,7 +291,7 @@ static Reg* new_binop(Env* env, BinopKind op, Reg* lhs, Reg* rhs) {
   return dest;
 }
 
-static Reg* new_unaop(Env* env, UnaopKind op, Reg* opr) {
+static Reg* new_unaop(Env* env, UnaryOp op, Reg* opr) {
   Reg* dest = new_reg(env, opr->size);
 
   IRInst* i2 = new_inst_(env, IR_UNA);
@@ -1183,7 +1183,7 @@ static void print_reg(FILE* p, Reg* r) {
 
 DEFINE_VECTOR_PRINTER(print_reg, ", ", "", RegVec)
 
-void print_escaped_binop(FILE* p, BinopKind kind) {
+void print_escaped_binop(FILE* p, BinaryOp kind) {
   switch (kind) {
     case BINOP_GT:
     case BINOP_GE:

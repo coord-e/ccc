@@ -20,10 +20,10 @@ typedef enum {
   BINOP_AND,
   BINOP_SHIFT_RIGHT,
   BINOP_SHIFT_LEFT,
-} BinopKind;
+} BinaryOp;
 
-void print_binop(FILE*, BinopKind);
-long eval_binop(BinopKind, long, long);
+void print_binop(FILE*, BinaryOp);
+long eval_binop(BinaryOp, long, long);
 
 typedef enum {
   ARITH_ADD         = BINOP_ADD,
@@ -51,9 +51,9 @@ typedef enum {
   UNAOP_POSITIVE,
   UNAOP_INTEGER_NEG,
   UNAOP_BITWISE_NEG,
-} UnaopKind;
+} UnaryOp;
 
-void print_unaop(FILE*, UnaopKind);
-long eval_unaop(UnaopKind, long);
+void print_unaop(FILE*, UnaryOp);
+long eval_unaop(UnaryOp, long);
 
 #endif

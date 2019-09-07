@@ -71,8 +71,8 @@ typedef struct IRInst {
   unsigned local_id;   // unique in `Function`
   unsigned global_id;  // unique in `IR`
 
-  BinopKind binop;        // for IR_BIN
-  UnaopKind unaop;        // for IR_UNA
+  BinaryOp binop;         // for IR_BIN
+  UnaryOp unaop;          // for IR_UNA
   int imm;                // for IR_IMM
   unsigned stack_idx;     // for IR_STACK_*
   unsigned argument_idx;  // for IR_ARG

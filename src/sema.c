@@ -554,7 +554,7 @@ static Expr* build_conversion_to(Type* ty, Expr* opr, bool is_lval) {
 
 // p + n (p: t*, s: sizeof(t)) -> (t*)((uint64_t)p + n * s)
 // both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
-static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
+static Expr* build_pointer_arith(BinaryOp op, Expr* ptr_opr, Expr* int_opr) {
   assert(is_pointer_ty(ptr_opr->type));
   assert(is_integer_ty(int_opr->type));
 
@@ -570,7 +570,7 @@ static Expr* build_pointer_arith(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
 
 // p += n (p: t*, s: sizeof(t)) -> (t*)(*((uint64_t*)&p) += n * s)
 // both `int_opr` and `ptr_opr` are consumed and new untyped node is returned
-static Expr* build_pointer_arith_assign(BinopKind op, Expr* ptr_opr, Expr* int_opr) {
+static Expr* build_pointer_arith_assign(BinaryOp op, Expr* ptr_opr, Expr* int_opr) {
   assert(is_pointer_ty(ptr_opr->type));
   assert(is_integer_ty(int_opr->type));
 
@@ -803,7 +803,7 @@ convertible:
   sema_expr(env, rhs);
 }
 
-static Type* sema_binop_simple(BinopKind op, Expr* lhs, Expr* rhs) {
+static Type* sema_binop_simple(BinaryOp op, Expr* lhs, Expr* rhs) {
   // NOTE: arithmetic conversion should be performed before `sema_binop_simple`
 
   Type* lhs_ty = lhs->type;
@@ -857,9 +857,9 @@ static Type* sema_binop_simple(BinopKind op, Expr* lhs, Expr* rhs) {
 }
 
 static Type* sema_binop(Env* env, Expr* expr) {
-  BinopKind op = expr->binop;
-  Type* lhs    = sema_expr(env, expr->lhs);
-  Type* rhs    = sema_expr(env, expr->rhs);
+  BinaryOp op = expr->binop;
+  Type* lhs   = sema_expr(env, expr->lhs);
+  Type* rhs   = sema_expr(env, expr->rhs);
 
   switch (op) {
     case BINOP_ADD:

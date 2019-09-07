@@ -30,6 +30,7 @@ typedef enum {
   IR_LABEL,
   IR_CALL,
   IR_SEXT,
+  IR_ZEXT,
   IR_TRUNC,
   IR_GLOBAL_ADDR,
   IR_NOP,

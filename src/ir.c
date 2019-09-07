@@ -1249,6 +1249,9 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_SEXT:
       fprintf(p, "SEXT ");
       break;
+    case IR_ZEXT:
+      fprintf(p, "ZEXT ");
+      break;
     case IR_TRUNC:
       fprintf(p, "TRUNC ");
       break;

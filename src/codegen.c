@@ -145,6 +145,9 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
     case IR_SEXT:
       emit(p, "movsx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
       break;
+    case IR_ZEXT:
+      emit(p, "movzx %s, %s", reg_of(h->rd), nth_reg_of(0, h->ras));
+      break;
     case IR_RET:
       assert(!bb->is_call_bb);
       if (length_RegVec(h->ras) != 0) {

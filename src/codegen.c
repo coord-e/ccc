@@ -158,9 +158,11 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
       emit(p, "ret");
       break;
     case IR_BIN:
+    case IR_BIN_IMM:
       codegen_bin(p, h);
       break;
     case IR_CMP:
+    case IR_CMP_IMM:
       codegen_cmp(p, h);
       break;
     case IR_UNA:
@@ -239,11 +241,22 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
 static void codegen_cmp(FILE* p, IRInst* inst) {
   Reg* rd  = inst->rd;
   Reg* lhs = get_RegVec(inst->ras, 0);
-  Reg* rhs = get_RegVec(inst->ras, 1);
 
   assert(rd->size == SIZE_BYTE);
 
-  emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
+  switch (inst->kind) {
+    case IR_CMP: {
+      Reg* rhs = get_RegVec(inst->ras, 1);
+      emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
+      break;
+    }
+    case IR_CMP_IMM: {
+      emit(p, "cmp %s, %d", reg_of(lhs), inst->imm);
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
 
   switch (inst->predicate_op) {
     case CMP_EQ:
@@ -292,10 +305,25 @@ static void codegen_una(FILE* p, IRInst* inst) {
 static void codegen_bin(FILE* p, IRInst* inst) {
   Reg* rd  = inst->rd;
   Reg* lhs = get_RegVec(inst->ras, 0);
-  Reg* rhs = get_RegVec(inst->ras, 1);
 
-  // A = B op A instruction can't be emitted
-  assert(rd->real != rhs->real);
+  char* rhs_s = NULL;
+  Reg* rhs    = NULL;
+  switch (inst->kind) {
+    case IR_BIN: {
+      rhs   = get_RegVec(inst->ras, 1);
+      rhs_s = strdup(reg_of(rhs));
+      // A = B op A instruction can't be emitted
+      assert(rd->real != rhs->real);
+      break;
+    }
+    case IR_BIN_IMM: {
+      char* rhs_s = malloc(32);
+      sprintf(rhs_s, "%d", inst->imm);
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
 
   // rem operator is exceptionally avoided
   // rdx = rax % reg
@@ -305,47 +333,49 @@ static void codegen_bin(FILE* p, IRInst* inst) {
 
   switch (inst->binary_op) {
     case ARITH_ADD:
-      emit(p, "add %s, %s", reg_of(rd), reg_of(rhs));
+      emit(p, "add %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_SUB:
-      emit(p, "sub %s, %s", reg_of(rd), reg_of(rhs));
+      emit(p, "sub %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_MUL:
-      emit(p, "imul %s, %s", reg_of(rd), reg_of(rhs));
+      emit(p, "imul %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_DIV:
       assert(lhs->real == rax_reg_id);
       assert(rd->real == rax_reg_id);
       emit(p, "cqo");
-      emit(p, "idiv %s", reg_of(rhs));
+      emit(p, "idiv %s", rhs_s);
       return;
     case ARITH_REM:
       assert(lhs->real == rax_reg_id);
       assert(rd->real == rdx_reg_id);
       emit(p, "cqo");
-      emit(p, "idiv %s", reg_of(rhs));
+      emit(p, "idiv %s", rhs_s);
       return;
     case ARITH_SHIFT_RIGHT:
-      assert(rhs->real == rcx_reg_id);
+      assert(inst->kind != IR_BIN || rhs->real == rcx_reg_id);
       // TODO: Consider signedness
-      emit(p, "sar %s, cl", reg_of(rd));
+      emit(p, "sar %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_SHIFT_LEFT:
-      assert(rhs->real == rcx_reg_id);
-      emit(p, "shl %s, cl", reg_of(rd));
+      assert(inst->kind != IR_BIN || rhs->real == rcx_reg_id);
+      emit(p, "shl %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_AND:
-      emit(p, "and %s, %s", reg_of(rd), reg_of(rhs));
+      emit(p, "and %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_XOR:
-      emit(p, "xor %s, %s", reg_of(rd), reg_of(rhs));
+      emit(p, "xor %s, %s", reg_of(rd), rhs_s);
       return;
     case ARITH_OR:
-      emit(p, "or %s, %s", reg_of(rd), reg_of(rhs));
+      emit(p, "or %s, %s", reg_of(rd), rhs_s);
       return;
     default:
       CCC_UNREACHABLE;
   }
+
+  free(rhs_s);
 }
 
 static void codegen_blocks(FILE* p, Function* f, BBListIterator* it) {

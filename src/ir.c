@@ -302,6 +302,30 @@ static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
   return dest;
 }
 
+static Reg* new_binop_imm(Env* env, BinaryOp op, Reg* lhs, long rhs) {
+  Reg* dest = new_reg(env, lhs->size);
+
+  IRInst* inst;
+  switch (kind_of_BinaryOp(op)) {
+    case OP_ARITH:
+      inst            = new_inst_(env, IR_BIN_IMM);
+      inst->binary_op = as_ArithOp(op);
+      break;
+    case OP_COMPARE:
+      inst               = new_inst_(env, IR_CMP_IMM);
+      inst->predicate_op = as_CompareOp(op);
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+  inst->rd = dest;
+  push_RegVec(inst->ras, copy_Reg(lhs));
+  inst->imm = rhs;
+  add_inst(env, inst);
+
+  return dest;
+}
+
 static Reg* new_unaop(Env* env, UnaryOp op, Reg* opr) {
   Reg* dest = new_reg(env, opr->size);
 
@@ -410,6 +434,8 @@ static bool is_exit(IRInstKind k) {
   switch (k) {
     case IR_JUMP:
     case IR_BR:
+    case IR_BR_CMP:
+    case IR_BR_CMP_IMM:
     case IR_RET:
       return true;
     default:
@@ -473,6 +499,48 @@ static void new_br(Env* env, Reg* r, BasicBlock* then_, BasicBlock* else_, Basic
   create_or_start_bb(env, next);
 }
 
+static void new_br_cmp(Env* env,
+                       CompareOp pred,
+                       Reg* lhs,
+                       Reg* rhs,
+                       BasicBlock* then_,
+                       BasicBlock* else_,
+                       BasicBlock* next) {
+  IRInst* i = new_inst_(env, IR_BR_CMP);
+  push_RegVec(i->ras, copy_Reg(lhs));
+  push_RegVec(i->ras, copy_Reg(rhs));
+  i->predicate_op = pred;
+  i->then_        = then_;
+  i->else_        = else_;
+  add_inst(env, i);
+
+  connect_BasicBlock(env->cur, then_);
+  connect_BasicBlock(env->cur, else_);
+
+  create_or_start_bb(env, next);
+}
+
+static void new_br_cmp_imm(Env* env,
+                           CompareOp pred,
+                           Reg* lhs,
+                           long rhs,
+                           BasicBlock* then_,
+                           BasicBlock* else_,
+                           BasicBlock* next) {
+  IRInst* i = new_inst_(env, IR_BR_CMP_IMM);
+  push_RegVec(i->ras, copy_Reg(lhs));
+  i->predicate_op = pred;
+  i->then_        = then_;
+  i->else_        = else_;
+  i->imm          = rhs;
+  add_inst(env, i);
+
+  connect_BasicBlock(env->cur, then_);
+  connect_BasicBlock(env->cur, else_);
+
+  create_or_start_bb(env, next);
+}
+
 static Reg* new_global(Env* env, const char* name, GlobalNameKind kind) {
   Reg* r            = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* inst      = new_inst_(env, IR_GLOBAL_ADDR);
@@ -501,6 +569,27 @@ static Reg* new_string(Env* env, const char* str) {
 
 static Reg* gen_expr(Env* env, Expr* node);
 
+static void gen_br(Env* env, Expr* cond, BasicBlock* then_, BasicBlock* else_, BasicBlock* next) {
+  if (cond->kind == ND_BINOP) {
+    if (kind_of_BinaryOp(cond->binop) == OP_COMPARE) {
+      CompareOp op = as_CompareOp(cond->binop);
+      Reg* lhs     = gen_expr(env, cond->lhs);
+
+      long rhs_c;
+      if (get_constant(cond->rhs, &rhs_c)) {
+        new_br_cmp_imm(env, op, lhs, rhs_c, then_, else_, next);
+      } else {
+        Reg* rhs = gen_expr(env, cond->rhs);
+        new_br_cmp(env, op, lhs, rhs, then_, else_, next);
+      }
+      return;
+    }
+  }
+
+  Reg* r = gen_expr(env, cond);
+  new_br(env, r, then_, else_, next);
+}
+
 static Reg* gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
     case ND_VAR: {
@@ -519,7 +608,7 @@ static Reg* gen_lhs(Env* env, Expr* node) {
       assert(is_complete_ty(node->expr->type));
       Reg* r   = gen_lhs(env, node->expr);
       Field* f = get_FieldMap(node->expr->type->field_map, node->member);
-      return new_binop(env, BINOP_ADD, r, new_imm(env, f->offset, r->size));
+      return new_binop_imm(env, BINOP_ADD, r, f->offset);
     }
     case ND_STRING:
       return new_string(env, node->string);
@@ -559,8 +648,14 @@ Reg* gen_expr(Env* env, Expr* node) {
       return new_imm(env, node->num, datasize_of_node(node));
     case ND_BINOP: {
       Reg* lhs = gen_expr(env, node->lhs);
-      Reg* rhs = gen_expr(env, node->rhs);
-      return new_binop(env, node->binop, lhs, rhs);
+
+      long rhs_c;
+      if (get_constant(node->rhs, &rhs_c)) {
+        return new_binop_imm(env, node->binop, lhs, rhs_c);
+      } else {
+        Reg* rhs = gen_expr(env, node->rhs);
+        return new_binop(env, node->binop, lhs, rhs);
+      }
     }
     case ND_UNAOP: {
       Reg* r = gen_expr(env, node->expr);
@@ -651,8 +746,7 @@ Reg* gen_expr(Env* env, Expr* node) {
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      Reg* cond = gen_expr(env, node->cond);
-      new_br(env, cond, then_bb, else_bb, then_bb);
+      gen_br(env, node->cond, then_bb, else_bb, then_bb);
 
       // then
       Reg* then_ = gen_expr(env, node->then_);
@@ -725,8 +819,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      Reg* cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, then_bb, else_bb, then_bb);
+      gen_br(env, stmt->expr, then_bb, else_bb, then_bb);
 
       // then
       gen_stmt(env, stmt->then_);
@@ -747,8 +840,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* old_continue = set_continue(env, while_bb);
 
       create_or_start_bb(env, while_bb);
-      Reg* cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, body_bb, next_bb, body_bb);
+      gen_br(env, stmt->expr, body_bb, next_bb, body_bb);
 
       // body
       gen_stmt(env, stmt->body);
@@ -771,8 +863,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
 
       create_or_start_bb(env, cont_bb);
-      Reg* cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, body_bb, next_bb, next_bb);
+      gen_br(env, stmt->expr, body_bb, next_bb, next_bb);
 
       set_break(env, old_break);
       set_continue(env, old_continue);
@@ -795,8 +886,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
         gen_expr(env, stmt->init);
       }
       create_or_start_bb(env, for_bb);
-      Reg* cond = gen_expr(env, stmt->before);
-      new_br(env, cond, body_bb, next_bb, body_bb);
+      gen_br(env, stmt->before, body_bb, next_bb, body_bb);
 
       // body
       gen_stmt(env, stmt->body);
@@ -861,9 +951,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
         Statement* case_    = get_StmtVec(stmt->cases, i);
-        Reg* cond           = new_binop(env, BINOP_EQ, r, new_imm(env, case_->case_value, r->size));
         BasicBlock* fail_bb = new_bb(env);
-        new_br(env, cond, get_label(env, case_->label_id), fail_bb, fail_bb);
+        new_br_cmp_imm(env, CMP_EQ, r, case_->case_value, get_label(env, case_->label_id), fail_bb,
+                       fail_bb);
       }
 
       if (stmt->default_ != NULL) {
@@ -991,7 +1081,7 @@ static void gen_local_array_initializer(Env* env, Reg* target, Initializer* init
   // NOTE: `sema` ensured that the initializer list has the same length than the array
   while (!is_nil_InitializerList(cur)) {
     Initializer* ci = head_InitializerList(cur);
-    Reg* r          = new_binop(env, BINOP_ADD, target, new_imm(env, offset, target->size));
+    Reg* r          = new_binop_imm(env, BINOP_ADD, target, offset);
     gen_local_initializer(env, r, ci, type->element);
     cur = tail_InitializerList(cur);
     offset += sizeof_ty(type->element);
@@ -1277,11 +1367,13 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "CALL ");
       break;
     case IR_BIN:
+    case IR_BIN_IMM:
       fprintf(p, "BIN ");
       print_escaped_ArithOp(p, i->binary_op);
       fprintf(p, " ");
       break;
     case IR_CMP:
+    case IR_CMP_IMM:
       fprintf(p, "CMP ");
       print_escaped_CompareOp(p, i->predicate_op);
       fprintf(p, " ");
@@ -1309,6 +1401,12 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_BR:
       fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);
       break;
+    case IR_BR_CMP:
+    case IR_BR_CMP_IMM:
+      fprintf(p, "BR_CMP ");
+      print_escaped_CompareOp(p, i->predicate_op);
+      fprintf(p, " %d %d ", i->then_->local_id, i->else_->local_id);
+      break;
     case IR_JUMP:
       fprintf(p, "JUMP %d", i->jump->local_id);
       break;
@@ -1323,6 +1421,15 @@ static void print_inst(FILE* p, IRInst* i) {
   }
   if (i->ras != NULL) {
     print_RegVec(p, i->ras);
+  }
+  switch (i->kind) {
+    case IR_BIN_IMM:
+    case IR_CMP_IMM:
+    case IR_BR_CMP_IMM:
+      fprintf(p, " %d", i->imm);
+      break;
+    default:
+      break;
   }
 }
 

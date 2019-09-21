@@ -117,6 +117,7 @@ static void emit_epilogue(FILE* p, Function* f) {
 
 static void codegen_bin(FILE* p, IRInst* inst);
 static void codegen_cmp(FILE* p, IRInst* inst);
+static void codegen_br_cmp(FILE* p, IRInst* inst);
 static void codegen_una(FILE* p, IRInst* inst);
 
 static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterator* it) {
@@ -209,6 +210,9 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
       id_label_name(p, h->then_->global_id);
       fprintf(p, "\n");
       break;
+    case IR_BR_CMP:
+      codegen_br_cmp(p, h);
+      break;
     case IR_GLOBAL_ADDR:
       switch (h->global_kind) {
         case GN_FUNCTION:
@@ -236,6 +240,40 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
   }
 
   codegen_insts(p, f, bb, next_IRInstListIterator(it));
+}
+
+static void codegen_br_cmp(FILE* p, IRInst* inst) {
+  Reg* lhs = get_RegVec(inst->ras, 0);
+  Reg* rhs = get_RegVec(inst->ras, 1);
+  emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
+
+  switch (inst->predicate_op) {
+    case CMP_EQ:
+      emit_(p, "je ");
+      break;
+    case CMP_NE:
+      emit_(p, "jne ");
+      break;
+    case CMP_GT:
+      emit_(p, "jg ");
+      break;
+    case CMP_GE:
+      emit_(p, "jge ");
+      break;
+    case CMP_LT:
+      emit_(p, "jl ");
+      break;
+    case CMP_LE:
+      emit_(p, "jle ");
+      break;
+    default:
+      CCC_UNREACHABLE;
+  }
+  id_label_name(p, inst->then_->global_id);
+  fprintf(p, "\n");
+  emit_(p, "jmp ");
+  id_label_name(p, inst->else_->global_id);
+  fprintf(p, "\n");
 }
 
 static void codegen_cmp(FILE* p, IRInst* inst) {

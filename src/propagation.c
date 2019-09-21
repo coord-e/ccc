@@ -12,51 +12,68 @@ static void update_reach(Function* f, BitSet* reach, IRInst* inst) {
   release_BitSet(defs);
 }
 
+static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
+  BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
+  and_BitSet(defs, reach);
+
+  assert(count_BitSet(defs) != 0);
+  if (count_BitSet(defs) != 1) {
+    return NULL;
+  }
+  for (unsigned i = 0; i < length_BitSet(defs); i++) {
+    if (!get_BitSet(defs, i)) {
+      continue;
+    }
+
+    IRInst* def = get_IRInstVec(f->sorted_insts, i);
+    assert(def->rd->virtual == r->virtual);
+
+    release_BitSet(defs);
+    return def;
+  }
+  CCC_UNREACHABLE;
+}
+
 static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
+  IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* ra = get_RegVec(inst->ras, i);
-    if (ra->irreplaceable) {
-      continue;
-    }
+    Reg* r      = get_RegVec(inst->ras, i);
+    IRInst* def = r->irreplaceable ? NULL : obtain_definition(f, reach, r);
+    // `def` is possibly null
+    push_IRInstVec(defs, def);
+  }
 
-    BitSet* defs = copy_BitSet(get_BSVec(f->definitions, ra->virtual));
-    and_BitSet(defs, reach);
-
-    assert(count_BitSet(defs) != 0);
-    if (count_BitSet(defs) != 1) {
-      continue;
-    }
-    for (unsigned j = 0; j < length_BitSet(defs); j++) {
-      if (!get_BitSet(defs, j)) {
-        continue;
+  switch (inst->kind) {
+    case IR_MOV: {
+      IRInst* def = get_IRInstVec(defs, 0);
+      if (def == NULL) {
+        break;
       }
-      IRInst* def_inst = get_IRInstVec(f->sorted_insts, j);
-      switch (def_inst->kind) {
-        case IR_MOV: {
-          assert(def_inst->rd->virtual == ra->virtual);
-          Reg* r = get_RegVec(def_inst->ras, 0);
-          if (r->irreplaceable) {
-            break;
-          }
-          release_Reg(ra);
-          set_RegVec(inst->ras, i, copy_Reg(r));
-          break;
-        }
-        case IR_IMM: {
-          if (inst->kind != IR_MOV) {
-            break;
-          }
-          inst->kind = IR_IMM;
-          inst->imm  = def_inst->imm;
-          resize_RegVec(inst->ras, 0);
-          break;
-        }
-        default:
-          break;
+      if (def->kind == IR_IMM) {
+        inst->kind = IR_IMM;
+        inst->imm  = def->imm;
+        resize_RegVec(inst->ras, 0);
       }
       break;
     }
-    release_BitSet(defs);
+    default:
+      break;
+  }
+
+  for (unsigned i = 0; i < length_IRInstVec(defs); i++) {
+    IRInst* def = get_IRInstVec(defs, i);
+    if (def == NULL) {
+      continue;
+    }
+
+    if (def->kind == IR_MOV) {
+      Reg* r = get_RegVec(def->ras, 0);
+      if (r->irreplaceable) {
+        break;
+      }
+      release_Reg(get_RegVec(inst->ras, i));
+      set_RegVec(inst->ras, i, copy_Reg(r));
+    }
   }
 }
 

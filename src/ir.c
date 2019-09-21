@@ -499,6 +499,48 @@ static void new_br(Env* env, Reg* r, BasicBlock* then_, BasicBlock* else_, Basic
   create_or_start_bb(env, next);
 }
 
+static void new_br_cmp(Env* env,
+                       CompareOp pred,
+                       Reg* lhs,
+                       Reg* rhs,
+                       BasicBlock* then_,
+                       BasicBlock* else_,
+                       BasicBlock* next) {
+  IRInst* i = new_inst_(env, IR_BR_CMP);
+  push_RegVec(i->ras, copy_Reg(lhs));
+  push_RegVec(i->ras, copy_Reg(rhs));
+  i->predicate_op = pred;
+  i->then_        = then_;
+  i->else_        = else_;
+  add_inst(env, i);
+
+  connect_BasicBlock(env->cur, then_);
+  connect_BasicBlock(env->cur, else_);
+
+  create_or_start_bb(env, next);
+}
+
+static void new_br_cmp_imm(Env* env,
+                           CompareOp pred,
+                           Reg* lhs,
+                           long rhs,
+                           BasicBlock* then_,
+                           BasicBlock* else_,
+                           BasicBlock* next) {
+  IRInst* i = new_inst_(env, IR_BR_CMP_IMM);
+  push_RegVec(i->ras, copy_Reg(lhs));
+  i->predicate_op = pred;
+  i->then_        = then_;
+  i->else_        = else_;
+  i->imm          = rhs;
+  add_inst(env, i);
+
+  connect_BasicBlock(env->cur, then_);
+  connect_BasicBlock(env->cur, else_);
+
+  create_or_start_bb(env, next);
+}
+
 static Reg* new_global(Env* env, const char* name, GlobalNameKind kind) {
   Reg* r            = new_reg(env, SIZE_QWORD);  // TODO: hardcoded pointer size
   IRInst* inst      = new_inst_(env, IR_GLOBAL_ADDR);
@@ -526,6 +568,27 @@ static Reg* new_string(Env* env, const char* str) {
 }
 
 static Reg* gen_expr(Env* env, Expr* node);
+
+static void gen_br(Env* env, Expr* cond, BasicBlock* then_, BasicBlock* else_, BasicBlock* next) {
+  if (cond->kind == ND_BINOP) {
+    if (kind_of_BinaryOp(cond->binop) == OP_COMPARE) {
+      CompareOp op = as_CompareOp(cond->binop);
+      Reg* lhs     = gen_expr(env, cond->lhs);
+
+      long rhs_c;
+      if (get_constant(cond->rhs, &rhs_c)) {
+        new_br_cmp_imm(env, op, lhs, rhs_c, then_, else_, next);
+      } else {
+        Reg* rhs = gen_expr(env, cond->rhs);
+        new_br_cmp(env, op, lhs, rhs, then_, else_, next);
+      }
+      return;
+    }
+  }
+
+  Reg* r = gen_expr(env, cond);
+  new_br(env, r, then_, else_, next);
+}
 
 static Reg* gen_lhs(Env* env, Expr* node) {
   switch (node->kind) {
@@ -683,8 +746,7 @@ Reg* gen_expr(Env* env, Expr* node) {
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      Reg* cond = gen_expr(env, node->cond);
-      new_br(env, cond, then_bb, else_bb, then_bb);
+      gen_br(env, node->cond, then_bb, else_bb, then_bb);
 
       // then
       Reg* then_ = gen_expr(env, node->then_);
@@ -757,8 +819,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* else_bb = new_bb(env);
       BasicBlock* next_bb = new_bb(env);
 
-      Reg* cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, then_bb, else_bb, then_bb);
+      gen_br(env, stmt->expr, then_bb, else_bb, then_bb);
 
       // then
       gen_stmt(env, stmt->then_);
@@ -779,8 +840,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       BasicBlock* old_continue = set_continue(env, while_bb);
 
       create_or_start_bb(env, while_bb);
-      Reg* cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, body_bb, next_bb, body_bb);
+      gen_br(env, stmt->expr, body_bb, next_bb, body_bb);
 
       // body
       gen_stmt(env, stmt->body);
@@ -803,8 +863,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
       gen_stmt(env, stmt->body);
 
       create_or_start_bb(env, cont_bb);
-      Reg* cond = gen_expr(env, stmt->expr);
-      new_br(env, cond, body_bb, next_bb, next_bb);
+      gen_br(env, stmt->expr, body_bb, next_bb, next_bb);
 
       set_break(env, old_break);
       set_continue(env, old_continue);
@@ -827,8 +886,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
         gen_expr(env, stmt->init);
       }
       create_or_start_bb(env, for_bb);
-      Reg* cond = gen_expr(env, stmt->before);
-      new_br(env, cond, body_bb, next_bb, body_bb);
+      gen_br(env, stmt->before, body_bb, next_bb, body_bb);
 
       // body
       gen_stmt(env, stmt->body);
@@ -893,9 +951,9 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
         Statement* case_    = get_StmtVec(stmt->cases, i);
-        Reg* cond           = new_binop_imm(env, BINOP_EQ, r, case_->case_value);
         BasicBlock* fail_bb = new_bb(env);
-        new_br(env, cond, get_label(env, case_->label_id), fail_bb, fail_bb);
+        new_br_cmp_imm(env, CMP_EQ, r, case_->case_value, get_label(env, case_->label_id), fail_bb,
+                       fail_bb);
       }
 
       if (stmt->default_ != NULL) {

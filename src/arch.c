@@ -77,6 +77,13 @@ static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
   return inst;
 }
 
+static IRInst* new_imm(Env* env, Reg* rd, long imm) {
+  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_IMM);
+  inst->rd     = copy_Reg(rd);
+  inst->imm    = imm;
+  return inst;
+}
+
 static IRInst* new_zext(Env* env, Reg* rd, Reg* ra) {
   IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_ZEXT);
   inst->rd     = copy_Reg(rd);
@@ -91,12 +98,10 @@ static IRInst* new_ret(Env* env, Reg* ra) {
 }
 
 static IRInst* new_binop(Env* env, ArithOp kind, Reg* rd, Reg* lhs, Reg* rhs) {
-  IRInst* inst            = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
-  inst->binary_op         = kind;
-  inst->rd                = copy_Reg(rd);
-  inst->rd->irreplaceable = true;
-  Reg* lhs_               = copy_Reg(lhs);
-  lhs_->irreplaceable     = true;
+  IRInst* inst    = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
+  inst->binary_op = kind;
+  inst->rd        = copy_Reg(rd);
+  Reg* lhs_       = copy_Reg(lhs);
   push_RegVec(inst->ras, lhs_);
   push_RegVec(inst->ras, copy_Reg(rhs));
   return inst;
@@ -126,46 +131,63 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
   IRInst* inst             = data_IRInstListIterator(it);
   IRInstListIterator* next = next_IRInstListIterator(it);
   switch (inst->kind) {
+    case IR_BIN_IMM:
     case IR_BIN: {
       Reg* rd  = inst->rd;
       Reg* lhs = get_RegVec(inst->ras, 0);
-      Reg* rhs = get_RegVec(inst->ras, 1);
       switch (inst->binary_op) {
         case BINOP_DIV: {
           Reg* rax   = rax_fixed_reg(env, lhs->size);
           IRInst* i1 = new_move(env, rax, lhs);
-          IRInst* i2 = new_binop(env, inst->binary_op, rax, rax, rhs);
           IRInst* i3 = new_move(env, rd, rax);
+
+          inst->rd = copy_Reg(rax);
+          set_RegVec(inst->ras, 0, copy_Reg(rax));
           release_Reg(rax);
 
-          it = remove_IRInstListIterator(it);
           insert_IRInstListIterator(it, i1);
-          insert_IRInstListIterator(it, i2);
-          insert_IRInstListIterator(it, i3);
+          insert_IRInstListIterator(next, i3);
           break;
         }
         case BINOP_REM: {
           Reg* rax   = rax_fixed_reg(env, lhs->size);
           Reg* rdx   = rdx_fixed_reg(env, rd->size);
           IRInst* i1 = new_move(env, rax, lhs);
-          IRInst* i2 = new_binop(env, inst->binary_op, rdx, rax, rhs);
           IRInst* i3 = new_move(env, rd, rdx);
+
+          inst->rd = copy_Reg(rdx);
+          set_RegVec(inst->ras, 0, copy_Reg(rax));
           release_Reg(rax);
           release_Reg(rdx);
 
-          it = remove_IRInstListIterator(it);
           insert_IRInstListIterator(it, i1);
-          insert_IRInstListIterator(it, i2);
-          insert_IRInstListIterator(it, i3);
+          insert_IRInstListIterator(next, i3);
           break;
         }
         case BINOP_SHIFT_LEFT:
         case BINOP_SHIFT_RIGHT: {
-          Reg* rcx   = rcx_fixed_reg(env, rhs->size);
-          IRInst* i1 = new_move(env, rcx, rhs);
+          IRInst* i1 = NULL;
+          switch (inst->kind) {
+            case IR_BIN: {
+              Reg* rhs  = get_RegVec(inst->ras, 1);
+              Reg* rcx1 = rcx_fixed_reg(env, rhs->size);
+              i1        = new_move(env, rcx1, rhs);
+              release_Reg(rcx1);
+              break;
+            }
+            case IR_BIN_IMM: {
+              Reg* rcx1 = rcx_fixed_reg(env, SIZE_QWORD);
+              i1        = new_imm(env, rcx1, inst->imm);
+              release_Reg(rcx1);
+              break;
+            }
+            default:
+              CCC_UNREACHABLE;
+          }
+          Reg* rcx2  = rcx_fixed_reg(env, SIZE_BYTE);
           IRInst* i2 = new_move(env, rd, lhs);
-          IRInst* i3 = new_binop(env, inst->binary_op, rd, rd, rcx);
-          release_Reg(rcx);
+          IRInst* i3 = new_binop(env, inst->binary_op, rd, rd, rcx2);
+          release_Reg(rcx2);
 
           it = remove_IRInstListIterator(it);
           insert_IRInstListIterator(it, i1);
@@ -174,12 +196,13 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
           break;
         }
         default: {
-          IRInst* i1 = new_move(env, rd, lhs);
-          IRInst* i2 = new_binop(env, inst->binary_op, rd, rd, rhs);
+          rd->irreplaceable = true;
+          IRInst* i1        = new_move(env, rd, lhs);
+          release_Reg(lhs);
 
-          it = remove_IRInstListIterator(it);
+          set_RegVec(inst->ras, 0, copy_Reg(rd));
+
           insert_IRInstListIterator(it, i1);
-          insert_IRInstListIterator(it, i2);
           break;
         }
       }
@@ -196,6 +219,7 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       insert_IRInstListIterator(it, i2);
       break;
     }
+    case IR_CMP_IMM:
     case IR_CMP: {
       Reg* rd1 = inst->rd;
       Reg* rd2 = copy_Reg(rd1);

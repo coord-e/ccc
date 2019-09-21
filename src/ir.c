@@ -543,7 +543,7 @@ static Reg* gen_lhs(Env* env, Expr* node) {
       assert(is_complete_ty(node->expr->type));
       Reg* r   = gen_lhs(env, node->expr);
       Field* f = get_FieldMap(node->expr->type->field_map, node->member);
-      return new_binop(env, BINOP_ADD, r, new_imm(env, f->offset, r->size));
+      return new_binop_imm(env, BINOP_ADD, r, f->offset);
     }
     case ND_STRING:
       return new_string(env, node->string);
@@ -583,8 +583,14 @@ Reg* gen_expr(Env* env, Expr* node) {
       return new_imm(env, node->num, datasize_of_node(node));
     case ND_BINOP: {
       Reg* lhs = gen_expr(env, node->lhs);
-      Reg* rhs = gen_expr(env, node->rhs);
-      return new_binop(env, node->binop, lhs, rhs);
+
+      long rhs_c;
+      if (get_constant(node->rhs, &rhs_c)) {
+        return new_binop_imm(env, node->binop, lhs, rhs_c);
+      } else {
+        Reg* rhs = gen_expr(env, node->rhs);
+        return new_binop(env, node->binop, lhs, rhs);
+      }
     }
     case ND_UNAOP: {
       Reg* r = gen_expr(env, node->expr);
@@ -885,7 +891,7 @@ static void gen_stmt(Env* env, Statement* stmt) {
 
       for (unsigned i = 0; i < length_StmtVec(stmt->cases); i++) {
         Statement* case_    = get_StmtVec(stmt->cases, i);
-        Reg* cond           = new_binop(env, BINOP_EQ, r, new_imm(env, case_->case_value, r->size));
+        Reg* cond           = new_binop_imm(env, BINOP_EQ, r, case_->case_value);
         BasicBlock* fail_bb = new_bb(env);
         new_br(env, cond, get_label(env, case_->label_id), fail_bb, fail_bb);
       }
@@ -1015,7 +1021,7 @@ static void gen_local_array_initializer(Env* env, Reg* target, Initializer* init
   // NOTE: `sema` ensured that the initializer list has the same length than the array
   while (!is_nil_InitializerList(cur)) {
     Initializer* ci = head_InitializerList(cur);
-    Reg* r          = new_binop(env, BINOP_ADD, target, new_imm(env, offset, target->size));
+    Reg* r          = new_binop_imm(env, BINOP_ADD, target, offset);
     gen_local_initializer(env, r, ci, type->element);
     cur = tail_InitializerList(cur);
     offset += sizeof_ty(type->element);

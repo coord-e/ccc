@@ -34,6 +34,13 @@ static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
   CCC_UNREACHABLE;
 }
 
+static bool is_imm_inst(IRInst* inst) {
+  if (inst == NULL) {
+    return false;
+  }
+  return inst->kind == IR_IMM;
+}
+
 static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
   IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
@@ -53,6 +60,26 @@ static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
         inst->kind = IR_IMM;
         inst->imm  = def->imm;
         resize_RegVec(inst->ras, 0);
+      }
+      break;
+    }
+    case IR_BIN: {
+      IRInst* lhs_def = get_IRInstVec(defs, 0);
+      IRInst* rhs_def = get_IRInstVec(defs, 1);
+
+      if (is_imm_inst(rhs_def)) {
+        if (is_imm_inst(lhs_def)) {
+          // foldable
+          long c     = eval_ArithOp(inst->binary_op, lhs_def->imm, rhs_def->imm);
+          inst->kind = IR_IMM;
+          inst->imm  = c;
+          resize_RegVec(inst->ras, 0);
+        } else {
+          // not foldable, but able to propagate
+          inst->kind = IR_BIN_IMM;
+          inst->imm  = rhs_def->imm;
+          resize_RegVec(inst->ras, 1);
+        }
       }
       break;
     }

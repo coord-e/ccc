@@ -435,6 +435,7 @@ static bool is_exit(IRInstKind k) {
     case IR_JUMP:
     case IR_BR:
     case IR_BR_CMP:
+    case IR_BR_CMP_IMM:
     case IR_RET:
       return true;
     default:
@@ -1343,6 +1344,7 @@ static void print_inst(FILE* p, IRInst* i) {
       fprintf(p, "BR %d %d ", i->then_->local_id, i->else_->local_id);
       break;
     case IR_BR_CMP:
+    case IR_BR_CMP_IMM:
       fprintf(p, "BR_CMP ");
       print_escaped_CompareOp(p, i->predicate_op);
       fprintf(p, " %d %d ", i->then_->local_id, i->else_->local_id);
@@ -1365,6 +1367,7 @@ static void print_inst(FILE* p, IRInst* i) {
   switch (i->kind) {
     case IR_BIN_IMM:
     case IR_CMP_IMM:
+    case IR_BR_CMP_IMM:
       fprintf(p, " %d", i->imm);
       break;
     default:

@@ -211,6 +211,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
       fprintf(p, "\n");
       break;
     case IR_BR_CMP:
+    case IR_BR_CMP_IMM:
       codegen_br_cmp(p, h);
       break;
     case IR_GLOBAL_ADDR:
@@ -244,8 +245,20 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
 
 static void codegen_br_cmp(FILE* p, IRInst* inst) {
   Reg* lhs = get_RegVec(inst->ras, 0);
-  Reg* rhs = get_RegVec(inst->ras, 1);
-  emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
+
+  switch (inst->kind) {
+    case IR_BR_CMP: {
+      Reg* rhs = get_RegVec(inst->ras, 1);
+      emit(p, "cmp %s, %s", reg_of(lhs), reg_of(rhs));
+      break;
+    }
+    case IR_BR_CMP_IMM: {
+      emit(p, "cmp %s, %d", reg_of(lhs), inst->imm);
+      break;
+    }
+    default:
+      CCC_UNREACHABLE;
+  }
 
   switch (inst->predicate_op) {
     case CMP_EQ:

@@ -317,7 +317,8 @@ static void codegen_bin(FILE* p, IRInst* inst) {
       break;
     }
     case IR_BIN_IMM: {
-      char* rhs_s = malloc(32);
+      // TODO: allocate an accurate amount of memory
+      rhs_s = malloc(32);
       sprintf(rhs_s, "%d", inst->imm);
       break;
     }

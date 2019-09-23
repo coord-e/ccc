@@ -147,6 +147,7 @@ typedef struct Function Function;
 
 void detach_BasicBlock(Function*, BasicBlock*);
 void connect_BasicBlock(BasicBlock* from, BasicBlock* to);
+void disconnect_BasicBlock(BasicBlock* from, BasicBlock* to);
 void release_BasicBlock(BasicBlock*);
 
 typedef enum {

@@ -41,7 +41,23 @@ static bool is_imm_inst(IRInst* inst) {
   return inst->kind == IR_IMM;
 }
 
-static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
+static void elim_branch(bool c, BasicBlock* bb, IRInst* inst) {
+  BasicBlock *selected, *discarded;
+  if (c) {
+    selected  = inst->then_;
+    discarded = inst->else_;
+  } else {
+    selected  = inst->else_;
+    discarded = inst->then_;
+  }
+  disconnect_BasicBlock(bb, discarded);
+  inst->kind  = IR_JUMP;
+  inst->jump  = selected;
+  inst->then_ = inst->else_ = NULL;
+  resize_RegVec(inst->ras, 0);
+}
+
+static void perform_propagation(Function* f, BitSet* reach, BasicBlock* bb, IRInst* inst) {
   IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* r      = get_RegVec(inst->ras, i);
@@ -103,6 +119,24 @@ static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
       }
       break;
     }
+    case IR_BR_CMP: {
+      IRInst* lhs_def = get_IRInstVec(defs, 0);
+      IRInst* rhs_def = get_IRInstVec(defs, 1);
+
+      if (is_imm_inst(rhs_def)) {
+        if (is_imm_inst(lhs_def)) {
+          // foldable
+          bool c = eval_CompareOp(inst->predicate_op, lhs_def->imm, rhs_def->imm);
+          elim_branch(c, bb, inst);
+        } else {
+          // not foldable, but able to propagate
+          inst->kind = IR_BR_CMP_IMM;
+          inst->imm  = rhs_def->imm;
+          resize_RegVec(inst->ras, 1);
+        }
+      }
+      break;
+    }
     case IR_BIN_IMM: {
       IRInst* lhs_def = get_IRInstVec(defs, 0);
 
@@ -124,6 +158,16 @@ static void perform_propagation(Function* f, BitSet* reach, IRInst* inst) {
         inst->kind = IR_IMM;
         inst->imm  = c;
         resize_RegVec(inst->ras, 0);
+      }
+      break;
+    }
+    case IR_BR_CMP_IMM: {
+      IRInst* lhs_def = get_IRInstVec(defs, 0);
+
+      if (is_imm_inst(lhs_def)) {
+        // foldable
+        bool c = eval_CompareOp(inst->predicate_op, lhs_def->imm, inst->imm);
+        elim_branch(c, bb, inst);
       }
       break;
     }
@@ -156,7 +200,7 @@ static void propagation_function(Function* f) {
     BitSet* reach = copy_BitSet(bb->reach_in);
     for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
       IRInst* inst = get_IRInstVec(bb->sorted_insts, i);
-      perform_propagation(f, reach, inst);
+      perform_propagation(f, reach, bb, inst);
       update_reach(f, reach, inst);
     }
     assert(equal_to_BitSet(bb->reach_out, reach));

@@ -187,6 +187,21 @@ static void perform_propagation(Function* f, BitSet* reach, BasicBlock* bb, IRIn
       set_RegVec(inst->ras, 0, copy_Reg(rs));
       break;
     }
+    case IR_BR: {
+      IRInst* opr_def = get_IRInstVec(defs, 0);
+      if (opr_def->kind != IR_ZEXT) {
+        break;
+      }
+
+      Reg* rs = get_RegVec(opr_def->ras, 0);
+      if (rs->virtual == opr_def->rd->virtual) {
+        break;
+      }
+
+      release_Reg(get_RegVec(inst->ras, 0));
+      set_RegVec(inst->ras, 0, copy_Reg(rs));
+      break;
+    }
     default:
       break;
   }

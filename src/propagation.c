@@ -173,7 +173,7 @@ static void perform_propagation(Function* f, BitSet* reach, BasicBlock* bb, IRIn
     }
     case IR_TRUNC: {
       IRInst* opr_def = get_IRInstVec(defs, 0);
-      if (opr_def->kind != IR_ZEXT) {
+      if (opr_def == NULL || opr_def->kind != IR_ZEXT) {
         break;
       }
 
@@ -189,7 +189,7 @@ static void perform_propagation(Function* f, BitSet* reach, BasicBlock* bb, IRIn
     }
     case IR_BR: {
       IRInst* opr_def = get_IRInstVec(defs, 0);
-      if (opr_def->kind != IR_ZEXT) {
+      if (opr_def == NULL || opr_def->kind != IR_ZEXT) {
         break;
       }
 

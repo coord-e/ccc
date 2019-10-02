@@ -99,6 +99,12 @@ typedef struct IRInst {
 
   Reg* rd;      // destination register (null if unused)
   RegVec* ras;  // argument registers (won't be null)
+
+  // will filled in `data_flow`
+  BitSet* live_in;    // owned, NULL before analysis
+  BitSet* live_out;   // owned, ditto
+  BitSet* reach_in;   // owned, ditto
+  BitSet* reach_out;  // owned, ditto
 } IRInst;
 
 IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);

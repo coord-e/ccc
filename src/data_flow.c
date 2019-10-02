@@ -192,14 +192,14 @@ static void compute_inst_live_sets(Function* ir) {
   for (unsigned i = 0; i < length_BBVec(ir->sorted_blocks); i++) {
     BasicBlock* b = get_BBVec(ir->sorted_blocks, i);
 
-    BitSet* live = copy_BitSet(b->live_in);
-    for (unsigned j = 0; j < length_IRInstVec(b->sorted_insts); j++) {
-      IRInst* inst = get_IRInstVec(b->sorted_insts, j);
+    BitSet* live = copy_BitSet(b->live_out);
+    for (unsigned j = length_IRInstVec(b->sorted_insts); j > 0; j--) {
+      IRInst* inst = get_IRInstVec(b->sorted_insts, j - 1);
 
-      if (inst->live_in != NULL) {
-        release_BitSet(inst->live_in);
+      if (inst->live_out != NULL) {
+        release_BitSet(inst->live_out);
       }
-      inst->live_in = copy_BitSet(live);
+      inst->live_out = copy_BitSet(live);
 
       if (inst->rd != NULL) {
         set_BitSet(live, inst->rd->virtual, false);
@@ -209,10 +209,10 @@ static void compute_inst_live_sets(Function* ir) {
         set_BitSet(live, ra->virtual, true);
       }
 
-      if (inst->live_out != NULL) {
-        release_BitSet(inst->live_out);
+      if (inst->live_in != NULL) {
+        release_BitSet(inst->live_in);
       }
-      inst->live_out = copy_BitSet(live);
+      inst->live_in = copy_BitSet(live);
     }
   }
 }

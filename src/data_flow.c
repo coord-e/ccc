@@ -6,6 +6,7 @@ static void compute_local_reach_sets(Function*);
 static void compute_global_live_sets(Function*);
 static void compute_global_reach_sets(Function*);
 static void compute_inst_live_sets(Function*);
+static void compute_inst_reach_sets(Function*);
 
 void live_data_flow(IR* ir) {
   FunctionList* l = ir->functions;
@@ -33,11 +34,14 @@ void reach_data_flow(IR* ir) {
     // compute `f->definitions`
     collect_defs(f);
 
-    // compute `reach_gen` and `reach_kill`
+    // compute `reach_gen` and `reach_kill` in `BasicBlock`
     compute_local_reach_sets(f);
 
-    // compute `reach_out` and `reach_in`
+    // compute `reach_out` and `reach_in` in `BasicBlock`
     compute_global_reach_sets(f);
+
+    // compute `reach_out` and `reach_in` in `IRInst`
+    compute_inst_reach_sets(f);
 
     l = tail_FunctionList(l);
   }
@@ -265,4 +269,35 @@ static void compute_global_reach_sets(Function* ir) {
   } while (changed);
 
   release_BSVec(lasts);
+}
+
+static void compute_inst_reach_sets(Function* ir) {
+  for (unsigned i = 0; i < length_BBVec(ir->sorted_blocks); i++) {
+    BasicBlock* b = get_BBVec(ir->sorted_blocks, i);
+
+    BitSet* reach = copy_BitSet(b->reach_in);
+    for (unsigned j = 0; j < length_IRInstVec(b->sorted_insts); j++) {
+      IRInst* inst = get_IRInstVec(b->sorted_insts, j);
+
+      if (inst->reach_in != NULL) {
+        release_BitSet(inst->reach_in);
+      }
+      inst->reach_in = copy_BitSet(reach);
+
+      if (inst->rd == NULL) {
+        return;
+      }
+      unsigned id  = inst->local_id;
+      BitSet* defs = copy_BitSet(get_BSVec(ir->definitions, inst->rd->virtual));
+      set_BitSet(defs, id, false);
+      diff_BitSet(reach, defs);
+      set_BitSet(reach, id, true);
+      release_BitSet(defs);
+
+      if (inst->reach_out != NULL) {
+        release_BitSet(inst->reach_out);
+      }
+      inst->reach_out = copy_BitSet(reach);
+    }
+  }
 }

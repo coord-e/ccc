@@ -230,11 +230,6 @@ static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
   return env;
 }
 
-void connect_BasicBlock(BasicBlock* from, BasicBlock* to) {
-  push_back_BBRefList(from->succs, to);
-  push_back_BBRefList(to->preds, from);
-}
-
 static void start_bb(Env* env, BasicBlock* bb) {
   env->cur      = bb;
   env->inst_cur = env->cur->insts;
@@ -1251,13 +1246,24 @@ void release_IR(IR* ir) {
   release_GlobalVarVec(ir->globals);
 }
 
+void connect_BasicBlock(BasicBlock* from, BasicBlock* to) {
+  push_back_BBRefList(from->succs, to);
+  push_back_BBRefList(to->preds, from);
+}
+
+void disconnect_BasicBlock(BasicBlock* from, BasicBlock* to) {
+  erase_one_BBRefList(from->succs, to);
+  erase_one_BBRefList(to->preds, from);
+}
+
 void detach_BasicBlock(Function* f, BasicBlock* b) {
   // detach a block from IR and release it safely.
   // - check entry/exit
   // - remove from succs/preds
   // - remove from blocks
 
-  assert(f->sorted_blocks == NULL);
+  f->sorted_blocks = NULL;
+
   assert(f->entry != b);
   assert(f->exit != b);
 

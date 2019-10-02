@@ -214,6 +214,7 @@ static void compute_inst_live_sets(Function* ir) {
       }
       inst->live_in = copy_BitSet(live);
     }
+    assert(equal_to_BitSet(b->live_in, live));
   }
 }
 
@@ -299,5 +300,6 @@ static void compute_inst_reach_sets(Function* ir) {
       }
       inst->reach_out = copy_BitSet(reach);
     }
+    assert(equal_to_BitSet(b->reach_out, reach));
   }
 }

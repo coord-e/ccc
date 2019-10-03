@@ -61,8 +61,11 @@ void release_inst(IRInst* i) {
   free(i);
 }
 
-DEFINE_SELF_INDEXED_LIST(release_inst, IRInst*, IRInstList)
-DEFINE_RANGE(IRInst*, IRInstList*, IRInstRange)
+static unsigned get_local_id(IRInst* inst) {
+  return inst->local_id;
+}
+DEFINE_SELF_INDEXED_LIST(get_local_id, release_inst, IRInst*, IRInstList)
+DEFINE_RANGE(IRInst*, IRInstList, IRInstRange)
 DEFINE_VECTOR(release_Reg, Reg*, RegVec)
 
 void release_BasicBlock(BasicBlock* bb) {
@@ -185,7 +188,7 @@ typedef struct {
   BasicBlock* exit;
 
   BasicBlock* cur;
-  IRInstList* inst_cur;
+  IRInstList* instructions;
 
   BasicBlock* loop_break;
   BasicBlock* loop_continue;
@@ -201,16 +204,12 @@ static BasicBlock* new_bb(Env* env) {
   unsigned local_id  = env->bb_count++;
   unsigned global_id = env->global_env->bb_count++;
 
-  IRInst* inst = new_inst_(env, IR_LABEL);
-
-  BasicBlock* bb = calloc(1, sizeof(BasicBlock));
-  inst->label    = bb;
-
-  bb->local_id  = local_id;
-  bb->global_id = global_id;
-  bb->insts     = single_IRInstList(inst);
-  bb->succs     = new_BBRefList();
-  bb->preds     = new_BBRefList();
+  BasicBlock* bb   = calloc(1, sizeof(BasicBlock));
+  bb->local_id     = local_id;
+  bb->global_id    = global_id;
+  bb->instructions = new_IRInstRange(NULL, NULL);
+  bb->succs        = new_BBRefList();
+  bb->preds        = new_BBRefList();
 
   push_back_BBList(env->blocks, bb);
 
@@ -231,12 +230,29 @@ static Env* new_env(GlobalEnv* genv, FunctionDef* f) {
     push_BBVec(env->labels, new_bb(env));
   }
 
+  env->instructions = new_IRInstList(64);
+
   return env;
 }
 
+static void add_inst(Env* env, IRInst* inst) {
+  push_back_IRInstList(env->instructions, inst);
+}
+
 static void start_bb(Env* env, BasicBlock* bb) {
-  env->cur      = bb;
-  env->inst_cur = env->cur->insts;
+  if (env->cur == NULL) {
+    assert(bb == env->entry);
+  } else {
+    env->cur->instructions->to = back_IRInstList(env->instructions);
+  }
+
+  env->cur = bb;
+
+  IRInst* inst = new_inst_(env, IR_LABEL);
+  inst->label  = bb;
+  add_inst(env, inst);
+
+  bb->instructions->from = back_IRInstList(env->instructions);
 }
 
 static BasicBlock* get_label(Env* env, unsigned id) {
@@ -269,10 +285,6 @@ static unsigned new_var(Env* env, char* name, unsigned size) {
 
 static bool get_var(Env* env, char* name, unsigned* dest) {
   return lookup_UIMap(env->vars, name, dest);
-}
-
-static void add_inst(Env* env, IRInst* inst) {
-  push_back_IRInstList(env->inst_cur, inst);
 }
 
 static Reg* new_binop(Env* env, BinaryOp op, Reg* lhs, Reg* rhs) {
@@ -446,7 +458,7 @@ static void create_or_start_bb(Env* env, BasicBlock* bb) {
   if (!bb) {
     bb = new_bb(env);
   }
-  if (!is_exit(last_IRInstList(env->inst_cur)->kind)) {
+  if (!is_exit(last_IRInstList(env->instructions)->kind)) {
     new_jump(env, bb, bb);
   } else {
     start_bb(env, bb);
@@ -1190,17 +1202,19 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   gen_block_item_list(env, ast->items);
   create_or_start_bb(env, env->exit);
   new_exit_ret(env);
+  env->cur->instructions->to = back_IRInstList(env->instructions);
 
-  Function* ir    = calloc(1, sizeof(Function));
-  ir->name        = strdup(ast->decl->direct->name_ref);
-  ir->entry       = entry;
-  ir->exit        = env->cur;
-  ir->bb_count    = env->bb_count;
-  ir->reg_count   = env->reg_count;
-  ir->stack_count = env->stack_count;
-  ir->inst_count  = env->inst_count;
-  ir->call_count  = env->call_count;
-  ir->blocks      = env->blocks;
+  Function* ir     = calloc(1, sizeof(Function));
+  ir->name         = strdup(ast->decl->direct->name_ref);
+  ir->entry        = entry;
+  ir->exit         = env->cur;
+  ir->bb_count     = env->bb_count;
+  ir->reg_count    = env->reg_count;
+  ir->stack_count  = env->stack_count;
+  ir->inst_count   = env->inst_count;
+  ir->call_count   = env->call_count;
+  ir->blocks       = env->blocks;
+  ir->instructions = env->instructions;
 
   // TODO: shallow release of containers
   free(env);
@@ -1466,11 +1480,7 @@ static void print_graph_succs(FILE* p, unsigned id, BBRefListIterator* it) {
     return;
   }
   BasicBlock* head = data_BBRefListIterator(it);
-  if (is_empty_IRInstList(head->insts)) {
-    error("unexpected empty basic block %d", head->global_id);
-  }
-
-  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstList(head->insts)->global_id);
+  fprintf(p, "inst_%d->inst_%d;\n", id, head_IRInstRange(head->instructions)->global_id);
   print_graph_succs(p, id, next_BBRefListIterator(it));
 }
 
@@ -1501,10 +1511,7 @@ static void print_graph_bb(FILE* p, BasicBlock* bb) {
 
   fprintf(p, "\";\n");
 
-  if (is_empty_IRInstList(bb->insts)) {
-    error("unexpected empty basic block %d", bb->global_id);
-  }
-  unsigned last_id = print_graph_insts(p, front_IRInstList(bb->insts));
+  unsigned last_id = print_graph_insts(p, front_IRInstRange(bb->instructions));
 
   fputs("}\n", p);
   print_graph_succs(p, last_id, front_BBRefList(bb->succs));

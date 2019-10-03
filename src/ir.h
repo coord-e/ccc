@@ -6,9 +6,11 @@
 #include "ast.h"
 #include "bit_set.h"
 #include "double_list.h"
+#include "indexed_list.h"
 #include "lexer.h"
 #include "list.h"
 #include "ops.h"
+#include "range.h"
 #include "type.h"
 #include "vector.h"
 
@@ -113,7 +115,7 @@ void release_inst(IRInst*);
 DECLARE_DLIST(BasicBlock*, BBList)
 DECLARE_DLIST(BasicBlock*, BBRefList)
 DECLARE_SELF_INDEXED_LIST(IRInst*, IRInstList)
-DECLARE_RANGE(IRInst*, IRInstList*, IRInstRange)
+DECLARE_RANGE(IRInst*, IRInstList, IRInstRange)
 
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {

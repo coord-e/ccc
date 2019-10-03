@@ -381,7 +381,6 @@ static void assign_reg_num(Env* env, BBListIterator* it) {
   BasicBlock* b = data_BBListIterator(it);
 
   assign_reg_num_iter_insts(env, front_IRInstList(b->insts));
-  b->sorted_insts = NULL;
 
   if (b->is_call_bb) {
     b->should_preserve = new_BitSet(env->usable_regs_count + 1);

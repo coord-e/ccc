@@ -34,17 +34,16 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   push_front_BBList(env->bbs, b);
 }
 
-void traverse_insts(Function* f, unsigned* count, IRInstVec* acc, IRInstListIterator* it) {
+void traverse_insts(Function* f, unsigned* count, IRInstListIterator* it) {
   if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
   IRInst* inst   = data_IRInstListIterator(it);
   inst->local_id = (*count)++;
-  push_IRInstVec(acc, inst);
   push_IRInstVec(f->sorted_insts, inst);
 
-  traverse_insts(f, count, acc, next_IRInstListIterator(it));
+  traverse_insts(f, count, next_IRInstListIterator(it));
 }
 
 void number_insts_and_blocks(Function* f) {
@@ -53,10 +52,9 @@ void number_insts_and_blocks(Function* f) {
   unsigned bb_count   = 0;
   for (BBListIterator* it = front_BBList(f->blocks); !is_nil_BBListIterator(it);
        it                 = next_BBListIterator(it)) {
-    BasicBlock* b   = data_BBListIterator(it);
-    b->local_id     = bb_count++;
-    b->sorted_insts = new_IRInstVec(32);  // TODO: allocate accurate number of insts
-    traverse_insts(f, &inst_count, b->sorted_insts, front_IRInstList(b->insts));
+    BasicBlock* b = data_BBListIterator(it);
+    b->local_id   = bb_count++;
+    traverse_insts(f, &inst_count, front_IRInstList(b->insts));
   }
 }
 

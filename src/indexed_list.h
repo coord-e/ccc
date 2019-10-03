@@ -112,4 +112,30 @@
     free(list);                                                                                    \
   }
 
+#define DECLARE_SELF_INDEXED_LIST(T, Name)                                                         \
+  DECLARE_INDEXED_LIST(T, Name)                                                                    \
+  Name##Iterator* remove_##Name##Iterator(Name*, Name##Iterator* iter);                            \
+  Name##Iterator* insert_##Name##Iterator(Name*, Name##Iterator* iter, T value);                   \
+  void push_front_##Name(Name* list, T value);                                                     \
+  void push_back_##Name(Name* list, T value);
+
+#define DEFINE_SELF_INDEXED_LIST(get_idx, release_data, T, Name)                                   \
+  DEFINE_INDEXED_LIST(release_data, T, Name)                                                       \
+  static unsigned idx_##Name##Iterator(const Name##Iterator* iter) {                               \
+    T v = data_##Name##Iterator(iter);                                                             \
+    return get_idx(v);                                                                             \
+  }                                                                                                \
+  Name##Iterator* remove_##Name##Iterator(Name* list, Name##Iterator* iter) {                      \
+    return remove_with_idx_##Name##Iterator(list, idx_##Name##Iterator(iter), iter);               \
+  }                                                                                                \
+  Name##Iterator* insert_##Name##Iterator(Name* list, Name##Iterator* iter, T value) {             \
+    return insert_with_idx_##Name##Iterator(list, idx_##Name##Iterator(iter), iter, value);        \
+  }                                                                                                \
+  void push_front_##Name(Name* list, T value) {                                                    \
+    push_front_with_idx_##Name(list, get_idx(value), value);                                       \
+  }                                                                                                \
+  void push_back_##Name(Name* list, T value) {                                                     \
+    push_back_with_idx_##Name(list, get_idx(value), value);                                        \
+  }
+
 #endif

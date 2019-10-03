@@ -98,7 +98,7 @@ static void add_to_available(Env* env, unsigned real) {
   UIIListIterator* it = front_UIIList(env->available);
   while (true) {
     if (is_nil_UIIListIterator(it) || compare_priority(env, real, data_UIIListIterator(it))) {
-      insert_UIIListIterator(env->available, real, it, real);
+      insert_with_idx_UIIListIterator(env->available, real, it, real);
       break;
     }
     it = next_UIIListIterator(it);
@@ -112,7 +112,7 @@ static void add_to_active(Env* env, unsigned target_virt) {
   while (true) {
     if (is_nil_UIIListIterator(it) ||
         interval_of(env, data_UIIListIterator(it))->to > current->to) {
-      insert_UIIListIterator(env->active, target_virt, it, target_virt);
+      insert_with_idx_UIIListIterator(env->active, target_virt, it, target_virt);
       break;
     }
     it = next_UIIListIterator(it);

@@ -32,9 +32,9 @@
 #define DEFINE_INDEXED_LIST(release_data, T, Name)                                                 \
   DECLARE_DLIST(T, Name##List)                                                                     \
   DEFINE_DLIST(release_data, T, Name##List)                                                        \
-  DECLARE_DLIST(Name##ListIterator*, Name##IterRefVec)                                             \
-  static void release_dummy(void*) {}                                                                   \
-  DEFINE_DLIST(release_dummy, Name##ListIterator*, Name##IterRefVec)                               \
+  DECLARE_VECTOR(Name##ListIterator*, Name##IterRefVec)                                            \
+  static void release_dummy(void* d) {}                                                            \
+  DEFINE_VECTOR(release_dummy, Name##ListIterator*, Name##IterRefVec)                              \
   struct Name {                                                                                    \
     Name##List* list;                                                                              \
     Name##IterRefVec* iterators;                                                                   \
@@ -50,12 +50,12 @@
   void push_front_##Name(Name* list, unsigned idx, T value) {                                      \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     push_front_##Name##List(list->list, value);                                                    \
-    set_##Name##IterRefVec(list->iterators, idx, front_##Name##List(list));                        \
+    set_##Name##IterRefVec(list->iterators, idx, front_##Name##List(list->list));                  \
   }                                                                                                \
   void push_back_##Name(Name* list, unsigned idx, T value) {                                       \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     push_back_##Name##List(list->list, value);                                                     \
-    set_##Name##IterRefVec(list->iterators, idx, back_##Name##List(list));                         \
+    set_##Name##IterRefVec(list->iterators, idx, back_##Name##List(list->list));                   \
   }                                                                                                \
   T data_##Name##Iterator(const Name##Iterator* iter) { return data_##Name##ListIterator(iter); }  \
   Name##Iterator* prev_##Name##Iterator(const Name##Iterator* iter) {                              \
@@ -71,8 +71,9 @@
   }                                                                                                \
   Name##Iterator* remove_##Name##Iterator(Name* list, unsigned idx, Name##Iterator* iter) {        \
     assert(get_##Name##IterRefVec(list->iterators, idx) != NULL);                                  \
-    remove_##Name##ListIterator(iter);                                                             \
+    Name##Iterator* next = remove_##Name##ListIterator(iter);                                      \
     set_##Name##IterRefVec(list->iterators, idx, NULL);                                            \
+    return next;                                                                                   \
   }                                                                                                \
   Name##Iterator* insert_##Name##Iterator(Name* list, unsigned idx, Name##Iterator* iter,          \
                                           T value) {                                               \
@@ -90,9 +91,9 @@
     return data_##Name##ListIterator(it);                                                          \
   }                                                                                                \
   Name##Iterator* remove_by_idx_##Name##Iterator(Name* list, unsigned idx) {                       \
-    Name##Iterator* it = get_ #Name##IterRefVec(list->iterators, idx);                             \
+    Name##Iterator* it = get_##Name##IterRefVec(list->iterators, idx);                             \
     assert(it != NULL);                                                                            \
-    remove_##Name##Iterator(list, idx, it);                                                        \
+    return remove_##Name##Iterator(list, idx, it);                                                 \
   }                                                                                                \
   bool is_empty_##Name(Name* list) { return is_empty_##Name##List(list->list); }                   \
   T head_##Name(Name* list) { return head_##Name##List(list->list); }                              \

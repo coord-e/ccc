@@ -11,8 +11,8 @@
   typedef struct Name##ListIterator Name##Iterator;                                                \
   Name* new_##Name(unsigned size);                                                                 \
   T data_##Name##Iterator(const Name##Iterator* iter);                                             \
-  T get_##Name(unsigned idx);                                                                      \
-  Name##Iterator* get_iterator_##Name(unsigned idx);                                               \
+  T get_##Name(const Name*, unsigned idx);                                                         \
+  Name##Iterator* get_iterator_##Name(const Name*, unsigned idx);                                  \
   Name##Iterator* prev_##Name##Iterator(const Name##Iterator* iter);                               \
   Name##Iterator* next_##Name##Iterator(const Name##Iterator* iter);                               \
   bool is_nil_##Name##Iterator(const Name##Iterator* iter);                                        \
@@ -33,6 +33,7 @@
   DECLARE_DLIST(T, Name##List)                                                                     \
   DEFINE_DLIST(release_data, T, Name##List)                                                        \
   DECLARE_DLIST(Name##ListIterator*, Name##IterRefVec)                                             \
+  static void release_dummy(void*) {}                                                                   \
   DEFINE_DLIST(release_dummy, Name##ListIterator*, Name##IterRefVec)                               \
   struct Name {                                                                                    \
     Name##List* list;                                                                              \

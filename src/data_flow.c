@@ -189,8 +189,9 @@ static void compute_global_live_sets(Function* ir) {
 }
 
 static void compute_inst_live_sets(Function* ir) {
-  for (unsigned i = 0; i < length_BBVec(ir->sorted_blocks); i++) {
-    BasicBlock* b = get_BBVec(ir->sorted_blocks, i);
+  BBListIterator* it = front_BBList(ir->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
 
     BitSet* live = copy_BitSet(b->live_out);
     for (unsigned j = length_IRInstVec(b->sorted_insts); j > 0; j--) {
@@ -215,6 +216,8 @@ static void compute_inst_live_sets(Function* ir) {
       inst->live_in = copy_BitSet(live);
     }
     assert(equal_to_BitSet(b->live_in, live));
+
+    it = next_BBListIterator(it);
   }
 }
 
@@ -273,8 +276,9 @@ static void compute_global_reach_sets(Function* ir) {
 }
 
 static void compute_inst_reach_sets(Function* ir) {
-  for (unsigned i = 0; i < length_BBVec(ir->sorted_blocks); i++) {
-    BasicBlock* b = get_BBVec(ir->sorted_blocks, i);
+  BBListIterator* it = front_BBList(ir->blocks);
+  while (!is_nil_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
 
     BitSet* reach = copy_BitSet(b->reach_in);
     for (unsigned j = 0; j < length_IRInstVec(b->sorted_insts); j++) {
@@ -301,5 +305,7 @@ static void compute_inst_reach_sets(Function* ir) {
       inst->reach_out = copy_BitSet(reach);
     }
     assert(equal_to_BitSet(b->reach_out, reach));
+
+    it = next_BBListIterator(it);
   }
 }

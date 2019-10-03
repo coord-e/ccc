@@ -34,8 +34,8 @@
   DECLARE_DLIST(T, Name##List)                                                                     \
   DEFINE_DLIST(release_data, T, Name##List)                                                        \
   DECLARE_VECTOR(Name##ListIterator*, Name##IterRefVec)                                            \
-  static void release_dummy(void* d) {}                                                            \
-  DEFINE_VECTOR(release_dummy, Name##ListIterator*, Name##IterRefVec)                              \
+  static void release_dummy_##Name(void* d) {}                                                     \
+  DEFINE_VECTOR(release_dummy_##Name, Name##ListIterator*, Name##IterRefVec)                       \
   struct Name {                                                                                    \
     Name##List* list;                                                                              \
     Name##IterRefVec* iterators;                                                                   \

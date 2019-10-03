@@ -473,6 +473,9 @@ static void add_range(Interval* iv, unsigned from, unsigned to) {
 
 static void set_from(Interval* iv, unsigned from) {
   iv->from = from;
+  if (iv->to == -1) {
+    iv->to = from;
+  }
 }
 
 static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned block_from) {

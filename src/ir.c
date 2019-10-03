@@ -53,6 +53,10 @@ void release_Reg(Reg* r) {
 void release_inst(IRInst* i) {
   release_RegVec(i->ras);
   release_Reg(i->rd);
+  release_BitSet(i->live_in);
+  release_BitSet(i->live_out);
+  release_BitSet(i->reach_in);
+  release_BitSet(i->reach_out);
   free(i->global_name);
   free(i);
 }

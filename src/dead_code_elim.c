@@ -1,11 +1,11 @@
 #include "dead_code_elim.h"
 
-static void perform_dce(BitSet* live, IRInst* inst) {
+static void perform_dce(IRInst* inst) {
   if (inst->rd == NULL) {
     return;
   }
 
-  if (get_BitSet(live, inst->rd->virtual)) {
+  if (get_BitSet(inst->live_out, inst->rd->virtual)) {
     return;
   }
 
@@ -21,26 +21,13 @@ static void perform_dce(BitSet* live, IRInst* inst) {
   inst->kind = IR_NOP;
 }
 
-static void update_live(BitSet* live, IRInst* inst) {
-  if (inst->rd != NULL) {
-    set_BitSet(live, inst->rd->virtual, false);
-  }
-  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* ra = get_RegVec(inst->ras, i);
-    set_BitSet(live, ra->virtual, true);
-  }
-}
-
 static void dead_code_elim_function(Function* f) {
   BBListIterator* it = front_BBList(f->blocks);
   while (!is_nil_BBListIterator(it)) {
     BasicBlock* bb = data_BBListIterator(it);
 
-    BitSet* live = copy_BitSet(bb->live_out);
-    for (unsigned i = length_IRInstVec(bb->sorted_insts); i > 0; i--) {
-      IRInst* inst = get_IRInstVec(bb->sorted_insts, i - 1);
-      perform_dce(live, inst);
-      update_live(live, inst);
+    for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
+      perform_dce(get_IRInstVec(bb->sorted_insts, i));
     }
 
     it = next_BBListIterator(it);

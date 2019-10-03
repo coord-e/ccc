@@ -61,9 +61,8 @@ void release_inst(IRInst* i) {
   free(i);
 }
 
-DEFINE_DLIST(release_inst, IRInst*, IRInstList)
-DEFINE_VECTOR(release_inst, IRInst*, IRInstVec)
-
+DEFINE_SELF_INDEXED_LIST(release_inst, IRInst*, IRInstList)
+DEFINE_RANGE(IRInst*, IRInstList*, IRInstRange)
 DEFINE_VECTOR(release_Reg, Reg*, RegVec)
 
 void release_BasicBlock(BasicBlock* bb) {
@@ -71,7 +70,7 @@ void release_BasicBlock(BasicBlock* bb) {
     return;
   }
 
-  release_IRInstList(bb->insts);
+  release_IRInstRange(bb->instructions);
 
   release_BitSet(bb->live_gen);
   release_BitSet(bb->live_kill);
@@ -97,6 +96,7 @@ DEFINE_VECTOR(release_BitSet, BitSet*, BSVec)
 static void release_Function(Function* f) {
   free(f->name);
   release_BBList(f->blocks);
+  release_IRInstList(f->instructions);
   release_RegIntervals(f->intervals);
   release_BitSet(f->used_fixed_regs);
   release_BSVec(f->definitions);

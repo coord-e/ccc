@@ -198,8 +198,6 @@ struct Function {
   BitSet* used_fixed_regs;  // owned
 
   // will filled in `reorder`
-  // sorted in reverse order
-  BBVec* sorted_blocks;  // not owned
   // sorted in normal order
   IRInstVec* sorted_insts;  // not owned
 

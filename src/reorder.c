@@ -1,13 +1,13 @@
 #include "reorder.h"
 
 typedef struct {
-  BBVec* bbs;
+  BBList* bbs;
   BitSet* visited;
 } Env;
 
 Env* init_Env(unsigned expected_bb_count) {
   Env* env     = calloc(1, sizeof(Env));
-  env->bbs     = new_BBVec(expected_bb_count);
+  env->bbs     = new_BBList();
   env->visited = zero_BitSet(expected_bb_count);
   return env;
 }
@@ -31,7 +31,7 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   set_BitSet(env->visited, b->local_id, true);
 
   traverse_bblist(env, front_BBRefList(b->succs));
-  push_BBVec(env->bbs, b);
+  push_front_BBList(env->bbs, b);
 }
 
 void traverse_insts(Function* f, unsigned* count, IRInstVec* acc, IRInstListIterator* it) {
@@ -47,28 +47,32 @@ void traverse_insts(Function* f, unsigned* count, IRInstVec* acc, IRInstListIter
   traverse_insts(f, count, acc, next_IRInstListIterator(it));
 }
 
-void number_insts(Function* f, BBVec* v) {
+void number_insts_and_blocks(Function* f) {
   f->sorted_insts     = new_IRInstVec(32);  // TODO: allocate accurate number of insts
   unsigned inst_count = 0;
-  unsigned len_bbs    = length_BBVec(v);
-  for (unsigned i = len_bbs; i > 0; i--) {
-    BasicBlock* b   = get_BBVec(v, i - 1);
-    b->local_id     = len_bbs - i;
+  unsigned bb_count   = 0;
+  for (BBListIterator* it = front_BBList(f->blocks); !is_nil_BBListIterator(it);
+       it                 = next_BBListIterator(it)) {
+    BasicBlock* b   = data_BBListIterator(it);
+    b->local_id     = bb_count++;
     b->sorted_insts = new_IRInstVec(32);  // TODO: allocate accurate number of insts
     traverse_insts(f, &inst_count, b->sorted_insts, front_IRInstList(b->insts));
   }
 }
 
 // change `local_id`s of `BasicBlock` and `IRInst`
-// and collect `BasicBlock`s to `sorted_blocks` in reversed order
 static void reorder_blocks_function(Function* ir) {
   Env* env = init_Env(ir->bb_count);
 
   traverse_blocks(env, ir->entry);
-  ir->sorted_blocks = env->bbs;
+  if (ir->blocks) {
+    // TODO: shallow release
+    /* release_BBList(ir->blocks); */
+  }
+  ir->blocks = env->bbs;
   release_BitSet(env->visited);
 
-  number_insts(ir, ir->sorted_blocks);
+  number_insts_and_blocks(ir);
 }
 
 static void reorder_blocks_functions(FunctionList* l) {

@@ -113,20 +113,22 @@ static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstVec* insts) {
 }
 
 static void compute_local_live_sets(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
-  for (unsigned i = length_BBVec(v); i > 0; i--) {
-    BasicBlock* b = get_BBVec(v, i - 1);
-    b->live_gen   = zero_BitSet(ir->reg_count);
-    b->live_kill  = zero_BitSet(ir->reg_count);
+  for (BBListIterator* it = front_BBList(ir->blocks); !is_nil_BBListIterator(it);
+       it                 = next_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
+
+    b->live_gen  = zero_BitSet(ir->reg_count);
+    b->live_kill = zero_BitSet(ir->reg_count);
 
     iter_insts_forward(b, b->sorted_insts);
   }
 }
 
 static void compute_local_reach_sets(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
-  for (unsigned i = length_BBVec(v); i > 0; i--) {
-    BasicBlock* b = get_BBVec(v, i - 1);
+  for (BBListIterator* it = front_BBList(ir->blocks); !is_nil_BBListIterator(it);
+       it                 = next_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
+
     b->reach_gen  = zero_BitSet(ir->inst_count);
     b->reach_kill = zero_BitSet(ir->inst_count);
 
@@ -149,11 +151,9 @@ static void iter_succs(BasicBlock* b, BBRefListIterator* l) {
 }
 
 static void compute_global_live_sets(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
-
   // temporary vector to detect changes in `live_in`
-  BSVec* lasts = new_BSVec(length_BBVec(v));
-  for (unsigned i = 0; i < length_BBVec(v); i++) {
+  BSVec* lasts = new_BSVec(ir->bb_count);
+  for (unsigned i = 0; i < ir->bb_count; i++) {
     push_BSVec(lasts, zero_BitSet(ir->reg_count));
   }
 
@@ -165,8 +165,9 @@ static void compute_global_live_sets(Function* ir) {
     is_first_loop = false;
 
     // reverse order
-    for (unsigned i = 0; i < length_BBVec(v); i++) {
-      BasicBlock* b = get_BBVec(v, i);
+    for (BBListIterator* it = back_BBList(ir->blocks); !is_nil_BBListIterator(it);
+         it                 = prev_BBListIterator(it)) {
+      BasicBlock* b = data_BBListIterator(it);
 
       b->live_out = zero_BitSet(ir->reg_count);
       if (b->live_in == NULL) {
@@ -179,7 +180,7 @@ static void compute_global_live_sets(Function* ir) {
       diff_BitSet(b->live_in, b->live_kill);
       or_BitSet(b->live_in, b->live_gen);
 
-      BitSet* last = get_BSVec(lasts, i);
+      BitSet* last = get_BSVec(lasts, b->local_id);
       changed      = changed || !equal_to_BitSet(b->live_in, last);
       copy_to_BitSet(last, b->live_in);
     }
@@ -235,11 +236,9 @@ static void iter_preds(BasicBlock* b, BBRefListIterator* l) {
 }
 
 static void compute_global_reach_sets(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
-
   // temporary vector to detect changes in `reach_out`
-  BSVec* lasts = new_BSVec(length_BBVec(v));
-  for (unsigned i = 0; i < length_BBVec(v); i++) {
+  BSVec* lasts = new_BSVec(ir->bb_count);
+  for (unsigned i = 0; i < ir->bb_count; i++) {
     push_BSVec(lasts, zero_BitSet(ir->inst_count));
   }
 
@@ -251,9 +250,9 @@ static void compute_global_reach_sets(Function* ir) {
     is_first_loop = false;
 
     // straight order
-    for (unsigned ti = length_BBVec(v); ti > 0; ti--) {
-      unsigned i    = ti - 1;
-      BasicBlock* b = get_BBVec(v, i);
+    for (BBListIterator* it = front_BBList(ir->blocks); !is_nil_BBListIterator(it);
+         it                 = next_BBListIterator(it)) {
+      BasicBlock* b = data_BBListIterator(it);
 
       b->reach_out = zero_BitSet(ir->inst_count);
       if (b->reach_in == NULL) {
@@ -266,7 +265,7 @@ static void compute_global_reach_sets(Function* ir) {
       diff_BitSet(b->reach_out, b->reach_kill);
       or_BitSet(b->reach_out, b->reach_gen);
 
-      BitSet* last = get_BSVec(lasts, i);
+      BitSet* last = get_BSVec(lasts, b->local_id);
       changed      = changed || !equal_to_BitSet(b->reach_out, last);
       copy_to_BitSet(last, b->reach_out);
     }

@@ -500,16 +500,15 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
 }
 
 static RegIntervals* build_intervals(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
-
   RegIntervals* ivs = new_RegIntervals(ir->reg_count);
   for (unsigned i = 0; i < ir->reg_count; i++) {
     push_RegIntervals(ivs, new_interval(-1, -1));
   }
 
   // reverse order
-  for (unsigned i = 0; i < length_BBVec(v); i++) {
-    BasicBlock* b       = get_BBVec(v, i);
+  for (BBListIterator* it = back_BBList(ir->blocks); !is_nil_BBListIterator(it);
+       it                 = prev_BBListIterator(it)) {
+    BasicBlock* b       = data_BBListIterator(it);
     IRInstVec* is       = b->sorted_insts;
     unsigned block_from = get_IRInstVec(is, 0)->local_id;
     unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->local_id;

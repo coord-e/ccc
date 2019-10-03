@@ -1,17 +1,5 @@
 #include "propagation.h"
 
-static void update_reach(Function* f, BitSet* reach, IRInst* inst) {
-  if (inst->rd == NULL) {
-    return;
-  }
-  unsigned id  = inst->local_id;
-  BitSet* defs = copy_BitSet(get_BSVec(f->definitions, inst->rd->virtual));
-  set_BitSet(defs, id, false);
-  diff_BitSet(reach, defs);
-  set_BitSet(reach, id, true);
-  release_BitSet(defs);
-}
-
 static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
   BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
   and_BitSet(defs, reach);
@@ -57,11 +45,11 @@ static void elim_branch(bool c, BasicBlock* bb, IRInst* inst) {
   resize_RegVec(inst->ras, 0);
 }
 
-static void perform_propagation(Function* f, BitSet* reach, BasicBlock* bb, IRInst* inst) {
+static void perform_propagation(Function* f, BasicBlock* bb, IRInst* inst) {
   IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* r      = get_RegVec(inst->ras, i);
-    IRInst* def = r->irreplaceable ? NULL : obtain_definition(f, reach, r);
+    IRInst* def = r->irreplaceable ? NULL : obtain_definition(f, inst->reach_in, r);
     // `def` is possibly null
     push_IRInstVec(defs, def);
   }
@@ -197,13 +185,10 @@ static void propagation_function(Function* f) {
   while (!is_nil_BBListIterator(it)) {
     BasicBlock* bb = data_BBListIterator(it);
 
-    BitSet* reach = copy_BitSet(bb->reach_in);
     for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
       IRInst* inst = get_IRInstVec(bb->sorted_insts, i);
-      perform_propagation(f, reach, bb, inst);
-      update_reach(f, reach, inst);
+      perform_propagation(f, bb, inst);
     }
-    assert(equal_to_BitSet(bb->reach_out, reach));
 
     it = next_BBListIterator(it);
   }

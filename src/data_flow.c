@@ -290,7 +290,7 @@ static void compute_inst_reach_sets(Function* ir) {
       inst->reach_in = copy_BitSet(reach);
 
       if (inst->rd == NULL) {
-        return;
+        continue;
       }
       unsigned id  = inst->local_id;
       BitSet* defs = copy_BitSet(get_BSVec(ir->definitions, inst->rd->virtual));

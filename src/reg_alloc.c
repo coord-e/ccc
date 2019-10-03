@@ -12,15 +12,15 @@ static void release_unsigned(unsigned i) {}
 DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
 
-DECLARE_INDEXED_LIST(unsigned, IndexedUIList)
-DEFINE_INDEXED_LIST(release_unsigned, unsigned, IndexedUIList)
+DECLARE_INDEXED_LIST(unsigned, UIIList)
+DEFINE_INDEXED_LIST(release_unsigned, unsigned, UIIList)
 
 typedef struct {
-  IndexedUIList* active;     // owned, a list of virtual registers
-  IndexedUIList* available;  // owned, a list of real registers
-  UIVec* used_by;            // owned, -1 -> not used
-  UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
-  UIVec* locations;          // owned, -1 -> not spilled
+  UIIList* active;     // owned, a list of virtual registers
+  UIIList* available;  // owned, a list of real registers
+  UIVec* used_by;      // owned, -1 -> not used
+  UIVec* result;       // owned, -1 -> not allocated, -2 -> spilled
+  UIVec* locations;    // owned, -1 -> not spilled
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
 
@@ -38,8 +38,8 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
   env->f                  = f;
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
-  env->active             = new_IndexedUIList(virt_count);
-  env->available          = new_IndexedUIList(env->usable_regs_count);
+  env->active             = new_UIIList(virt_count);
+  env->available          = new_UIIList(env->usable_regs_count);
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
   fill_UIVec(env->used_by, -1);
@@ -62,8 +62,8 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
 }
 
 static void release_Env(Env* env) {
-  release_IndexedUIList(env->active);
-  release_IndexedUIList(env->available);
+  release_UIIList(env->active);
+  release_UIIList(env->available);
   release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
@@ -95,43 +95,42 @@ static bool compare_priority(Env* env, unsigned r1, unsigned r2) {
 }
 
 static void add_to_available(Env* env, unsigned real) {
-  IndexedUIListIterator* it = front_IndexedUIList(env->available);
+  UIIListIterator* it = front_UIIList(env->available);
   while (true) {
-    if (is_nil_IndexedUIListIterator(it) ||
-        compare_priority(env, real, data_IndexedUIListIterator(it))) {
-      insert_IndexedUIListIterator(env->available, real, it, real);
+    if (is_nil_UIIListIterator(it) || compare_priority(env, real, data_UIIListIterator(it))) {
+      insert_UIIListIterator(env->available, real, it, real);
       break;
     }
-    it = next_IndexedUIListIterator(it);
+    it = next_UIIListIterator(it);
   }
 }
 
 static void add_to_active(Env* env, unsigned target_virt) {
   Interval* current = interval_of(env, target_virt);
 
-  IndexedUIListIterator* it = front_IndexedUIList(env->active);
+  UIIListIterator* it = front_UIIList(env->active);
   while (true) {
-    if (is_nil_IndexedUIListIterator(it) ||
-        interval_of(env, data_IndexedUIListIterator(it))->to > current->to) {
-      insert_IndexedUIListIterator(env->active, target_virt, it, target_virt);
+    if (is_nil_UIIListIterator(it) ||
+        interval_of(env, data_UIIListIterator(it))->to > current->to) {
+      insert_UIIListIterator(env->active, target_virt, it, target_virt);
       break;
     }
-    it = next_IndexedUIListIterator(it);
+    it = next_UIIListIterator(it);
   }
 }
 
 static unsigned find_free_reg(Env* env) {
-  if (is_empty_IndexedUIList(env->available)) {
+  if (is_empty_UIIList(env->available)) {
     error("no free reg found");
   }
-  return head_IndexedUIList(env->available);
+  return head_UIIList(env->available);
 }
 
 static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
   assert(get_UIVec(env->used_by, real) == -1);
   set_UIVec(env->used_by, real, virtual);
   set_UIVec(env->result, virtual, real);
-  remove_by_idx_IndexedUIListIterator(env->available, real);
+  remove_by_idx_UIIListIterator(env->available, real);
   add_to_active(env, virtual);
 }
 
@@ -145,20 +144,20 @@ static void release_reg(Env* env, unsigned virtual) {
   assert(real != -1 && real != -2);
 
   set_UIVec(env->used_by, real, -1);
-  remove_by_idx_IndexedUIListIterator(env->active, virtual);
+  remove_by_idx_UIIListIterator(env->active, virtual);
   add_to_available(env, real);
 }
 
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  IndexedUIListIterator* it = front_IndexedUIList(env->active);
-  while (!is_nil_IndexedUIListIterator(it)) {
-    unsigned virtual = data_IndexedUIListIterator(it);
+  UIIListIterator* it = front_UIIList(env->active);
+  while (!is_nil_UIIListIterator(it)) {
+    unsigned virtual = data_UIIListIterator(it);
     Interval* intv   = interval_of(env, virtual);
     if (intv->to >= target_iv->from) {
       return;
     }
     // NOTE: obtain `it` earlier because `release_reg` modifies active list
-    it = next_IndexedUIListIterator(it);
+    it = next_UIIListIterator(it);
 
     release_reg(env, virtual);
   }
@@ -177,16 +176,16 @@ static void spill_reg(Env* env, unsigned virt) {
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
-  IndexedUIListIterator* spill_ptr = back_IndexedUIList(env->active);
+  UIIListIterator* spill_ptr = back_UIIList(env->active);
   unsigned spill;
   Interval* spill_intv = NULL;
   while (true) {
-    spill      = data_IndexedUIListIterator(spill_ptr);
+    spill      = data_UIIListIterator(spill_ptr);
     spill_intv = interval_of(env, spill);
     if (spill_intv->kind != IV_FIXED) {
       break;
     } else {
-      spill_ptr = prev_IndexedUIListIterator(spill_ptr);
+      spill_ptr = prev_UIIListIterator(spill_ptr);
     }
   }
   assert(spill_intv->kind != IV_FIXED);
@@ -238,7 +237,7 @@ static void walk_regs(Env* env, UIList* l) {
 
   switch (iv->kind) {
     case IV_VIRTUAL:
-      if (is_empty_IndexedUIList(env->available)) {
+      if (is_empty_UIIList(env->available)) {
         spill_at_interval(env, virtual);
       } else {
         alloc_reg(env, virtual);

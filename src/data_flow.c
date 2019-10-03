@@ -73,9 +73,10 @@ static void collect_defs(Function* f) {
   f->definitions = defs;
 }
 
-static void iter_insts_forward(BasicBlock* b, IRInstVec* insts) {
-  for (unsigned j = 0; j < length_IRInstVec(insts); j++) {
-    IRInst* inst = get_IRInstVec(insts, j);
+static void iter_insts_forward(BasicBlock* b, IRInstList* insts) {
+  for (IRInstListIterator* it = front_IRInstList(insts); !is_nil_IRInstListIterator(it);
+       it                     = next_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       Reg* ra = get_RegVec(inst->ras, i);
@@ -92,9 +93,10 @@ static void iter_insts_forward(BasicBlock* b, IRInstVec* insts) {
   }
 }
 
-static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstVec* insts) {
-  for (unsigned ti = length_IRInstVec(insts); ti > 0; ti--) {
-    IRInst* inst = get_IRInstVec(insts, ti - 1);
+static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstList* insts) {
+  for (IRInstListIterator* it = back_IRInstList(insts); !is_nil_IRInstListIterator(it);
+       it                     = prev_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
     unsigned id  = inst->local_id;
 
     if (inst->rd == NULL) {
@@ -120,7 +122,7 @@ static void compute_local_live_sets(Function* ir) {
     b->live_gen  = zero_BitSet(ir->reg_count);
     b->live_kill = zero_BitSet(ir->reg_count);
 
-    iter_insts_forward(b, b->sorted_insts);
+    iter_insts_forward(b, b->insts);
   }
 }
 
@@ -132,7 +134,7 @@ static void compute_local_reach_sets(Function* ir) {
     b->reach_gen  = zero_BitSet(ir->inst_count);
     b->reach_kill = zero_BitSet(ir->inst_count);
 
-    iter_insts_backward(ir->definitions, b, b->sorted_insts);
+    iter_insts_backward(ir->definitions, b, b->insts);
   }
 }
 
@@ -190,13 +192,14 @@ static void compute_global_live_sets(Function* ir) {
 }
 
 static void compute_inst_live_sets(Function* ir) {
-  BBListIterator* it = front_BBList(ir->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* b = data_BBListIterator(it);
+  for (BBListIterator* it1 = front_BBList(ir->blocks); !is_nil_BBListIterator(it1);
+       it1                 = next_BBListIterator(it1)) {
+    BasicBlock* b = data_BBListIterator(it1);
 
     BitSet* live = copy_BitSet(b->live_out);
-    for (unsigned j = length_IRInstVec(b->sorted_insts); j > 0; j--) {
-      IRInst* inst = get_IRInstVec(b->sorted_insts, j - 1);
+    for (IRInstListIterator* it2 = back_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
+         it2                     = prev_IRInstListIterator(it2)) {
+      IRInst* inst = data_IRInstListIterator(it2);
 
       if (inst->live_out != NULL) {
         release_BitSet(inst->live_out);
@@ -217,8 +220,6 @@ static void compute_inst_live_sets(Function* ir) {
       inst->live_in = copy_BitSet(live);
     }
     assert(equal_to_BitSet(b->live_in, live));
-
-    it = next_BBListIterator(it);
   }
 }
 
@@ -275,13 +276,14 @@ static void compute_global_reach_sets(Function* ir) {
 }
 
 static void compute_inst_reach_sets(Function* ir) {
-  BBListIterator* it = front_BBList(ir->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* b = data_BBListIterator(it);
+  for (BBListIterator* it1 = front_BBList(ir->blocks); !is_nil_BBListIterator(it1);
+       it1                 = next_BBListIterator(it1)) {
+    BasicBlock* b = data_BBListIterator(it1);
 
     BitSet* reach = copy_BitSet(b->reach_in);
-    for (unsigned j = 0; j < length_IRInstVec(b->sorted_insts); j++) {
-      IRInst* inst = get_IRInstVec(b->sorted_insts, j);
+    for (IRInstListIterator* it2 = front_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
+         it2                     = next_IRInstListIterator(it2)) {
+      IRInst* inst = data_IRInstListIterator(it2);
 
       if (inst->reach_in != NULL) {
         release_BitSet(inst->reach_in);
@@ -304,7 +306,5 @@ static void compute_inst_reach_sets(Function* ir) {
       inst->reach_out = copy_BitSet(reach);
     }
     assert(equal_to_BitSet(b->reach_out, reach));
-
-    it = next_BBListIterator(it);
   }
 }

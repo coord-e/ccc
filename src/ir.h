@@ -138,11 +138,6 @@ struct BasicBlock {
   BitSet* reach_gen;   // owned, ditto
   BitSet* reach_kill;  // owned, ditto
 
-  // will filled in `reorder`
-  // sorted in normal order
-  // NULL if there is no usable instance (e.g. before `reorder` or after `reg_alloc`)
-  IRInstVec* sorted_insts;  // not owned
-
   // will filled in `reg_alloc`
   // available if `is_call_bb`` is true
   // a set of physical registers that lives through this bb
@@ -198,8 +193,6 @@ struct Function {
   BitSet* used_fixed_regs;  // owned
 
   // will filled in `reorder`
-  // sorted in reverse order
-  BBVec* sorted_blocks;  // not owned
   // sorted in normal order
   IRInstVec* sorted_insts;  // not owned
 

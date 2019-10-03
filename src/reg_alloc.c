@@ -381,7 +381,6 @@ static void assign_reg_num(Env* env, BBListIterator* it) {
   BasicBlock* b = data_BBListIterator(it);
 
   assign_reg_num_iter_insts(env, front_IRInstList(b->insts));
-  b->sorted_insts = NULL;
 
   if (b->is_call_bb) {
     b->should_preserve = new_BitSet(env->usable_regs_count + 1);
@@ -478,10 +477,11 @@ static void set_from(Interval* iv, unsigned from) {
   }
 }
 
-static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned block_from) {
+static void build_intervals_insts(RegIntervals* ivs, IRInstList* insts, unsigned block_from) {
   // reverse order
-  for (unsigned ii = length_IRInstVec(v); ii > 0; ii--) {
-    IRInst* inst = get_IRInstVec(v, ii - 1);
+  for (IRInstListIterator* it = back_IRInstList(insts); !is_nil_IRInstListIterator(it);
+       it                     = prev_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       Reg* ra = get_RegVec(inst->ras, i);
@@ -500,19 +500,17 @@ static void build_intervals_insts(RegIntervals* ivs, IRInstVec* v, unsigned bloc
 }
 
 static RegIntervals* build_intervals(Function* ir) {
-  BBVec* v = ir->sorted_blocks;
-
   RegIntervals* ivs = new_RegIntervals(ir->reg_count);
   for (unsigned i = 0; i < ir->reg_count; i++) {
     push_RegIntervals(ivs, new_interval(-1, -1));
   }
 
   // reverse order
-  for (unsigned i = 0; i < length_BBVec(v); i++) {
-    BasicBlock* b       = get_BBVec(v, i);
-    IRInstVec* is       = b->sorted_insts;
-    unsigned block_from = get_IRInstVec(is, 0)->local_id;
-    unsigned block_to   = get_IRInstVec(is, length_IRInstVec(is) - 1)->local_id;
+  for (BBListIterator* it = back_BBList(ir->blocks); !is_nil_BBListIterator(it);
+       it                 = prev_BBListIterator(it)) {
+    BasicBlock* b       = data_BBListIterator(it);
+    unsigned block_from = head_IRInstList(b->insts)->local_id;
+    unsigned block_to   = last_IRInstList(b->insts)->local_id;
 
     for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
       if (get_BitSet(b->live_out, vi)) {
@@ -521,7 +519,7 @@ static RegIntervals* build_intervals(Function* ir) {
       }
     }
 
-    build_intervals_insts(ivs, is, block_from);
+    build_intervals_insts(ivs, b->insts, block_from);
   }
 
   return ivs;

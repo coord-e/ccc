@@ -181,16 +181,15 @@ static void perform_propagation(Function* f, BasicBlock* bb, IRInst* inst) {
 }
 
 static void propagation_function(Function* f) {
-  BBListIterator* it = front_BBList(f->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* bb = data_BBListIterator(it);
+  for (BBListIterator* it1 = front_BBList(f->blocks); !is_nil_BBListIterator(it1);
+       it1                 = next_BBListIterator(it1)) {
+    BasicBlock* b = data_BBListIterator(it1);
 
-    for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
-      IRInst* inst = get_IRInstVec(bb->sorted_insts, i);
-      perform_propagation(f, bb, inst);
+    for (IRInstListIterator* it2 = back_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
+         it2                     = prev_IRInstListIterator(it2)) {
+      IRInst* inst = data_IRInstListIterator(it2);
+      perform_propagation(f, b, inst);
     }
-
-    it = next_BBListIterator(it);
   }
 }
 

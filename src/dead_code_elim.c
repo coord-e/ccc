@@ -22,15 +22,15 @@ static void perform_dce(IRInst* inst) {
 }
 
 static void dead_code_elim_function(Function* f) {
-  BBListIterator* it = front_BBList(f->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* bb = data_BBListIterator(it);
+  for (BBListIterator* it1 = front_BBList(f->blocks); !is_nil_BBListIterator(it1);
+       it1                 = next_BBListIterator(it1)) {
+    BasicBlock* b = data_BBListIterator(it1);
 
-    for (unsigned i = 0; i < length_IRInstVec(bb->sorted_insts); i++) {
-      perform_dce(get_IRInstVec(bb->sorted_insts, i));
+    for (IRInstListIterator* it2 = back_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
+         it2                     = prev_IRInstListIterator(it2)) {
+      IRInst* inst = data_IRInstListIterator(it2);
+      perform_dce(inst);
     }
-
-    it = next_BBListIterator(it);
   }
 }
 

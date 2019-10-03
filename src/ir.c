@@ -1266,8 +1266,6 @@ void detach_BasicBlock(Function* f, BasicBlock* b) {
   // - remove from succs/preds
   // - remove from blocks
 
-  f->sorted_blocks = NULL;
-
   assert(f->entry != b);
   assert(f->exit != b);
 

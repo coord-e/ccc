@@ -1,67 +1,19 @@
 #include "reg_alloc.h"
 #include "arch.h"
 #include "bit_set.h"
-#include "double_list.h"
+#include "indexed_list.h"
+#include "list.h"
 #include "vector.h"
 
 // TODO: Type and distinguish real and virtual register index
 // TODO: Stop using -1 or 0 to mark something
 
 static void release_unsigned(unsigned i) {}
-
-DECLARE_DLIST(unsigned, UIDList)
-DEFINE_DLIST(release_unsigned, unsigned, UIDList)
-
 DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
 
-static void release_dummy(UIDListIterator* p) {}
-DECLARE_VECTOR(UIDListIterator*, UIDLIterVec)
-DEFINE_VECTOR(release_dummy, UIDListIterator*, UIDLIterVec)
-
-typedef struct {
-  UIDList* list;
-  UIDLIterVec* iterators;
-} IndexedUIList;
-
-static IndexedUIList* new_IndexedUIList(unsigned max_idx) {
-  IndexedUIList* l = calloc(1, sizeof(IndexedUIList));
-  l->list          = new_UIDList();
-  l->iterators     = new_UIDLIterVec(max_idx);
-  resize_UIDLIterVec(l->iterators, max_idx);
-  fill_UIDLIterVec(l->iterators, NULL);
-  return l;
-}
-
-static void release_IndexedUIList(IndexedUIList* l) {
-  release_UIDList(l->list);
-  // TODO: shallow release
-  /* release_UIDIterVec(l->iterators); */
-}
-
-static UIDListIterator* get_IndexedUIList(IndexedUIList* l, unsigned idx) {
-  return get_UIDLIterVec(l->iterators, idx);
-}
-
-static UIDListIterator* insert_IndexedUIList(IndexedUIList* l,
-                                             unsigned idx,
-                                             UIDListIterator* it,
-                                             unsigned val) {
-  UIDListIterator* new = insert_UIDListIterator(it, val);
-  set_UIDLIterVec(l->iterators, idx, new);
-  return new;
-}
-
-static void remove_IndexedUIList(IndexedUIList* l, unsigned idx, UIDListIterator* it) {
-  remove_UIDListIterator(it);
-  set_UIDLIterVec(l->iterators, idx, NULL);
-}
-
-static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
-  UIDListIterator* it = get_UIDLIterVec(l->iterators, idx);
-  assert(it != NULL);
-  remove_IndexedUIList(l, idx, it);
-}
+DECLARE_INDEXED_LIST(unsigned, IndexedUIList)
+DEFINE_INDEXED_LIST(release_unsigned, unsigned, IndexedUIList)
 
 typedef struct {
   IndexedUIList* active;     // owned, a list of virtual registers
@@ -143,42 +95,43 @@ static bool compare_priority(Env* env, unsigned r1, unsigned r2) {
 }
 
 static void add_to_available(Env* env, unsigned real) {
-  UIDListIterator* it = front_UIDList(env->available->list);
+  IndexedUIListIterator* it = front_IndexedUIList(env->available);
   while (true) {
-    if (is_nil_UIDListIterator(it) || compare_priority(env, real, data_UIDListIterator(it))) {
-      insert_IndexedUIList(env->available, real, it, real);
+    if (is_nil_IndexedUIListIterator(it) ||
+        compare_priority(env, real, data_IndexedUIListIterator(it))) {
+      insert_IndexedUIListIterator(env->available, real, it, real);
       break;
     }
-    it = next_UIDListIterator(it);
+    it = next_IndexedUIListIterator(it);
   }
 }
 
 static void add_to_active(Env* env, unsigned target_virt) {
   Interval* current = interval_of(env, target_virt);
 
-  UIDListIterator* it = front_UIDList(env->active->list);
+  IndexedUIListIterator* it = front_IndexedUIList(env->active);
   while (true) {
-    if (is_nil_UIDListIterator(it) ||
-        interval_of(env, data_UIDListIterator(it))->to > current->to) {
-      insert_IndexedUIList(env->active, target_virt, it, target_virt);
+    if (is_nil_IndexedUIListIterator(it) ||
+        interval_of(env, data_IndexedUIListIterator(it))->to > current->to) {
+      insert_IndexedUIListIterator(env->active, target_virt, it, target_virt);
       break;
     }
-    it = next_UIDListIterator(it);
+    it = next_IndexedUIListIterator(it);
   }
 }
 
 static unsigned find_free_reg(Env* env) {
-  if (is_empty_UIDList(env->available->list)) {
+  if (is_empty_IndexedUIList(env->available)) {
     error("no free reg found");
   }
-  return head_UIDList(env->available->list);
+  return head_IndexedUIList(env->available);
 }
 
 static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
   assert(get_UIVec(env->used_by, real) == -1);
   set_UIVec(env->used_by, real, virtual);
   set_UIVec(env->result, virtual, real);
-  remove_by_idx_IndexedUIList(env->available, real);
+  remove_by_idx_IndexedUIListIterator(env->available, real);
   add_to_active(env, virtual);
 }
 
@@ -192,20 +145,20 @@ static void release_reg(Env* env, unsigned virtual) {
   assert(real != -1 && real != -2);
 
   set_UIVec(env->used_by, real, -1);
-  remove_by_idx_IndexedUIList(env->active, virtual);
+  remove_by_idx_IndexedUIListIterator(env->active, virtual);
   add_to_available(env, real);
 }
 
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  UIDListIterator* it = front_UIDList(env->active->list);
-  while (!is_nil_UIDListIterator(it)) {
-    unsigned virtual = data_UIDListIterator(it);
+  IndexedUIListIterator* it = front_IndexedUIList(env->active);
+  while (!is_nil_IndexedUIListIterator(it)) {
+    unsigned virtual = data_IndexedUIListIterator(it);
     Interval* intv   = interval_of(env, virtual);
     if (intv->to >= target_iv->from) {
       return;
     }
     // NOTE: obtain `it` earlier because `release_reg` modifies active list
-    it = next_UIDListIterator(it);
+    it = next_IndexedUIListIterator(it);
 
     release_reg(env, virtual);
   }
@@ -224,16 +177,16 @@ static void spill_reg(Env* env, unsigned virt) {
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
-  UIDListIterator* spill_ptr = back_UIDList(env->active->list);
+  IndexedUIListIterator* spill_ptr = back_IndexedUIList(env->active);
   unsigned spill;
   Interval* spill_intv = NULL;
   while (true) {
-    spill      = data_UIDListIterator(spill_ptr);
+    spill      = data_IndexedUIListIterator(spill_ptr);
     spill_intv = interval_of(env, spill);
     if (spill_intv->kind != IV_FIXED) {
       break;
     } else {
-      spill_ptr = prev_UIDListIterator(spill_ptr);
+      spill_ptr = prev_IndexedUIListIterator(spill_ptr);
     }
   }
   assert(spill_intv->kind != IV_FIXED);
@@ -285,7 +238,7 @@ static void walk_regs(Env* env, UIList* l) {
 
   switch (iv->kind) {
     case IV_VIRTUAL:
-      if (is_empty_UIDList(env->available->list)) {
+      if (is_empty_IndexedUIList(env->available)) {
         spill_at_interval(env, virtual);
       } else {
         alloc_reg(env, virtual);

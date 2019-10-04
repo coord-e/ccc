@@ -59,7 +59,7 @@
     if (size <= prev) {                                                                            \
       return;                                                                                      \
     }                                                                                              \
-    reserve_##Name##IterRefVec(list->iterators, size);                                             \
+    resize_##Name##IterRefVec(list->iterators, size);                                              \
     for (unsigned i = prev; i < size; i++) {                                                       \
       set_##Name##IterRefVec(list->iterators, i, NULL);                                            \
     }                                                                                              \

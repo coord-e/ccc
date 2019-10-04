@@ -22,7 +22,8 @@
 static char doc[] = "ccc: c compiler";
 
 static char args_doc[] =
-    "[--emit-tokens FILE] [--emit-ast FILE] [--emit-ir1 FILE] [--emit-ir2 FILE] -o FILE SOURCE";
+    "[--emit-tokens FILE] [--emit-ast FILE] [--emit-ir1 FILE] [--emit-ir2 FILE] [-On] -o FILE "
+    "SOURCE";
 
 static struct argp_option options[] = {
     {"emit-tokens", 't', "FILE", 0, "Dump tokens to the file"},
@@ -31,6 +32,7 @@ static struct argp_option options[] = {
     {"emit-ir1", 'c', "FILE", 0, "Dump the initial IR to the file"},
     {"emit-ir2", 'i', "FILE", 0, "Dump the target-specific IR to the file"},
     {"emit-ir3", 'f', "FILE", 0, "Dump the final IR to the file"},
+    {"optimize", 'O', "INTEGER", 0, "Number of optimization iterations"},
     {"output", 'o', "FILE", 0, "Output to FILE"},
     {0}};
 
@@ -41,6 +43,8 @@ typedef struct {
   char* emit_ir1;
   char* emit_ir2;
   char* emit_ir3;
+
+  unsigned optimize;
 
   char* output;
   char* source;
@@ -70,6 +74,9 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
       break;
     case 'o':
       opts->output = arg;
+      break;
+    case 'O':
+      opts->optimize = atoi(arg);
       break;
 
     case ARGP_KEY_ARG:
@@ -171,8 +178,6 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
-  mem2reg(ir);
-
   arch(ir);
   if (opts.emit_ir2 != NULL) {
     FILE* f = open_file(opts.emit_ir2, "w");
@@ -180,15 +185,21 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
-  remove_dead_blocks(ir);
-  merge_blocks(ir);
-  reorder_blocks(ir);
+  for (unsigned i = 0; i < opts.optimize + 1; i++) {
+    remove_dead_blocks(ir);
+    merge_blocks(ir);
+    reorder_blocks(ir);
 
-  reach_data_flow(ir);
-  propagation(ir);
+    /* peephole(ir); */
+    mem2reg(ir);
 
-  live_data_flow(ir);
-  dead_code_elim(ir);
+    reach_data_flow(ir);
+    propagation(ir);
+
+    live_data_flow(ir);
+    dead_code_elim(ir);
+  }
+
   reg_alloc(num_regs, ir);
 
   if (opts.emit_ir3 != NULL) {

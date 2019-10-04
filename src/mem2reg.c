@@ -71,7 +71,7 @@ static void finish_Env(Env* env) {
 
 static void set_reg(BitSet* s, Reg* r) {
   assert(r != NULL);
-  assert(r->kind == REG_VIRT);
+  assert(r->kind == REG_VIRT || r->kind == REG_FIXED);
   set_BitSet(s, r->virtual, true);
 }
 
@@ -89,7 +89,7 @@ static void set_as_in_stack(Env* env, Reg* r) {
 
 static void bind_associated_area(Env* env, Reg* addr_reg, unsigned s) {
   assert(addr_reg != NULL);
-  assert(addr_reg->kind == REG_VIRT);
+  assert(addr_reg->kind == REG_VIRT || addr_reg->kind == REG_FIXED);
 
   set_UIVec(env->assoc_areas, addr_reg->virtual, s);
 }
@@ -104,17 +104,27 @@ static void collect_uses(Env* env, Function* ir) {
     IRInst* inst = data_IRInstListIterator(it);
     switch (inst->kind) {
       case IR_STACK_ADDR:
-        set_as_in_stack(env, inst->rd);
-        bind_associated_area(env, inst->rd, inst->stack_idx);
+        if (inst->rd->kind != REG_FIXED) {
+          set_as_in_stack(env, inst->rd);
+          bind_associated_area(env, inst->rd, inst->stack_idx);
+        }
         break;
-      case IR_LOAD:
-        set_as_candidate(env, get_RegVec(inst->ras, 0));
+      case IR_LOAD: {
+        Reg* rs = get_RegVec(inst->ras, 0);
+        if (rs->kind != REG_FIXED) {
+          set_as_candidate(env, rs);
+        }
         set_as_excluded(env, inst->rd);
         break;
-      case IR_STORE:
-        set_as_candidate(env, get_RegVec(inst->ras, 0));
+      }
+      case IR_STORE: {
+        Reg* rs = get_RegVec(inst->ras, 0);
+        if (rs->kind != REG_FIXED) {
+          set_as_candidate(env, rs);
+        }
         set_as_excluded(env, get_RegVec(inst->ras, 1));
         break;
+      }
       default:
         for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
           set_as_excluded(env, get_RegVec(inst->ras, i));

@@ -150,6 +150,15 @@ static void compute_global_live_sets(Function* ir) {
     push_BSVec(lasts, zero_BitSet(ir->reg_count));
   }
 
+  for (BBListIterator* it = front_BBList(ir->blocks); !is_nil_BBListIterator(it);
+       it                 = next_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
+    if (b->live_in != NULL) {
+      release_BitSet(b->live_in);
+    }
+    b->live_in = zero_BitSet(ir->reg_count);
+  }
+
   bool changed;
   bool is_first_loop = true;  // TODO: Improve the control flow
   do {
@@ -162,10 +171,10 @@ static void compute_global_live_sets(Function* ir) {
          it                 = prev_BBListIterator(it)) {
       BasicBlock* b = data_BBListIterator(it);
 
-      b->live_out = zero_BitSet(ir->reg_count);
-      if (b->live_in == NULL) {
-        b->live_in = zero_BitSet(ir->reg_count);
+      if (b->live_out != NULL) {
+        release_BitSet(b->live_out);
       }
+      b->live_out = zero_BitSet(ir->reg_count);
 
       iter_succs(b, front_BBRefList(b->succs));
 
@@ -234,6 +243,15 @@ static void compute_global_reach_sets(Function* ir) {
     push_BSVec(lasts, zero_BitSet(ir->inst_count));
   }
 
+  for (BBListIterator* it = front_BBList(ir->blocks); !is_nil_BBListIterator(it);
+       it                 = next_BBListIterator(it)) {
+    BasicBlock* b = data_BBListIterator(it);
+    if (b->reach_out != NULL) {
+      release_BitSet(b->reach_out);
+    }
+    b->reach_out = zero_BitSet(ir->inst_count);
+  }
+
   bool changed;
   bool is_first_loop = true;  // TODO: Improve the control flow
   do {
@@ -246,10 +264,10 @@ static void compute_global_reach_sets(Function* ir) {
          it                 = next_BBListIterator(it)) {
       BasicBlock* b = data_BBListIterator(it);
 
-      b->reach_out = zero_BitSet(ir->inst_count);
-      if (b->reach_in == NULL) {
-        b->reach_in = zero_BitSet(ir->inst_count);
+      if (b->reach_in != NULL) {
+        release_BitSet(b->reach_in);
       }
+      b->reach_in = zero_BitSet(ir->inst_count);
 
       iter_preds(b, front_BBRefList(b->preds));
 

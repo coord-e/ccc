@@ -22,3 +22,5 @@ char* strndup(const char* s, size_t n) {
   m[n] = '\0';
   return m;
 }
+
+void release_dummy(void* p) {}

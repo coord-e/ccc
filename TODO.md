@@ -18,7 +18,6 @@
   - use doubly-linked list
   - distinguish between deep and shallow copy
   - place shallow copies
-  - place dummy funcs in util
   - place UI* structures as common defs
   - release_Type: ignore NULL
   - new_Type: zero initialized and only take common fields

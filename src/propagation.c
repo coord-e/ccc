@@ -1,4 +1,5 @@
 #include "propagation.h"
+#include "util.h"
 
 static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
   BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
@@ -60,7 +61,6 @@ static void elim_branch(bool c, IRInst* inst) {
 }
 
 DECLARE_VECTOR(IRInst*, IRInstVec)
-static void release_dummy(void* p) {}
 DEFINE_VECTOR(release_dummy, IRInst*, IRInstVec)
 
 static void perform_propagation(Function* f, IRInst* inst) {

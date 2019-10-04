@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "double_list.h"
+#include "util.h"
 
 #define DECLARE_INDEXED_LIST(T, Name)                                                              \
   typedef struct Name Name;                                                                        \
@@ -37,8 +38,7 @@
   DECLARE_DLIST(T, Name##List)                                                                     \
   DEFINE_DLIST(release_data, T, Name##List)                                                        \
   DECLARE_VECTOR(Name##ListIterator*, Name##IterRefVec)                                            \
-  static void release_dummy_##Name(void* d) {}                                                     \
-  DEFINE_VECTOR(release_dummy_##Name, Name##ListIterator*, Name##IterRefVec)                       \
+  DEFINE_VECTOR(release_dummy, Name##ListIterator*, Name##IterRefVec)                              \
   struct Name {                                                                                    \
     Name##List* list;                                                                              \
     Name##IterRefVec* iterators;                                                                   \

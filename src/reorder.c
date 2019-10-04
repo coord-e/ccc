@@ -52,8 +52,13 @@ void number_insts_and_blocks(Function* f) {
     }
     IRInstListIterator* to = back_IRInstList(insts);
 
-    b->instructions->from = next_IRInstListIterator(before_from);
-    b->instructions->to   = to;
+    if (is_nil_IRInstListIterator(before_from)) {
+      assert(bb_count == 1);
+      b->instructions->from = front_IRInstList(insts);
+    } else {
+      b->instructions->from = next_IRInstListIterator(before_from);
+    }
+    b->instructions->to = to;
   }
 
   if (f->instructions != NULL) {

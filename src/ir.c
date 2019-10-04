@@ -207,7 +207,7 @@ static BasicBlock* new_bb(Env* env) {
   BasicBlock* bb   = calloc(1, sizeof(BasicBlock));
   bb->local_id     = local_id;
   bb->global_id    = global_id;
-  bb->instructions = new_IRInstRange(NULL, NULL);
+  bb->instructions = new_unchecked_IRInstRange(NULL, NULL);
   bb->succs        = new_BBRefList();
   bb->preds        = new_BBRefList();
 

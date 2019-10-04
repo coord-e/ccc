@@ -10,6 +10,7 @@
     TList##Iterator* to;                                                                           \
   } Name;                                                                                          \
   typedef struct Name##Iterator Name##Iterator;                                                    \
+  Name* new_unchecked_##Name(TList##Iterator* from, TList##Iterator* to);                          \
   Name* new_##Name(TList##Iterator* from, TList##Iterator* to);                                    \
   Name##Iterator* front_##Name(const Name* list);                                                  \
   Name##Iterator* back_##Name(const Name* list);                                                   \
@@ -33,13 +34,16 @@
     it->range          = (Name*)range;                                                             \
     return it;                                                                                     \
   }                                                                                                \
-  Name* new_##Name(TList##Iterator* from, TList##Iterator* to) {                                   \
-    assert(!is_nil_##TList##Iterator(from));                                                       \
-    assert(!is_nil_##TList##Iterator(to));                                                         \
+  Name* new_unchecked_##Name(TList##Iterator* from, TList##Iterator* to) {                         \
     Name* new = malloc(sizeof(Name));                                                              \
     new->from = from;                                                                              \
     new->to   = to;                                                                                \
     return new;                                                                                    \
+  }                                                                                                \
+  Name* new_##Name(TList##Iterator* from, TList##Iterator* to) {                                   \
+    assert(!is_nil_##TList##Iterator(from));                                                       \
+    assert(!is_nil_##TList##Iterator(to));                                                         \
+    return new_unchecked_##Name(from, to);                                                         \
   }                                                                                                \
   Name##Iterator* front_##Name(const Name* list) {                                                 \
     assert(!is_nil_##TList##Iterator(list->from));                                                 \

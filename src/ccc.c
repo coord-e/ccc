@@ -171,8 +171,6 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
-  mem2reg(ir);
-
   arch(ir);
   if (opts.emit_ir2 != NULL) {
     FILE* f = open_file(opts.emit_ir2, "w");
@@ -180,15 +178,21 @@ int main(int argc, char** argv) {
     close_file(f);
   }
 
-  remove_dead_blocks(ir);
-  merge_blocks(ir);
-  reorder_blocks(ir);
+  for (unsigned i = 0; i < 5; i++) {
+    remove_dead_blocks(ir);
+    merge_blocks(ir);
+    reorder_blocks(ir);
 
-  reach_data_flow(ir);
-  propagation(ir);
+    /* peephole(ir); */
+    mem2reg(ir);
 
-  live_data_flow(ir);
-  dead_code_elim(ir);
+    reach_data_flow(ir);
+    propagation(ir);
+
+    live_data_flow(ir);
+    dead_code_elim(ir);
+  }
+
   reg_alloc(num_regs, ir);
 
   if (opts.emit_ir3 != NULL) {

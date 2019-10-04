@@ -10,6 +10,8 @@
   typedef struct Name Name;                                                                        \
   typedef struct Name##ListIterator Name##Iterator;                                                \
   Name* new_##Name(unsigned size);                                                                 \
+  unsigned capacity_##Name(const Name*);                                                           \
+  void reserve_##Name(const Name*, unsigned size);                                                 \
   T data_##Name##Iterator(const Name##Iterator* iter);                                             \
   T get_##Name(const Name*, unsigned idx);                                                         \
   Name##Iterator* get_iterator_##Name(const Name*, unsigned idx);                                  \
@@ -48,12 +50,27 @@
     fill_##Name##IterRefVec(l->iterators, NULL);                                                   \
     return l;                                                                                      \
   }                                                                                                \
+  unsigned capacity_##Name(const Name* list) {                                                     \
+    return length_##Name##IterRefVec(list->iterators);                                             \
+  }                                                                                                \
+  void reserve_##Name(const Name* list, unsigned size) {                                           \
+    unsigned prev = length_##Name##IterRefVec(list->iterators);                                    \
+    if (size <= prev) {                                                                            \
+      return;                                                                                      \
+    }                                                                                              \
+    reserve_##Name##IterRefVec(list->iterators, size);                                             \
+    for (unsigned i = prev; i < size; i++) {                                                       \
+      set_##Name##IterRefVec(list->iterators, i, NULL);                                            \
+    }                                                                                              \
+  }                                                                                                \
   void push_front_with_idx_##Name(Name* list, unsigned idx, T value) {                             \
+    reserve_##name(list, idx + 1);                                                                 \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     push_front_##Name##List(list->list, value);                                                    \
     set_##Name##IterRefVec(list->iterators, idx, front_##Name##List(list->list));                  \
   }                                                                                                \
   void push_back_with_idx_##Name(Name* list, unsigned idx, T value) {                              \
+    reserve_##name(list, idx + 1);                                                                 \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     push_back_##Name##List(list->list, value);                                                     \
     set_##Name##IterRefVec(list->iterators, idx, back_##Name##List(list->list));                   \
@@ -79,6 +96,7 @@
   }                                                                                                \
   Name##Iterator* insert_with_idx_##Name##Iterator(Name* list, unsigned idx, Name##Iterator* iter, \
                                                    T value) {                                      \
+    reserve_##name(list, idx + 1);                                                                 \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     Name##ListIterator* new = insert_##Name##ListIterator(iter, value);                            \
     set_##Name##IterRefVec(list->iterators, idx, new);                                             \

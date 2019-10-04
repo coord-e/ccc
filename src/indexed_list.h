@@ -22,6 +22,7 @@
   Name##Iterator* remove_by_idx_##Name##Iterator(Name*, unsigned idx);                             \
   Name##Iterator* insert_with_idx_##Name##Iterator(Name*, unsigned idx, Name##Iterator* iter,      \
                                                    T value);                                       \
+  void move_##Name##Iterator(Name##Iterator* it, Name##Iterator* from, Name##Iterator* to);        \
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
   bool is_empty_##Name(Name* list);                                                                \
@@ -114,6 +115,9 @@
     Name##Iterator* it = get_##Name##IterRefVec(list->iterators, idx);                             \
     assert(it != NULL);                                                                            \
     return remove_with_idx_##Name##Iterator(list, idx, it);                                        \
+  }                                                                                                \
+  void move_##Name##Iterator(Name##Iterator* it, Name##Iterator* from, Name##Iterator* to) {       \
+    move_##Name##ListIterator(it, from, to);                                                       \
   }                                                                                                \
   bool is_empty_##Name(Name* list) { return is_empty_##Name##List(list->list); }                   \
   T head_##Name(Name* list) { return head_##Name##List(list->list); }                              \

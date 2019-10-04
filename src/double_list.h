@@ -19,6 +19,7 @@
   bool is_nil_##Name##Iterator(const Name##Iterator* iter);                                        \
   Name##Iterator* remove_##Name##Iterator(Name##Iterator* iter);                                   \
   Name##Iterator* insert_##Name##Iterator(Name##Iterator* iter, T value);                          \
+  void move_##Name##Iterator(Name##Iterator* it, Name##Iterator* from, Name##Iterator* to);        \
   Name##Iterator* front_##Name(Name* list);                                                        \
   Name##Iterator* back_##Name(Name* list);                                                         \
   bool is_empty_##Name(Name* list);                                                                \
@@ -129,6 +130,14 @@
     iter->prev->next   = it;                                                                       \
     iter->prev         = it;                                                                       \
     return it;                                                                                     \
+  }                                                                                                \
+  void move_##Name##Iterator(Name##Iterator* it, Name##Iterator* from, Name##Iterator* to) {       \
+    from->prev->next = to->next;                                                                   \
+    to->next->prev   = from->prev;                                                                 \
+    it->prev->next   = from;                                                                       \
+    from->prev       = it->prev;                                                                   \
+    it->prev         = to;                                                                         \
+    to->next         = it;                                                                         \
   }                                                                                                \
   bool is_empty_##Name(Name* list) {                                                               \
     assert(list->init->next->is_nil == list->last->prev->is_nil);                                  \

@@ -46,7 +46,8 @@ static void merge_two(Function* f, BasicBlock* from, BasicBlock* to) {
       move_IRInstListIterator(from_last, to_head, to_last);
       remove_IRInstListIterator(f->instructions, from_last);
       remove_IRInstListIterator(f->instructions, to_head);
-      BBRefList* succs = shallow_copy_BBRefList(to->succs);
+      from->instructions->to = to->instructions->to;
+      BBRefList* succs       = shallow_copy_BBRefList(to->succs);
       detach_BasicBlock(f, to);
       reconnect_blocks(from, succs);
       break;

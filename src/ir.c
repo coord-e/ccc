@@ -1461,7 +1461,7 @@ static unsigned print_graph_insts(FILE* p, IRInstRangeIterator* it) {
   IRInst* i1             = data_IRInstRangeIterator(it);
   IRInstRangeIterator* t = next_IRInstRangeIterator(it);
 
-  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->global_id, i1->global_id);
+  fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->global_id, i1->local_id);
   print_inst(p, i1);
   fputs("\"];\n", p);
 

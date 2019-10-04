@@ -1456,19 +1456,19 @@ static void print_inst(FILE* p, IRInst* i) {
 }
 
 // NOTE: printers below are to print CFG in dot language
-static unsigned print_graph_insts(FILE* p, IRInstListIterator* it) {
-  IRInst* i1            = data_IRInstListIterator(it);
-  IRInstListIterator* t = next_IRInstListIterator(it);
+static unsigned print_graph_insts(FILE* p, IRInstRangeIterator* it) {
+  IRInst* i1             = data_IRInstRangeIterator(it);
+  IRInstRangeIterator* t = next_IRInstRangeIterator(it);
 
   fprintf(p, "inst_%d [shape=record,fontname=monospace,label=\"%d|", i1->global_id, i1->global_id);
   print_inst(p, i1);
   fputs("\"];\n", p);
 
-  if (is_nil_IRInstListIterator(t)) {
+  if (is_nil_IRInstRangeIterator(t)) {
     return i1->global_id;
   }
 
-  IRInst* i2 = data_IRInstListIterator(t);
+  IRInst* i2 = data_IRInstRangeIterator(t);
   fprintf(p, "inst_%d -> inst_%d;\n", i1->global_id, i2->global_id);
   return print_graph_insts(p, t);
 }

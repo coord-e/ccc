@@ -287,7 +287,7 @@ static void emit_spill_load(Env* env, Reg* r, IRInstListIterator* it) {
   inst->rd        = copy_Reg(r);
   inst->stack_idx = get_UIVec(env->locations, r->virtual);
   inst->data_size = r->size;
-  insert_IRInstListIterator(it, inst);
+  insert_IRInstListIterator(env->f->instructions, it, inst);
 }
 
 static void emit_spill_store(Env* env, Reg* r, IRInstListIterator* it) {
@@ -296,43 +296,36 @@ static void emit_spill_store(Env* env, Reg* r, IRInstListIterator* it) {
   inst->stack_idx = get_UIVec(env->locations, r->virtual);
   inst->data_size = r->size;
 
-  insert_IRInstListIterator(it, inst);
+  insert_IRInstListIterator(env->f->instructions, it, inst);
 }
 
-static void assign_reg_num_iter_insts(Env* env, IRInstListIterator* it) {
-  if (is_nil_IRInstListIterator(it)) {
-    return;
-  }
+static void assign_reg_num(Env* env) {
+  for (IRInstListIterator* it             = front_IRInstList(env->f->instructions);
+       !is_nil_IRInstListIterator(it); it = next_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
 
-  IRInst* inst             = data_IRInstListIterator(it);
-  IRInstListIterator* next = next_IRInstListIterator(it);
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      Reg* ra = get_RegVec(inst->ras, i);
 
-  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* ra = get_RegVec(inst->ras, i);
+      if (assign_reg(env, ra)) {
+        emit_spill_load(env, ra, it);
+      }
+    }
 
-    if (assign_reg(env, ra)) {
-      emit_spill_load(env, ra, it);
+    if (inst->rd != NULL) {
+      if (assign_reg(env, inst->rd)) {
+        emit_spill_store(env, inst->rd, next_IRInstListIterator(it));
+      }
     }
   }
-
-  if (inst->rd != NULL) {
-    if (assign_reg(env, inst->rd)) {
-      emit_spill_store(env, inst->rd, next);
-      next = next_IRInstListIterator(next);
-    }
-  }
-
-  assign_reg_num_iter_insts(env, next);
 }
 
-static void assign_reg_num(Env* env, BBListIterator* it) {
+static void calc_preserve_regs(Env* env, BBListIterator* it) {
   if (is_nil_BBListIterator(it)) {
     return;
   }
 
   BasicBlock* b = data_BBListIterator(it);
-
-  assign_reg_num_iter_insts(env, front_IRInstList(b->insts));
 
   if (b->is_call_bb) {
     b->should_preserve = new_BitSet(env->usable_regs_count + 1);
@@ -350,7 +343,7 @@ static void assign_reg_num(Env* env, BBListIterator* it) {
     release_BitSet(s);
   }
 
-  assign_reg_num(env, next_BBListIterator(it));
+  calc_preserve_regs(env, next_BBListIterator(it));
 }
 
 static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, Function* ir) {
@@ -362,7 +355,8 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
 
   release_UIList(ordered_regs);
 
-  assign_reg_num(env, front_BBList(ir->blocks));
+  assign_reg_num(env);
+  calc_preserve_regs(env, front_BBList(ir->blocks));
 
   ir->used_regs = zero_BitSet(num_regs);
   for (unsigned i = 0; i < length_UIVec(env->result); i++) {
@@ -429,11 +423,11 @@ static void set_from(Interval* iv, unsigned from) {
   }
 }
 
-static void build_intervals_insts(RegIntervals* ivs, IRInstList* insts, unsigned block_from) {
+static void build_intervals_insts(RegIntervals* ivs, IRInstRange* insts, unsigned block_from) {
   // reverse order
-  for (IRInstListIterator* it = back_IRInstList(insts); !is_nil_IRInstListIterator(it);
-       it                     = prev_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
+  for (IRInstRangeIterator* it = back_IRInstRange(insts); !is_nil_IRInstRangeIterator(it);
+       it                      = prev_IRInstRangeIterator(it)) {
+    IRInst* inst = data_IRInstRangeIterator(it);
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       Reg* ra = get_RegVec(inst->ras, i);
@@ -461,8 +455,8 @@ static RegIntervals* build_intervals(Function* ir) {
   for (BBListIterator* it = back_BBList(ir->blocks); !is_nil_BBListIterator(it);
        it                 = prev_BBListIterator(it)) {
     BasicBlock* b       = data_BBListIterator(it);
-    unsigned block_from = head_IRInstList(b->insts)->local_id;
-    unsigned block_to   = last_IRInstList(b->insts)->local_id;
+    unsigned block_from = head_IRInstRange(b->instructions)->local_id;
+    unsigned block_to   = last_IRInstRange(b->instructions)->local_id;
 
     for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
       if (get_BitSet(b->live_out, vi)) {
@@ -471,7 +465,7 @@ static RegIntervals* build_intervals(Function* ir) {
       }
     }
 
-    build_intervals_insts(ivs, b->insts, block_from);
+    build_intervals_insts(ivs, b->instructions, block_from);
   }
 
   return ivs;

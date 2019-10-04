@@ -120,12 +120,12 @@ static void codegen_cmp(FILE* p, IRInst* inst);
 static void codegen_br_cmp(FILE* p, IRInst* inst);
 static void codegen_una(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterator* it) {
-  if (is_nil_IRInstListIterator(it)) {
+static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeIterator* it) {
+  if (is_nil_IRInstRangeIterator(it)) {
     return;
   }
 
-  IRInst* h = data_IRInstListIterator(it);
+  IRInst* h = data_IRInstRangeIterator(it);
   switch (h->kind) {
     case IR_NOP:
       break;
@@ -240,7 +240,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstListIterat
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, bb, next_IRInstListIterator(it));
+  codegen_insts(p, f, bb, next_IRInstRangeIterator(it));
 }
 
 static void codegen_br_cmp(FILE* p, IRInst* inst) {
@@ -437,7 +437,7 @@ static void codegen_blocks(FILE* p, Function* f, BBListIterator* it) {
 
   BasicBlock* b = data_BBListIterator(it);
 
-  codegen_insts(p, f, b, front_IRInstList(b->insts));
+  codegen_insts(p, f, b, front_IRInstRange(b->instructions));
 
   codegen_blocks(p, f, next_BBListIterator(it));
 }
@@ -451,6 +451,8 @@ static void codegen_functions(FILE* p, FunctionList* l) {
   emit(p, ".global %s", f->name);
   emit_label(p, f->name);
   emit_prologue(p, f);
+
+  // TODO: iterate from f->instructions after removing uses of bb->is_call_bb
   codegen_blocks(p, f, front_BBList(f->blocks));
 
   codegen_functions(p, tail_FunctionList(l));

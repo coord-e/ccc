@@ -1194,6 +1194,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
   Env* env = new_env(genv, ast);
 
   BasicBlock* entry = new_bb(env);
+  env->entry        = entry;
   start_bb(env, entry);
   // if the parameter is `void`, the lengths of `ast->params` and `ast->type->params` differs
   if (length_TypeVec(ast->type->params) != 0) {
@@ -1206,7 +1207,7 @@ static Function* gen_function(GlobalEnv* genv, FunctionDef* ast) {
 
   Function* ir     = calloc(1, sizeof(Function));
   ir->name         = strdup(ast->decl->direct->name_ref);
-  ir->entry        = entry;
+  ir->entry        = env->entry;
   ir->exit         = env->cur;
   ir->bb_count     = env->bb_count;
   ir->reg_count    = env->reg_count;

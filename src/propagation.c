@@ -32,7 +32,7 @@ static bool is_imm_inst(IRInst* inst) {
 
 static BasicBlock* find_parent_block(IRInst* inst) {
   // TODO: Use cheaper way to obtain corresponding block
-  assert(inst->kind == IR_BR | inst->kind == IR_BR_CMP | inst->kind == IR_BR_CMP_IMM);
+  assert(inst->kind == IR_BR || inst->kind == IR_BR_CMP || inst->kind == IR_BR_CMP_IMM);
   for (BBRefListIterator* it = front_BBRefList(inst->then_->preds); !is_nil_BBRefListIterator(it);
        it                    = next_BBRefListIterator(it)) {
     BasicBlock* b = data_BBRefListIterator(it);

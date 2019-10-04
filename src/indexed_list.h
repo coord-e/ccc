@@ -65,13 +65,13 @@
     }                                                                                              \
   }                                                                                                \
   void push_front_with_idx_##Name(Name* list, unsigned idx, T value) {                             \
-    reserve_##name(list, idx + 1);                                                                 \
+    reserve_##Name(list, idx + 1);                                                                 \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     push_front_##Name##List(list->list, value);                                                    \
     set_##Name##IterRefVec(list->iterators, idx, front_##Name##List(list->list));                  \
   }                                                                                                \
   void push_back_with_idx_##Name(Name* list, unsigned idx, T value) {                              \
-    reserve_##name(list, idx + 1);                                                                 \
+    reserve_##Name(list, idx + 1);                                                                 \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     push_back_##Name##List(list->list, value);                                                     \
     set_##Name##IterRefVec(list->iterators, idx, back_##Name##List(list->list));                   \
@@ -97,7 +97,7 @@
   }                                                                                                \
   Name##Iterator* insert_with_idx_##Name##Iterator(Name* list, unsigned idx, Name##Iterator* iter, \
                                                    T value) {                                      \
-    reserve_##name(list, idx + 1);                                                                 \
+    reserve_##Name(list, idx + 1);                                                                 \
     assert(get_##Name##IterRefVec(list->iterators, idx) == NULL);                                  \
     Name##ListIterator* new = insert_##Name##ListIterator(iter, value);                            \
     set_##Name##IterRefVec(list->iterators, idx, new);                                             \

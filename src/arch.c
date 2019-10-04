@@ -279,12 +279,12 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
       Reg* ra    = get_RegVec(inst->ras, 0);
       Reg* rax   = rax_fixed_reg(env, ra->size);
       IRInst* i1 = new_move(env, rax, ra);
-      IRInst* i2 = new_ret(env, rax);
-      release_Reg(rax);
 
-      it = remove_IRInstListIterator(list, it);
+      set_RegVec(inst->ras, 0, copy_Reg(rax));
       insert_IRInstListIterator(list, it, i1);
-      insert_IRInstListIterator(list, it, i2);
+
+      release_Reg(rax);
+      release_Reg(ra);
       break;
     default:
       break;

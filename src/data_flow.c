@@ -47,36 +47,27 @@ void reach_data_flow(IR* ir) {
   }
 }
 
-static void collect_defs_insts(BSVec* defs, IRInstListIterator* it) {
-  while (!is_nil_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
-    if (inst->rd != NULL) {
-      set_BitSet(get_BSVec(defs, inst->rd->virtual), inst->local_id, true);
-    }
-    it = next_IRInstListIterator(it);
-  }
-}
-
 static void collect_defs(Function* f) {
   BSVec* defs = new_BSVec(f->reg_count);
   for (unsigned i = 0; i < f->reg_count; i++) {
     push_BSVec(defs, zero_BitSet(f->inst_count));
   }
 
-  BBListIterator* it = front_BBList(f->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* b = data_BBListIterator(it);
-    collect_defs_insts(defs, front_IRInstList(b->insts));
-    it = next_BBListIterator(it);
+  for (IRInstListIterator* it = front_IRInstList(f->instructions); !is_nil_IRInstListIterator(it);
+       it                     = next_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
+    if (inst->rd != NULL) {
+      set_BitSet(get_BSVec(defs, inst->rd->virtual), inst->local_id, true);
+    }
   }
 
   f->definitions = defs;
 }
 
-static void iter_insts_forward(BasicBlock* b, IRInstList* insts) {
-  for (IRInstListIterator* it = front_IRInstList(insts); !is_nil_IRInstListIterator(it);
-       it                     = next_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
+static void iter_insts_forward(BasicBlock* b, IRInstRange* insts) {
+  for (IRInstRangeIterator* it = front_IRInstRange(insts); !is_nil_IRInstRangeIterator(it);
+       it                      = next_IRInstRangeIterator(it)) {
+    IRInst* inst = data_IRInstRangeIterator(it);
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       Reg* ra = get_RegVec(inst->ras, i);
@@ -93,10 +84,10 @@ static void iter_insts_forward(BasicBlock* b, IRInstList* insts) {
   }
 }
 
-static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstList* insts) {
-  for (IRInstListIterator* it = back_IRInstList(insts); !is_nil_IRInstListIterator(it);
-       it                     = prev_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
+static void iter_insts_backward(BSVec* defs, BasicBlock* b, IRInstRange* insts) {
+  for (IRInstRangeIterator* it = back_IRInstRange(insts); !is_nil_IRInstRangeIterator(it);
+       it                      = prev_IRInstRangeIterator(it)) {
+    IRInst* inst = data_IRInstRangeIterator(it);
     unsigned id  = inst->local_id;
 
     if (inst->rd == NULL) {
@@ -122,7 +113,7 @@ static void compute_local_live_sets(Function* ir) {
     b->live_gen  = zero_BitSet(ir->reg_count);
     b->live_kill = zero_BitSet(ir->reg_count);
 
-    iter_insts_forward(b, b->insts);
+    iter_insts_forward(b, b->instructions);
   }
 }
 
@@ -134,7 +125,7 @@ static void compute_local_reach_sets(Function* ir) {
     b->reach_gen  = zero_BitSet(ir->inst_count);
     b->reach_kill = zero_BitSet(ir->inst_count);
 
-    iter_insts_backward(ir->definitions, b, b->insts);
+    iter_insts_backward(ir->definitions, b, b->instructions);
   }
 }
 
@@ -197,9 +188,9 @@ static void compute_inst_live_sets(Function* ir) {
     BasicBlock* b = data_BBListIterator(it1);
 
     BitSet* live = copy_BitSet(b->live_out);
-    for (IRInstListIterator* it2 = back_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
-         it2                     = prev_IRInstListIterator(it2)) {
-      IRInst* inst = data_IRInstListIterator(it2);
+    for (IRInstRangeIterator* it2              = back_IRInstRange(b->instructions);
+         !is_nil_IRInstRangeIterator(it2); it2 = prev_IRInstRangeIterator(it2)) {
+      IRInst* inst = data_IRInstRangeIterator(it2);
 
       if (inst->live_out != NULL) {
         release_BitSet(inst->live_out);
@@ -281,9 +272,9 @@ static void compute_inst_reach_sets(Function* ir) {
     BasicBlock* b = data_BBListIterator(it1);
 
     BitSet* reach = copy_BitSet(b->reach_in);
-    for (IRInstListIterator* it2 = front_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
-         it2                     = next_IRInstListIterator(it2)) {
-      IRInst* inst = data_IRInstListIterator(it2);
+    for (IRInstRangeIterator* it2              = front_IRInstRange(b->instructions);
+         !is_nil_IRInstRangeIterator(it2); it2 = next_IRInstRangeIterator(it2)) {
+      IRInst* inst = data_IRInstRangeIterator(it2);
 
       if (inst->reach_in != NULL) {
         release_BitSet(inst->reach_in);

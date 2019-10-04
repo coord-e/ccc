@@ -1,74 +1,26 @@
 #include "reg_alloc.h"
 #include "arch.h"
 #include "bit_set.h"
-#include "double_list.h"
+#include "indexed_list.h"
+#include "list.h"
 #include "vector.h"
 
 // TODO: Type and distinguish real and virtual register index
 // TODO: Stop using -1 or 0 to mark something
 
 static void release_unsigned(unsigned i) {}
-
-DECLARE_DLIST(unsigned, UIDList)
-DEFINE_DLIST(release_unsigned, unsigned, UIDList)
-
 DECLARE_LIST(unsigned, UIList)
 DEFINE_LIST(release_unsigned, unsigned, UIList)
 
-static void release_dummy(UIDListIterator* p) {}
-DECLARE_VECTOR(UIDListIterator*, UIDLIterVec)
-DEFINE_VECTOR(release_dummy, UIDListIterator*, UIDLIterVec)
+DECLARE_INDEXED_LIST(unsigned, UIIList)
+DEFINE_INDEXED_LIST(release_unsigned, unsigned, UIIList)
 
 typedef struct {
-  UIDList* list;
-  UIDLIterVec* iterators;
-} IndexedUIList;
-
-static IndexedUIList* new_IndexedUIList(unsigned max_idx) {
-  IndexedUIList* l = calloc(1, sizeof(IndexedUIList));
-  l->list          = new_UIDList();
-  l->iterators     = new_UIDLIterVec(max_idx);
-  resize_UIDLIterVec(l->iterators, max_idx);
-  fill_UIDLIterVec(l->iterators, NULL);
-  return l;
-}
-
-static void release_IndexedUIList(IndexedUIList* l) {
-  release_UIDList(l->list);
-  // TODO: shallow release
-  /* release_UIDIterVec(l->iterators); */
-}
-
-static UIDListIterator* get_IndexedUIList(IndexedUIList* l, unsigned idx) {
-  return get_UIDLIterVec(l->iterators, idx);
-}
-
-static UIDListIterator* insert_IndexedUIList(IndexedUIList* l,
-                                             unsigned idx,
-                                             UIDListIterator* it,
-                                             unsigned val) {
-  UIDListIterator* new = insert_UIDListIterator(it, val);
-  set_UIDLIterVec(l->iterators, idx, new);
-  return new;
-}
-
-static void remove_IndexedUIList(IndexedUIList* l, unsigned idx, UIDListIterator* it) {
-  remove_UIDListIterator(it);
-  set_UIDLIterVec(l->iterators, idx, NULL);
-}
-
-static void remove_by_idx_IndexedUIList(IndexedUIList* l, unsigned idx) {
-  UIDListIterator* it = get_UIDLIterVec(l->iterators, idx);
-  assert(it != NULL);
-  remove_IndexedUIList(l, idx, it);
-}
-
-typedef struct {
-  IndexedUIList* active;     // owned, a list of virtual registers
-  IndexedUIList* available;  // owned, a list of real registers
-  UIVec* used_by;            // owned, -1 -> not used
-  UIVec* result;             // owned, -1 -> not allocated, -2 -> spilled
-  UIVec* locations;          // owned, -1 -> not spilled
+  UIIList* active;     // owned, a list of virtual registers
+  UIIList* available;  // owned, a list of real registers
+  UIVec* used_by;      // owned, -1 -> not used
+  UIVec* result;       // owned, -1 -> not allocated, -2 -> spilled
+  UIVec* locations;    // owned, -1 -> not spilled
   unsigned usable_regs_count;
   unsigned reserved_for_spill;
 
@@ -86,8 +38,8 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
   env->f                  = f;
   env->usable_regs_count  = real_count - 1;
   env->reserved_for_spill = real_count - 1;
-  env->active             = new_IndexedUIList(virt_count);
-  env->available          = new_IndexedUIList(env->usable_regs_count);
+  env->active             = new_UIIList(virt_count);
+  env->available          = new_UIIList(env->usable_regs_count);
   env->used_by            = new_UIVec(env->usable_regs_count);
   resize_UIVec(env->used_by, env->usable_regs_count);
   fill_UIVec(env->used_by, -1);
@@ -110,8 +62,8 @@ static Env* init_Env(Function* f, unsigned* global_count, unsigned real_count) {
 }
 
 static void release_Env(Env* env) {
-  release_IndexedUIList(env->active);
-  release_IndexedUIList(env->available);
+  release_UIIList(env->active);
+  release_UIIList(env->available);
   release_UIVec(env->used_by);
   release_UIVec(env->result);
   release_UIVec(env->locations);
@@ -143,42 +95,42 @@ static bool compare_priority(Env* env, unsigned r1, unsigned r2) {
 }
 
 static void add_to_available(Env* env, unsigned real) {
-  UIDListIterator* it = front_UIDList(env->available->list);
+  UIIListIterator* it = front_UIIList(env->available);
   while (true) {
-    if (is_nil_UIDListIterator(it) || compare_priority(env, real, data_UIDListIterator(it))) {
-      insert_IndexedUIList(env->available, real, it, real);
+    if (is_nil_UIIListIterator(it) || compare_priority(env, real, data_UIIListIterator(it))) {
+      insert_with_idx_UIIListIterator(env->available, real, it, real);
       break;
     }
-    it = next_UIDListIterator(it);
+    it = next_UIIListIterator(it);
   }
 }
 
 static void add_to_active(Env* env, unsigned target_virt) {
   Interval* current = interval_of(env, target_virt);
 
-  UIDListIterator* it = front_UIDList(env->active->list);
+  UIIListIterator* it = front_UIIList(env->active);
   while (true) {
-    if (is_nil_UIDListIterator(it) ||
-        interval_of(env, data_UIDListIterator(it))->to > current->to) {
-      insert_IndexedUIList(env->active, target_virt, it, target_virt);
+    if (is_nil_UIIListIterator(it) ||
+        interval_of(env, data_UIIListIterator(it))->to > current->to) {
+      insert_with_idx_UIIListIterator(env->active, target_virt, it, target_virt);
       break;
     }
-    it = next_UIDListIterator(it);
+    it = next_UIIListIterator(it);
   }
 }
 
 static unsigned find_free_reg(Env* env) {
-  if (is_empty_UIDList(env->available->list)) {
+  if (is_empty_UIIList(env->available)) {
     error("no free reg found");
   }
-  return head_UIDList(env->available->list);
+  return head_UIIList(env->available);
 }
 
 static void alloc_specific_reg(Env* env, unsigned virtual, unsigned real) {
   assert(get_UIVec(env->used_by, real) == -1);
   set_UIVec(env->used_by, real, virtual);
   set_UIVec(env->result, virtual, real);
-  remove_by_idx_IndexedUIList(env->available, real);
+  remove_by_idx_UIIListIterator(env->available, real);
   add_to_active(env, virtual);
 }
 
@@ -192,20 +144,20 @@ static void release_reg(Env* env, unsigned virtual) {
   assert(real != -1 && real != -2);
 
   set_UIVec(env->used_by, real, -1);
-  remove_by_idx_IndexedUIList(env->active, virtual);
+  remove_by_idx_UIIListIterator(env->active, virtual);
   add_to_available(env, real);
 }
 
 static void expire_old_intervals(Env* env, Interval* target_iv) {
-  UIDListIterator* it = front_UIDList(env->active->list);
-  while (!is_nil_UIDListIterator(it)) {
-    unsigned virtual = data_UIDListIterator(it);
+  UIIListIterator* it = front_UIIList(env->active);
+  while (!is_nil_UIIListIterator(it)) {
+    unsigned virtual = data_UIIListIterator(it);
     Interval* intv   = interval_of(env, virtual);
     if (intv->to >= target_iv->from) {
       return;
     }
     // NOTE: obtain `it` earlier because `release_reg` modifies active list
-    it = next_UIDListIterator(it);
+    it = next_UIIListIterator(it);
 
     release_reg(env, virtual);
   }
@@ -224,16 +176,16 @@ static void spill_reg(Env* env, unsigned virt) {
 }
 
 static void spill_at_interval(Env* env, unsigned target) {
-  UIDListIterator* spill_ptr = back_UIDList(env->active->list);
+  UIIListIterator* spill_ptr = back_UIIList(env->active);
   unsigned spill;
   Interval* spill_intv = NULL;
   while (true) {
-    spill      = data_UIDListIterator(spill_ptr);
+    spill      = data_UIIListIterator(spill_ptr);
     spill_intv = interval_of(env, spill);
     if (spill_intv->kind != IV_FIXED) {
       break;
     } else {
-      spill_ptr = prev_UIDListIterator(spill_ptr);
+      spill_ptr = prev_UIIListIterator(spill_ptr);
     }
   }
   assert(spill_intv->kind != IV_FIXED);
@@ -285,7 +237,7 @@ static void walk_regs(Env* env, UIList* l) {
 
   switch (iv->kind) {
     case IV_VIRTUAL:
-      if (is_empty_UIDList(env->available->list)) {
+      if (is_empty_UIIList(env->available)) {
         spill_at_interval(env, virtual);
       } else {
         alloc_reg(env, virtual);
@@ -335,7 +287,7 @@ static void emit_spill_load(Env* env, Reg* r, IRInstListIterator* it) {
   inst->rd        = copy_Reg(r);
   inst->stack_idx = get_UIVec(env->locations, r->virtual);
   inst->data_size = r->size;
-  insert_IRInstListIterator(it, inst);
+  insert_IRInstListIterator(env->f->instructions, it, inst);
 }
 
 static void emit_spill_store(Env* env, Reg* r, IRInstListIterator* it) {
@@ -344,43 +296,36 @@ static void emit_spill_store(Env* env, Reg* r, IRInstListIterator* it) {
   inst->stack_idx = get_UIVec(env->locations, r->virtual);
   inst->data_size = r->size;
 
-  insert_IRInstListIterator(it, inst);
+  insert_IRInstListIterator(env->f->instructions, it, inst);
 }
 
-static void assign_reg_num_iter_insts(Env* env, IRInstListIterator* it) {
-  if (is_nil_IRInstListIterator(it)) {
-    return;
-  }
+static void assign_reg_num(Env* env) {
+  for (IRInstListIterator* it             = front_IRInstList(env->f->instructions);
+       !is_nil_IRInstListIterator(it); it = next_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
 
-  IRInst* inst             = data_IRInstListIterator(it);
-  IRInstListIterator* next = next_IRInstListIterator(it);
+    for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+      Reg* ra = get_RegVec(inst->ras, i);
 
-  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* ra = get_RegVec(inst->ras, i);
+      if (assign_reg(env, ra)) {
+        emit_spill_load(env, ra, it);
+      }
+    }
 
-    if (assign_reg(env, ra)) {
-      emit_spill_load(env, ra, it);
+    if (inst->rd != NULL) {
+      if (assign_reg(env, inst->rd)) {
+        emit_spill_store(env, inst->rd, next_IRInstListIterator(it));
+      }
     }
   }
-
-  if (inst->rd != NULL) {
-    if (assign_reg(env, inst->rd)) {
-      emit_spill_store(env, inst->rd, next);
-      next = next_IRInstListIterator(next);
-    }
-  }
-
-  assign_reg_num_iter_insts(env, next);
 }
 
-static void assign_reg_num(Env* env, BBListIterator* it) {
+static void calc_preserve_regs(Env* env, BBListIterator* it) {
   if (is_nil_BBListIterator(it)) {
     return;
   }
 
   BasicBlock* b = data_BBListIterator(it);
-
-  assign_reg_num_iter_insts(env, front_IRInstList(b->insts));
 
   if (b->is_call_bb) {
     b->should_preserve = new_BitSet(env->usable_regs_count + 1);
@@ -398,7 +343,7 @@ static void assign_reg_num(Env* env, BBListIterator* it) {
     release_BitSet(s);
   }
 
-  assign_reg_num(env, next_BBListIterator(it));
+  calc_preserve_regs(env, next_BBListIterator(it));
 }
 
 static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, Function* ir) {
@@ -410,7 +355,8 @@ static void reg_alloc_function(unsigned num_regs, unsigned* global_inst_count, F
 
   release_UIList(ordered_regs);
 
-  assign_reg_num(env, front_BBList(ir->blocks));
+  assign_reg_num(env);
+  calc_preserve_regs(env, front_BBList(ir->blocks));
 
   ir->used_regs = zero_BitSet(num_regs);
   for (unsigned i = 0; i < length_UIVec(env->result); i++) {
@@ -477,11 +423,11 @@ static void set_from(Interval* iv, unsigned from) {
   }
 }
 
-static void build_intervals_insts(RegIntervals* ivs, IRInstList* insts, unsigned block_from) {
+static void build_intervals_insts(RegIntervals* ivs, IRInstRange* insts, unsigned block_from) {
   // reverse order
-  for (IRInstListIterator* it = back_IRInstList(insts); !is_nil_IRInstListIterator(it);
-       it                     = prev_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
+  for (IRInstRangeIterator* it = back_IRInstRange(insts); !is_nil_IRInstRangeIterator(it);
+       it                      = prev_IRInstRangeIterator(it)) {
+    IRInst* inst = data_IRInstRangeIterator(it);
 
     for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
       Reg* ra = get_RegVec(inst->ras, i);
@@ -509,8 +455,8 @@ static RegIntervals* build_intervals(Function* ir) {
   for (BBListIterator* it = back_BBList(ir->blocks); !is_nil_BBListIterator(it);
        it                 = prev_BBListIterator(it)) {
     BasicBlock* b       = data_BBListIterator(it);
-    unsigned block_from = head_IRInstList(b->insts)->local_id;
-    unsigned block_to   = last_IRInstList(b->insts)->local_id;
+    unsigned block_from = head_IRInstRange(b->instructions)->local_id;
+    unsigned block_to   = last_IRInstRange(b->instructions)->local_id;
 
     for (unsigned vi = 0; vi < length_BitSet(b->live_out); vi++) {
       if (get_BitSet(b->live_out, vi)) {
@@ -519,7 +465,7 @@ static RegIntervals* build_intervals(Function* ir) {
       }
     }
 
-    build_intervals_insts(ivs, b->insts, block_from);
+    build_intervals_insts(ivs, b->instructions, block_from);
   }
 
   return ivs;

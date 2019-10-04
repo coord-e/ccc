@@ -24,8 +24,6 @@
   - new_Type: zero initialized and only take common fields
   - copy_Type: deep copy
   - shallow_copy_Type: shallow copy
-- refine reg_alloc
-  - add indexed linked list
 - separate gen_ir from ir.c
   - IRBuilder
 - use finish_Env instead of release_Env as much as possible

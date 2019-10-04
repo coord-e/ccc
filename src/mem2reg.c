@@ -98,44 +98,32 @@ static void allocate_replaced_reg_for(Env* env, unsigned s) {
   set_UIVec(env->replaced_regs, s, env->function->reg_count++);
 }
 
-static void collect_uses_insts(Env* env, IRInstListIterator* it) {
-  if (is_nil_IRInstListIterator(it)) {
-    return;
-  }
-
-  IRInst* inst = data_IRInstListIterator(it);
-  switch (inst->kind) {
-    case IR_STACK_ADDR:
-      set_as_in_stack(env, inst->rd);
-      bind_associated_area(env, inst->rd, inst->stack_idx);
-      break;
-    case IR_LOAD:
-      set_as_candidate(env, get_RegVec(inst->ras, 0));
-      set_as_excluded(env, inst->rd);
-      break;
-    case IR_STORE:
-      set_as_candidate(env, get_RegVec(inst->ras, 0));
-      set_as_excluded(env, get_RegVec(inst->ras, 1));
-      break;
-    default:
-      for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-        set_as_excluded(env, get_RegVec(inst->ras, i));
-      }
-      if (inst->rd != NULL) {
-        set_as_excluded(env, inst->rd);
-      }
-      break;
-  }
-
-  collect_uses_insts(env, next_IRInstListIterator(it));
-}
-
 static void collect_uses(Env* env, Function* ir) {
-  BBListIterator* it = front_BBList(ir->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* b = data_BBListIterator(it);
-    collect_uses_insts(env, front_IRInstList(b->insts));
-    it = next_BBListIterator(it);
+  for (IRInstListIterator* it = front_IRInstList(ir->instructions); !is_nil_IRInstListIterator(it);
+       it                     = next_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
+    switch (inst->kind) {
+      case IR_STACK_ADDR:
+        set_as_in_stack(env, inst->rd);
+        bind_associated_area(env, inst->rd, inst->stack_idx);
+        break;
+      case IR_LOAD:
+        set_as_candidate(env, get_RegVec(inst->ras, 0));
+        set_as_excluded(env, inst->rd);
+        break;
+      case IR_STORE:
+        set_as_candidate(env, get_RegVec(inst->ras, 0));
+        set_as_excluded(env, get_RegVec(inst->ras, 1));
+        break;
+      default:
+        for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+          set_as_excluded(env, get_RegVec(inst->ras, i));
+        }
+        if (inst->rd != NULL) {
+          set_as_excluded(env, inst->rd);
+        }
+        break;
+    }
   }
 }
 
@@ -202,7 +190,7 @@ static Reg* assoc_reg(Env* env, Reg* addr_reg, DataSize size) {
   return new_virtual_Reg(size, reg);
 }
 
-static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
+static void apply_conversion_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
   if (is_nil_IRInstListIterator(it)) {
     return;
   }
@@ -212,7 +200,7 @@ static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
   switch (inst->kind) {
     case IR_STACK_ADDR:
       if (is_replaceable(env, inst->rd)) {
-        remove_IRInstListIterator(it);
+        remove_IRInstListIterator(list, it);
       }
       break;
     case IR_LOAD: {
@@ -221,8 +209,8 @@ static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
         Reg* dest_reg = inst->rd;
         IRInst* m = new_move(env, copy_Reg(dest_reg), assoc_reg(env, addr_reg, inst->data_size));
 
-        it = remove_IRInstListIterator(it);
-        insert_IRInstListIterator(it, m);
+        it = remove_IRInstListIterator(list, it);
+        insert_IRInstListIterator(list, it, m);
       }
       break;
     }
@@ -232,8 +220,8 @@ static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
         Reg* value_reg = get_RegVec(inst->ras, 1);
         IRInst* m = new_move(env, assoc_reg(env, addr_reg, inst->data_size), copy_Reg(value_reg));
 
-        it = remove_IRInstListIterator(it);
-        insert_IRInstListIterator(it, m);
+        it = remove_IRInstListIterator(list, it);
+        insert_IRInstListIterator(list, it, m);
       }
       break;
     }
@@ -241,14 +229,9 @@ static void apply_conversion_insts(Env* env, IRInstListIterator* it) {
       break;
   }
 
-  apply_conversion_insts(env, next);
+  apply_conversion_insts(env, list, next);
 }
 
 static void apply_conversion(Env* env, Function* ir) {
-  BBListIterator* it = front_BBList(ir->blocks);
-  while (!is_nil_BBListIterator(it)) {
-    BasicBlock* b = data_BBListIterator(it);
-    apply_conversion_insts(env, front_IRInstList(b->insts));
-    it = next_BBListIterator(it);
-  }
+  apply_conversion_insts(env, ir->instructions, front_IRInstList(ir->instructions));
 }

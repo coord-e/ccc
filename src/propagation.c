@@ -13,7 +13,7 @@ static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
       continue;
     }
 
-    IRInst* def = get_IRInstVec(f->sorted_insts, i);
+    IRInst* def = get_IRInstList(f->instructions, i);
     assert(def->rd->virtual == r->virtual);
 
     release_BitSet(defs);
@@ -29,7 +29,21 @@ static bool is_imm_inst(IRInst* inst) {
   return inst->kind == IR_IMM;
 }
 
-static void elim_branch(bool c, BasicBlock* bb, IRInst* inst) {
+static BasicBlock* find_parent_block(IRInst* inst) {
+  // TODO: Use cheaper way to obtain corresponding block
+  assert(inst->kind == IR_BR | inst->kind == IR_BR_CMP | inst->kind == IR_BR_CMP_IMM);
+  for (BBRefListIterator* it = front_BBRefList(inst->then_->preds); !is_nil_BBRefListIterator(it);
+       it                    = next_BBRefListIterator(it)) {
+    BasicBlock* b = data_BBRefListIterator(it);
+    if (last_IRInstRange(b->instructions) == inst) {
+      return b;
+    }
+  }
+  CCC_UNREACHABLE;
+}
+
+static void elim_branch(bool c, IRInst* inst) {
+  BasicBlock* bb = find_parent_block(inst);
   BasicBlock *selected, *discarded;
   if (c) {
     selected  = inst->then_;
@@ -45,7 +59,11 @@ static void elim_branch(bool c, BasicBlock* bb, IRInst* inst) {
   resize_RegVec(inst->ras, 0);
 }
 
-static void perform_propagation(Function* f, BasicBlock* bb, IRInst* inst) {
+DECLARE_VECTOR(IRInst*, IRInstVec)
+static void release_dummy(void* p) {}
+DEFINE_VECTOR(release_dummy, IRInst*, IRInstVec)
+
+static void perform_propagation(Function* f, IRInst* inst) {
   IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* r      = get_RegVec(inst->ras, i);
@@ -115,7 +133,7 @@ static void perform_propagation(Function* f, BasicBlock* bb, IRInst* inst) {
         if (is_imm_inst(lhs_def)) {
           // foldable
           bool c = eval_CompareOp(inst->predicate_op, lhs_def->imm, rhs_def->imm);
-          elim_branch(c, bb, inst);
+          elim_branch(c, inst);
         } else {
           // not foldable, but able to propagate
           inst->kind = IR_BR_CMP_IMM;
@@ -155,7 +173,7 @@ static void perform_propagation(Function* f, BasicBlock* bb, IRInst* inst) {
       if (is_imm_inst(lhs_def)) {
         // foldable
         bool c = eval_CompareOp(inst->predicate_op, lhs_def->imm, inst->imm);
-        elim_branch(c, bb, inst);
+        elim_branch(c, inst);
       }
       break;
     }
@@ -181,15 +199,10 @@ static void perform_propagation(Function* f, BasicBlock* bb, IRInst* inst) {
 }
 
 static void propagation_function(Function* f) {
-  for (BBListIterator* it1 = front_BBList(f->blocks); !is_nil_BBListIterator(it1);
-       it1                 = next_BBListIterator(it1)) {
-    BasicBlock* b = data_BBListIterator(it1);
-
-    for (IRInstListIterator* it2 = back_IRInstList(b->insts); !is_nil_IRInstListIterator(it2);
-         it2                     = prev_IRInstListIterator(it2)) {
-      IRInst* inst = data_IRInstListIterator(it2);
-      perform_propagation(f, b, inst);
-    }
+  for (IRInstListIterator* it = back_IRInstList(f->instructions); !is_nil_IRInstListIterator(it);
+       it                     = prev_IRInstListIterator(it)) {
+    IRInst* inst = data_IRInstListIterator(it);
+    perform_propagation(f, inst);
   }
 }
 

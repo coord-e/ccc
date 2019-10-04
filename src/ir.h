@@ -6,9 +6,11 @@
 #include "ast.h"
 #include "bit_set.h"
 #include "double_list.h"
+#include "indexed_list.h"
 #include "lexer.h"
 #include "list.h"
 #include "ops.h"
+#include "range.h"
 #include "type.h"
 #include "vector.h"
 
@@ -110,17 +112,18 @@ typedef struct IRInst {
 IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);
 
-DECLARE_DLIST(IRInst*, IRInstList)
 DECLARE_DLIST(BasicBlock*, BBList)
 DECLARE_DLIST(BasicBlock*, BBRefList)
-DECLARE_VECTOR(IRInst*, IRInstVec)
+DECLARE_SELF_INDEXED_LIST(IRInst*, IRInstList)
+DECLARE_RANGE(IRInst*, IRInstList, IRInstRange)
 
 // `BasicBlock` forms a control flow graph
 struct BasicBlock {
   unsigned local_id;   // unique in `Function`
   unsigned global_id;  // unique in `IR`
 
-  IRInstList* insts;  // owned
+  // reference to the specific range in `instructions` in `Function`
+  IRInstRange* instructions;
 
   BBRefList* succs;  // not owned (owned by `IR`)
   BBRefList* preds;  // not owned (owned by `IR`)
@@ -177,7 +180,8 @@ DECLARE_VECTOR(BitSet*, BSVec)
 struct Function {
   char* name;  // owned
 
-  BBList* blocks;  // owned
+  BBList* blocks;            // owned
+  IRInstList* instructions;  // owned
 
   unsigned bb_count;
   unsigned reg_count;
@@ -191,10 +195,6 @@ struct Function {
 
   // will filled in `arch`
   BitSet* used_fixed_regs;  // owned
-
-  // will filled in `reorder`
-  // sorted in normal order
-  IRInstVec* sorted_insts;  // not owned
 
   // will filled in `data_flow`
   BSVec* definitions;  // owned, virtual -> inst local id

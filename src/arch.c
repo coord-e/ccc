@@ -91,45 +91,12 @@ static IRInst* new_zext(Env* env, Reg* rd, Reg* ra) {
   return inst;
 }
 
-static IRInst* new_ret(Env* env, Reg* ra) {
-  IRInst* inst = new_inst(env->inst_count++, env->global_inst_count++, IR_RET);
-  push_RegVec(inst->ras, copy_Reg(ra));
-  return inst;
-}
-
-static IRInst* new_binop(Env* env, ArithOp kind, Reg* rd, Reg* lhs, Reg* rhs) {
-  IRInst* inst    = new_inst(env->inst_count++, env->global_inst_count++, IR_BIN);
-  inst->binary_op = kind;
-  inst->rd        = copy_Reg(rd);
-  Reg* lhs_       = copy_Reg(lhs);
-  push_RegVec(inst->ras, lhs_);
-  push_RegVec(inst->ras, copy_Reg(rhs));
-  return inst;
-}
-
-static IRInst* new_unaop(Env* env, UnaryOp kind, Reg* rd, Reg* opr) {
-  IRInst* inst   = new_inst(env->inst_count++, env->global_inst_count++, IR_UNA);
-  inst->unary_op = kind;
-  inst->rd       = copy_Reg(rd);
-  push_RegVec(inst->ras, copy_Reg(opr));
-  return inst;
-}
-
-static IRInst* new_call(Env* env, Reg* rd, Reg* rf, bool is_vararg) {
-  IRInst* inst    = new_inst(env->inst_count++, env->global_inst_count++, IR_CALL);
-  inst->rd        = copy_Reg(rd);
-  inst->is_vararg = is_vararg;
-  push_RegVec(inst->ras, copy_Reg(rf));
-  return inst;
-}
-
-static void walk_insts(Env* env, IRInstListIterator* it) {
+static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
   if (is_nil_IRInstListIterator(it)) {
     return;
   }
 
-  IRInst* inst             = data_IRInstListIterator(it);
-  IRInstListIterator* next = next_IRInstListIterator(it);
+  IRInst* inst = data_IRInstListIterator(it);
   switch (inst->kind) {
     case IR_BIN_IMM:
     case IR_BIN: {
@@ -145,8 +112,8 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
           set_RegVec(inst->ras, 0, copy_Reg(rax));
           release_Reg(rax);
 
-          insert_IRInstListIterator(it, i1);
-          insert_IRInstListIterator(next, i3);
+          insert_IRInstListIterator(list, it, i1);
+          insert_IRInstListIterator(list, next_IRInstListIterator(it), i3);
           break;
         }
         case BINOP_REM: {
@@ -160,8 +127,8 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
           release_Reg(rax);
           release_Reg(rdx);
 
-          insert_IRInstListIterator(it, i1);
-          insert_IRInstListIterator(next, i3);
+          insert_IRInstListIterator(list, it, i1);
+          insert_IRInstListIterator(list, next_IRInstListIterator(it), i3);
           break;
         }
         case BINOP_SHIFT_LEFT:
@@ -186,13 +153,12 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
           }
           Reg* rcx2  = rcx_fixed_reg(env, SIZE_BYTE);
           IRInst* i2 = new_move(env, rd, lhs);
-          IRInst* i3 = new_binop(env, inst->binary_op, rd, rd, rcx2);
-          release_Reg(rcx2);
 
-          it = remove_IRInstListIterator(it);
-          insert_IRInstListIterator(it, i1);
-          insert_IRInstListIterator(it, i2);
-          insert_IRInstListIterator(it, i3);
+          set_RegVec(inst->ras, 0, copy_Reg(rd));
+          set_RegVec(inst->ras, 1, rcx2);
+
+          insert_IRInstListIterator(list, it, i1);
+          insert_IRInstListIterator(list, it, i2);
           break;
         }
         default: {
@@ -202,7 +168,7 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
 
           set_RegVec(inst->ras, 0, copy_Reg(rd));
 
-          insert_IRInstListIterator(it, i1);
+          insert_IRInstListIterator(list, it, i1);
           break;
         }
       }
@@ -212,11 +178,8 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       Reg* rd    = inst->rd;
       Reg* opr   = get_RegVec(inst->ras, 0);
       IRInst* i1 = new_move(env, rd, opr);
-      IRInst* i2 = new_unaop(env, inst->unary_op, rd, rd);
-
-      it = remove_IRInstListIterator(it);
-      insert_IRInstListIterator(it, i1);
-      insert_IRInstListIterator(it, i2);
+      set_RegVec(inst->ras, 0, copy_Reg(rd));
+      insert_IRInstListIterator(list, it, i1);
       break;
     }
     case IR_CMP_IMM:
@@ -228,47 +191,37 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       IRInst* inst = new_zext(env, rd2, rd1);
       release_Reg(rd2);
 
-      insert_IRInstListIterator(next_IRInstListIterator(it), inst);
+      insert_IRInstListIterator(list, next_IRInstListIterator(it), inst);
       break;
     }
     case IR_CALL: {
-      Reg* rd        = inst->rd;
-      Reg* rf        = get_RegVec(inst->ras, 0);
-      bool is_vararg = inst->is_vararg;
+      Reg* rd = inst->rd;
 
       Reg* ret = NULL;
       if (rd != NULL) {
         ret = rax_fixed_reg(env, rd->size);
       }
-      IRInst* call = new_call(env, ret, rf, is_vararg);
+      inst->rd = copy_Reg(ret);
 
-      IRInstListIterator* save_it = it;
-      // `save_it` can't be removed while `inst` is used
-      it = next_IRInstListIterator(it);
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
         Reg* r = get_RegVec(inst->ras, i);
         Reg* p = nth_arg_fixed_reg(env, i - 1, r->size);
-        push_RegVec(call->ras, copy_Reg(p));
-        insert_IRInstListIterator(it, new_move(env, p, r));
+        set_RegVec(inst->ras, i, copy_Reg(p));
+        insert_IRInstListIterator(list, it, new_move(env, p, r));
         release_Reg(p);
+        release_Reg(r);
       }
-      insert_IRInstListIterator(it, call);
       if (rd != NULL) {
-        insert_IRInstListIterator(it, new_move(env, rd, ret));
+        insert_IRInstListIterator(list, next_IRInstListIterator(it), new_move(env, rd, ret));
       }
       release_Reg(ret);
-      remove_IRInstListIterator(save_it);
       break;
     }
     case IR_ARG: {
-      Reg* rd      = inst->rd;
       unsigned idx = inst->argument_idx;
-      Reg* ra      = nth_arg_fixed_reg(env, idx, rd->size);
-      IRInst* inst = new_move(env, rd, ra);
-      release_Reg(ra);
-
-      it = remove_IRInstListIterator(it);
-      insert_IRInstListIterator(it, inst);
+      Reg* ra      = nth_arg_fixed_reg(env, idx, inst->rd->size);
+      inst->kind   = IR_MOV;
+      push_RegVec(inst->ras, ra);
       break;
     }
     case IR_RET:
@@ -279,35 +232,24 @@ static void walk_insts(Env* env, IRInstListIterator* it) {
       Reg* ra    = get_RegVec(inst->ras, 0);
       Reg* rax   = rax_fixed_reg(env, ra->size);
       IRInst* i1 = new_move(env, rax, ra);
-      IRInst* i2 = new_ret(env, rax);
-      release_Reg(rax);
 
-      it = remove_IRInstListIterator(it);
-      insert_IRInstListIterator(it, i1);
-      insert_IRInstListIterator(it, i2);
+      set_RegVec(inst->ras, 0, copy_Reg(rax));
+      insert_IRInstListIterator(list, it, i1);
+
+      release_Reg(rax);
+      release_Reg(ra);
       break;
     default:
       break;
   }
 
-  walk_insts(env, next);
-}
-
-static void walk_blocks(Env* env, BBListIterator* it) {
-  if (is_nil_BBListIterator(it)) {
-    return;
-  }
-
-  BasicBlock* b = data_BBListIterator(it);
-  walk_insts(env, front_IRInstList(b->insts));
-
-  walk_blocks(env, next_BBListIterator(it));
+  walk_insts(env, list, next_IRInstListIterator(it));
 }
 
 static void transform_function(unsigned* inst_count, Function* f) {
   Env* env = init_Env(*inst_count, f);
 
-  walk_blocks(env, front_BBList(f->blocks));
+  walk_insts(env, f->instructions, front_IRInstList(f->instructions));
 
   finish_Env(env, inst_count, f);
 }

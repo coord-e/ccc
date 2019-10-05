@@ -16,11 +16,13 @@ static void modify_inst(IRInstList* list, IRInstListIterator* it) {
     case IR_BIN_IMM:
       switch (inst->binary_op) {
         case ARITH_ADD:
+        case ARITH_SUB:
           if (inst->imm == 0) {
             disable_inst(list, it, inst);
           }
           break;
         case ARITH_MUL:
+        case ARITH_DIV:
           if (inst->imm == 1) {
             disable_inst(list, it, inst);
           }

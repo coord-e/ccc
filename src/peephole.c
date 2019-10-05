@@ -1,17 +1,28 @@
 #include "peephole.h"
 
-static void modify_inst(IRInst* inst) {
+static void disable_inst(IRInstList* list, IRInstListIterator* it, IRInst* inst) {
+  assert(inst->rd->kind != REG_REAL);
+  assert(get_RegVec(inst->ras, 0)->kind != REG_REAL);
+  if (inst->rd->virtual == get_RegVec(inst->ras, 0)->virtual) {
+    remove_IRInstListIterator(list, it);
+  } else {
+    inst->kind = IR_MOV;
+  }
+}
+
+static void modify_inst(IRInstList* list, IRInstListIterator* it) {
+  IRInst* inst = data_IRInstListIterator(it);
   switch (inst->kind) {
     case IR_BIN_IMM:
       switch (inst->binary_op) {
         case ARITH_ADD:
           if (inst->imm == 0) {
-            inst->kind = IR_MOV;
+            disable_inst(list, it, inst);
           }
           break;
         case ARITH_MUL:
           if (inst->imm == 1) {
-            inst->kind = IR_MOV;
+            disable_inst(list, it, inst);
           }
           break;
         default:
@@ -24,10 +35,11 @@ static void modify_inst(IRInst* inst) {
 }
 
 static void peephole_function(Function* ir) {
-  for (IRInstListIterator* it = front_IRInstList(ir->instructions); !is_nil_IRInstListIterator(it);
-       it                     = next_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
-    modify_inst(inst);
+  IRInstListIterator* it = front_IRInstList(ir->instructions);
+  while (!is_nil_IRInstListIterator(it)) {
+    IRInstListIterator* next = next_IRInstListIterator(it);
+    modify_inst(ir->instructions, it);
+    it = next;
   }
 }
 

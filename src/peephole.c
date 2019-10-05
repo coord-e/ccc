@@ -10,6 +10,19 @@ static void disable_inst(IRInstList* list, IRInstListIterator* it, IRInst* inst)
   }
 }
 
+static bool log2(unsigned long in, unsigned long* out) {
+  if ((in & (in - 1)) != 0) {
+    return false;
+  }
+
+  unsigned long x = 0;
+  while (in >>= 1)
+    x++;
+
+  *out = x;
+  return true;
+}
+
 static void modify_inst(IRInstList* list, IRInstListIterator* it) {
   IRInst* inst = data_IRInstListIterator(it);
   switch (inst->kind) {
@@ -22,9 +35,40 @@ static void modify_inst(IRInstList* list, IRInstListIterator* it) {
           }
           break;
         case ARITH_MUL:
+          switch (inst->imm) {
+            case 1:
+              disable_inst(list, it, inst);
+              break;
+            case 0:
+              inst->kind = IR_IMM;
+              resize_RegVec(inst->ras, 0);
+              break;
+            default: {
+              unsigned long c;
+              if (log2(inst->imm, &c)) {
+                inst->binary_op = ARITH_SHIFT_LEFT;
+                inst->imm       = c;
+              }
+              break;
+            }
+          }
+          break;
         case ARITH_DIV:
-          if (inst->imm == 1) {
-            disable_inst(list, it, inst);
+          switch (inst->imm) {
+            case 1:
+              disable_inst(list, it, inst);
+              break;
+            case 0:
+              error("zero-division detected");
+              break;
+            default: {
+              unsigned long c;
+              if (log2(inst->imm, &c)) {
+                inst->binary_op = ARITH_SHIFT_RIGHT;
+                inst->imm       = c;
+              }
+              break;
+            }
           }
           break;
         default:

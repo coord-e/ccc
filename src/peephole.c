@@ -75,6 +75,24 @@ static void modify_inst(IRInstList* list, IRInstListIterator* it) {
           break;
       }
       break;
+    case IR_BR_CMP_IMM:
+      if (inst->imm != 0) {
+        break;
+      }
+      switch (inst->predicate_op) {
+        case CMP_NE:
+          inst->kind = IR_BR;
+          break;
+        case CMP_EQ:
+          inst->kind      = IR_BR;
+          BasicBlock* tmp = inst->then_;
+          inst->then_     = inst->else_;
+          inst->else_     = tmp;
+          break;
+        default:
+          break;
+      }
+      break;
     default:
       break;
   }

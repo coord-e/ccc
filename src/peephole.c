@@ -10,7 +10,7 @@ static void disable_inst(IRInstList* list, IRInstListIterator* it, IRInst* inst)
   }
 }
 
-static bool log2(unsigned long in, unsigned long* out) {
+static bool try_log2(unsigned long in, unsigned long* out) {
   if ((in & (in - 1)) != 0) {
     return false;
   }
@@ -45,7 +45,7 @@ static void modify_inst(IRInstList* list, IRInstListIterator* it) {
               break;
             default: {
               unsigned long c;
-              if (log2(inst->imm, &c)) {
+              if (try_log2(inst->imm, &c)) {
                 inst->binary_op = ARITH_SHIFT_LEFT;
                 inst->imm       = c;
               }
@@ -63,7 +63,7 @@ static void modify_inst(IRInstList* list, IRInstListIterator* it) {
               break;
             default: {
               unsigned long c;
-              if (log2(inst->imm, &c)) {
+              if (try_log2(inst->imm, &c)) {
                 inst->binary_op = ARITH_SHIFT_RIGHT;
                 inst->imm       = c;
               }

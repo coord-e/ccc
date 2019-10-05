@@ -59,7 +59,6 @@ static void modify_inst(IRInstList* list, IRInstListIterator* it) {
               disable_inst(list, it, inst);
               break;
             case 0:
-              error("zero-division detected");
               break;
             default: {
               unsigned long c;

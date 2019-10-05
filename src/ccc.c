@@ -186,10 +186,6 @@ int main(int argc, char** argv) {
   }
 
   for (unsigned i = 0; i < opts.optimize + 1; i++) {
-    remove_dead_blocks(ir);
-    merge_blocks(ir);
-    reorder_blocks(ir);
-
     /* peephole(ir); */
     mem2reg(ir);
 
@@ -198,8 +194,13 @@ int main(int argc, char** argv) {
 
     live_data_flow(ir);
     dead_code_elim(ir);
+
+    remove_dead_blocks(ir);
+    merge_blocks(ir);
+    reorder_blocks(ir);
   }
 
+  live_data_flow(ir);
   reg_alloc(num_regs, ir);
 
   if (opts.emit_ir3 != NULL) {

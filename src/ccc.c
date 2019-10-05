@@ -14,6 +14,7 @@
 #include "mem2reg.h"
 #include "merge.h"
 #include "parser.h"
+#include "peephole.h"
 #include "propagation.h"
 #include "reg_alloc.h"
 #include "reorder.h"
@@ -186,7 +187,7 @@ int main(int argc, char** argv) {
   }
 
   for (unsigned i = 0; i < opts.optimize + 1; i++) {
-    /* peephole(ir); */
+    peephole(ir);
     mem2reg(ir);
 
     reach_data_flow(ir);

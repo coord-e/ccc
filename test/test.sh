@@ -690,4 +690,33 @@ int main(int argc, char** argv) {
 }
 EOF
 
+# peephole optimizations
+try_ 42 <<EOF
+int func(int a) {
+    return a * 1 + 0;
+}
+int main() {
+    return func(42);
+}
+EOF
+try_ 0 <<EOF
+int func(int a) {
+    return a * 0;
+}
+int main() {
+    return func(100);
+}
+EOF
+try_ 10 <<EOF
+int func(int a) {
+    if (a == 0) {
+        return 10;
+    }
+    return a;
+}
+int main() {
+    return func(0);
+}
+EOF
+
 echo OK

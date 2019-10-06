@@ -284,6 +284,34 @@ static void compute_global_reach_sets(Function* ir) {
   release_BSVec(lasts);
 }
 
+static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
+  BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
+  and_BitSet(defs, reach);
+
+  if (count_BitSet(defs) != 1) {
+    return NULL;
+  }
+  for (unsigned i = 0; i < length_BitSet(defs); i++) {
+    if (!get_BitSet(defs, i)) {
+      continue;
+    }
+
+    IRInst* def = get_IRInstList(f->instructions, i);
+    assert(def->rd->virtual == r->virtual);
+
+    release_BitSet(defs);
+    return def;
+  }
+  CCC_UNREACHABLE;
+}
+
+static void compute_one_defs(Function* f, IRInst* inst) {
+  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+    Reg* r     = get_RegVec(inst->ras, i);
+    r->one_def = obtain_definition(f, inst->reach_in, r);
+  }
+}
+
 static void compute_inst_reach_sets(Function* ir) {
   for (BBListIterator* it1 = front_BBList(ir->blocks); !is_nil_BBListIterator(it1);
        it1                 = next_BBListIterator(it1)) {
@@ -298,6 +326,8 @@ static void compute_inst_reach_sets(Function* ir) {
         release_BitSet(inst->reach_in);
       }
       inst->reach_in = copy_BitSet(reach);
+
+      compute_one_defs(ir, inst);
 
       if (inst->rd == NULL) {
         continue;

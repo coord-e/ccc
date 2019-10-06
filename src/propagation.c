@@ -1,32 +1,20 @@
 #include "propagation.h"
 #include "util.h"
 
-static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
-  BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
-  and_BitSet(defs, reach);
-
-  if (count_BitSet(defs) != 1) {
-    return NULL;
-  }
-  for (unsigned i = 0; i < length_BitSet(defs); i++) {
-    if (!get_BitSet(defs, i)) {
-      continue;
-    }
-
-    IRInst* def = get_IRInstList(f->instructions, i);
-    assert(def->rd->virtual == r->virtual);
-
-    release_BitSet(defs);
-    return def;
-  }
-  CCC_UNREACHABLE;
+static bool is_propagatable(Reg* r) {
+  return r->one_def != NULL && !r->sticky;
 }
 
-static bool is_imm_inst(IRInst* inst) {
-  if (inst == NULL) {
+static bool get_imm(Reg* r, long* out) {
+  if (!is_propagatable(r)) {
     return false;
   }
-  return inst->kind == IR_IMM;
+  if (r->one_def->kind == IR_IMM) {
+    *out = r->one_def->imm;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 static BasicBlock* find_parent_block(IRInst* inst) {
@@ -59,95 +47,87 @@ static void elim_branch(bool c, IRInst* inst) {
   resize_RegVec(inst->ras, 0);
 }
 
-DECLARE_VECTOR(IRInst*, IRInstVec)
-DEFINE_VECTOR(release_dummy, IRInst*, IRInstVec)
-
 static void perform_propagation(Function* f, IRInst* inst) {
-  IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
-  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
-    Reg* r      = get_RegVec(inst->ras, i);
-    IRInst* def = r->sticky ? NULL : obtain_definition(f, inst->reach_in, r);
-    // `def` is possibly null
-    push_IRInstVec(defs, def);
-  }
-
   switch (inst->kind) {
     case IR_MOV: {
-      IRInst* def = get_IRInstVec(defs, 0);
-      if (def == NULL) {
-        break;
-      }
-      if (def->kind == IR_IMM) {
+      Reg* r = get_RegVec(inst->ras, 0);
+
+      long imm;
+      if (get_imm(r, &imm)) {
         inst->kind = IR_IMM;
-        inst->imm  = def->imm;
+        inst->imm  = imm;
         resize_RegVec(inst->ras, 0);
       }
       break;
     }
     case IR_BIN: {
-      IRInst* lhs_def = get_IRInstVec(defs, 0);
-      IRInst* rhs_def = get_IRInstVec(defs, 1);
+      Reg* lhs = get_RegVec(inst->ras, 0);
+      Reg* rhs = get_RegVec(inst->ras, 1);
 
-      if (is_imm_inst(rhs_def)) {
-        if (is_imm_inst(lhs_def)) {
+      long lhs_imm, rhs_imm;
+      if (get_imm(rhs, &rhs_imm)) {
+        if (get_imm(lhs, &lhs_imm)) {
           // foldable
-          long c     = eval_ArithOp(inst->binary_op, lhs_def->imm, rhs_def->imm);
+          long c     = eval_ArithOp(inst->binary_op, lhs_imm, rhs_imm);
           inst->kind = IR_IMM;
           inst->imm  = c;
           resize_RegVec(inst->ras, 0);
         } else {
           // not foldable, but able to propagate
           inst->kind = IR_BIN_IMM;
-          inst->imm  = rhs_def->imm;
+          inst->imm  = rhs_imm;
           resize_RegVec(inst->ras, 1);
         }
       }
       break;
     }
     case IR_CMP: {
-      IRInst* lhs_def = get_IRInstVec(defs, 0);
-      IRInst* rhs_def = get_IRInstVec(defs, 1);
+      Reg* lhs = get_RegVec(inst->ras, 0);
+      Reg* rhs = get_RegVec(inst->ras, 1);
 
-      if (is_imm_inst(rhs_def)) {
-        if (is_imm_inst(lhs_def)) {
+      long lhs_imm, rhs_imm;
+      if (get_imm(rhs, &rhs_imm)) {
+        if (get_imm(lhs, &lhs_imm)) {
           // foldable
-          bool c     = eval_CompareOp(inst->predicate_op, lhs_def->imm, rhs_def->imm);
+          bool c     = eval_CompareOp(inst->predicate_op, lhs_imm, rhs_imm);
           inst->kind = IR_IMM;
           inst->imm  = c;
           resize_RegVec(inst->ras, 0);
         } else {
           // not foldable, but able to propagate
           inst->kind = IR_CMP_IMM;
-          inst->imm  = rhs_def->imm;
+          inst->imm  = rhs_imm;
           resize_RegVec(inst->ras, 1);
         }
       }
       break;
     }
     case IR_BR_CMP: {
-      IRInst* lhs_def = get_IRInstVec(defs, 0);
-      IRInst* rhs_def = get_IRInstVec(defs, 1);
+      Reg* lhs = get_RegVec(inst->ras, 0);
+      Reg* rhs = get_RegVec(inst->ras, 1);
 
-      if (is_imm_inst(rhs_def)) {
-        if (is_imm_inst(lhs_def)) {
+      long lhs_imm, rhs_imm;
+      if (get_imm(rhs, &rhs_imm)) {
+        if (get_imm(lhs, &lhs_imm)) {
           // foldable
-          bool c = eval_CompareOp(inst->predicate_op, lhs_def->imm, rhs_def->imm);
+          bool c = eval_CompareOp(inst->predicate_op, lhs_imm, rhs_imm);
           elim_branch(c, inst);
         } else {
           // not foldable, but able to propagate
           inst->kind = IR_BR_CMP_IMM;
-          inst->imm  = rhs_def->imm;
+          inst->imm  = rhs_imm;
           resize_RegVec(inst->ras, 1);
         }
       }
       break;
     }
     case IR_BIN_IMM: {
-      IRInst* lhs_def = get_IRInstVec(defs, 0);
+      Reg* lhs = get_RegVec(inst->ras, 0);
 
-      if (is_imm_inst(lhs_def)) {
+      long lhs_imm;
+      if (get_imm(lhs, &lhs_imm)) {
         // foldable
-        long c     = eval_ArithOp(inst->binary_op, lhs_def->imm, inst->imm);
+        long c     = eval_ArithOp(inst->binary_op, lhs_imm, inst->imm);
         inst->kind = IR_IMM;
         inst->imm  = c;
         resize_RegVec(inst->ras, 0);
@@ -155,11 +135,12 @@ static void perform_propagation(Function* f, IRInst* inst) {
       break;
     }
     case IR_CMP_IMM: {
-      IRInst* lhs_def = get_IRInstVec(defs, 0);
+      Reg* lhs = get_RegVec(inst->ras, 0);
 
-      if (is_imm_inst(lhs_def)) {
+      long lhs_imm;
+      if (get_imm(lhs, &lhs_imm)) {
         // foldable
-        bool c     = eval_CompareOp(inst->predicate_op, lhs_def->imm, inst->imm);
+        bool c     = eval_CompareOp(inst->predicate_op, lhs_imm, inst->imm);
         inst->kind = IR_IMM;
         inst->imm  = c;
         resize_RegVec(inst->ras, 0);
@@ -167,11 +148,12 @@ static void perform_propagation(Function* f, IRInst* inst) {
       break;
     }
     case IR_BR_CMP_IMM: {
-      IRInst* lhs_def = get_IRInstVec(defs, 0);
+      Reg* lhs = get_RegVec(inst->ras, 0);
 
-      if (is_imm_inst(lhs_def)) {
+      long lhs_imm;
+      if (get_imm(lhs, &lhs_imm)) {
         // foldable
-        bool c = eval_CompareOp(inst->predicate_op, lhs_def->imm, inst->imm);
+        bool c = eval_CompareOp(inst->predicate_op, lhs_imm, inst->imm);
         elim_branch(c, inst);
       }
       break;
@@ -180,14 +162,14 @@ static void perform_propagation(Function* f, IRInst* inst) {
       break;
   }
 
-  for (unsigned i = 0; i < length_IRInstVec(defs); i++) {
-    IRInst* def = get_IRInstVec(defs, i);
-    if (def == NULL) {
+  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+    Reg* ra = get_RegVec(inst->ras, i);
+    if (!is_propagatable(ra)) {
       continue;
     }
 
-    if (def->kind == IR_MOV) {
-      Reg* r = get_RegVec(def->ras, 0);
+    if (ra->one_def->kind == IR_MOV) {
+      Reg* r = get_RegVec(ra->one_def->ras, 0);
       if (r->kind == REG_FIXED) {
         // TODO: Remove this after implementation of split in reg_alloc
         continue;

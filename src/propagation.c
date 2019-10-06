@@ -1,19 +1,46 @@
 #include "propagation.h"
 #include "util.h"
 
-static bool get_one_def(Function* f, Reg* r, IRInst** out) {
-  if (count_BitSet(r->definitions) == 1 && !r->sticky) {
+typedef struct {
+  Function* f;
+  IR* ir;
+} Env;
+
+static Env* init_Env(IR* ir, Function* f) {
+  Env* env = malloc(sizeof(Env));
+  env->f   = f;
+  env->ir  = ir;
+  return env;
+}
+
+static void finish_Env(Env* env) {
+  free(env);
+}
+
+static Reg* new_reg(Env* env, DataSize size) {
+  return new_virtual_Reg(size, env->f->reg_count++);
+}
+
+static IRInst* new_move(Env* env, Reg* rd, Reg* ra) {
+  IRInst* inst = new_inst(env->f->inst_count++, env->ir->inst_count++, IR_MOV);
+  inst->rd     = copy_Reg(rd);
+  push_RegVec(inst->ras, copy_Reg(ra));
+  return inst;
+}
+
+static bool get_one_def(Env* env, Reg* r, IRInst** out) {
+  if (r->definitions != NULL && count_BitSet(r->definitions) == 1 && !r->sticky) {
     unsigned inst_id = mssb_BitSet(r->definitions);
-    *out             = get_IRInstList(f->instructions, inst_id);
+    *out             = get_IRInstList(env->f->instructions, inst_id);
     return true;
   } else {
     return false;
   }
 }
 
-static bool get_imm(Function* f, Reg* r, long* out) {
+static bool get_imm(Env* env, Reg* r, long* out) {
   IRInst* def;
-  if (get_one_def(f, r, &def)) {
+  if (get_one_def(env, r, &def)) {
     if (def->kind == IR_IMM) {
       *out = def->imm;
       return true;
@@ -52,13 +79,13 @@ static void elim_branch(bool c, IRInst* inst) {
   resize_RegVec(inst->ras, 0);
 }
 
-static void perform_propagation(Function* f, IRInst* inst) {
+static void perform_propagation(Env* env, IRInst* inst) {
   switch (inst->kind) {
     case IR_MOV: {
       Reg* r = get_RegVec(inst->ras, 0);
 
       long imm;
-      if (get_imm(f, r, &imm)) {
+      if (get_imm(env, r, &imm)) {
         inst->kind = IR_IMM;
         inst->imm  = imm;
         resize_RegVec(inst->ras, 0);
@@ -70,8 +97,8 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* rhs = get_RegVec(inst->ras, 1);
 
       long lhs_imm, rhs_imm;
-      if (get_imm(f, rhs, &rhs_imm)) {
-        if (get_imm(f, lhs, &lhs_imm)) {
+      if (get_imm(env, rhs, &rhs_imm)) {
+        if (get_imm(env, lhs, &lhs_imm)) {
           // foldable
           long c     = eval_ArithOp(inst->binary_op, lhs_imm, rhs_imm);
           inst->kind = IR_IMM;
@@ -91,8 +118,8 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* rhs = get_RegVec(inst->ras, 1);
 
       long lhs_imm, rhs_imm;
-      if (get_imm(f, rhs, &rhs_imm)) {
-        if (get_imm(f, lhs, &lhs_imm)) {
+      if (get_imm(env, rhs, &rhs_imm)) {
+        if (get_imm(env, lhs, &lhs_imm)) {
           // foldable
           bool c     = eval_CompareOp(inst->predicate_op, lhs_imm, rhs_imm);
           inst->kind = IR_IMM;
@@ -112,8 +139,8 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* rhs = get_RegVec(inst->ras, 1);
 
       long lhs_imm, rhs_imm;
-      if (get_imm(f, rhs, &rhs_imm)) {
-        if (get_imm(f, lhs, &lhs_imm)) {
+      if (get_imm(env, rhs, &rhs_imm)) {
+        if (get_imm(env, lhs, &lhs_imm)) {
           // foldable
           bool c = eval_CompareOp(inst->predicate_op, lhs_imm, rhs_imm);
           elim_branch(c, inst);
@@ -130,7 +157,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* lhs = get_RegVec(inst->ras, 0);
 
       long lhs_imm;
-      if (get_imm(f, lhs, &lhs_imm)) {
+      if (get_imm(env, lhs, &lhs_imm)) {
         // foldable
         long c     = eval_ArithOp(inst->binary_op, lhs_imm, inst->imm);
         inst->kind = IR_IMM;
@@ -143,7 +170,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* lhs = get_RegVec(inst->ras, 0);
 
       long lhs_imm;
-      if (get_imm(f, lhs, &lhs_imm)) {
+      if (get_imm(env, lhs, &lhs_imm)) {
         // foldable
         bool c     = eval_CompareOp(inst->predicate_op, lhs_imm, inst->imm);
         inst->kind = IR_IMM;
@@ -156,11 +183,43 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* lhs = get_RegVec(inst->ras, 0);
 
       long lhs_imm;
-      if (get_imm(f, lhs, &lhs_imm)) {
+      if (get_imm(env, lhs, &lhs_imm)) {
         // foldable
         bool c = eval_CompareOp(inst->predicate_op, lhs_imm, inst->imm);
         elim_branch(c, inst);
       }
+      break;
+    }
+    case IR_TRUNC: {
+      Reg* r1 = get_RegVec(inst->ras, 0);
+
+      IRInst* def;
+      if (!get_one_def(env, r1, &def)) {
+        break;
+      }
+      if (def->kind != IR_ZEXT) {
+        break;
+      }
+
+      Reg* r2     = get_RegVec(def->ras, 0);
+      BitSet* set = copy_BitSet(r2->definitions);
+      and_BitSet(set, inst->reach_in);
+
+      inst->kind = IR_MOV;
+      if (count_BitSet(set) == 0) {
+        Reg* escape_reg = new_reg(env, r2->size);
+        IRInst* mov     = new_move(env, escape_reg, r2);
+        release_Reg(get_RegVec(inst->ras, 0));
+        set_RegVec(inst->ras, 0, escape_reg);
+
+        IRInstListIterator* it = get_iterator_IRInstList(env->f->instructions, def->local_id);
+        insert_IRInstListIterator(env->f->instructions, it, mov);
+      } else {
+        release_Reg(get_RegVec(inst->ras, 0));
+        set_RegVec(inst->ras, 0, copy_Reg(r2));
+      }
+      release_BitSet(set);
+
       break;
     }
     default:
@@ -170,7 +229,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
     IRInst* def;
-    if (!get_one_def(f, ra, &def)) {
+    if (!get_one_def(env, ra, &def)) {
       continue;
     }
 
@@ -186,11 +245,14 @@ static void perform_propagation(Function* f, IRInst* inst) {
   }
 }
 
-static void propagation_function(Function* f) {
+static void propagation_function(IR* ir, Function* f) {
   for (IRInstListIterator* it = back_IRInstList(f->instructions); !is_nil_IRInstListIterator(it);
        it                     = prev_IRInstListIterator(it)) {
     IRInst* inst = data_IRInstListIterator(it);
-    perform_propagation(f, inst);
+
+    Env* env = init_Env(ir, f);
+    perform_propagation(env, inst);
+    finish_Env(env);
   }
 }
 
@@ -198,7 +260,7 @@ void propagation(IR* ir) {
   FunctionList* l = ir->functions;
   while (!is_nil_FunctionList(l)) {
     Function* f = head_FunctionList(l);
-    propagation_function(f);
+    propagation_function(ir, f);
     l = tail_FunctionList(l);
   }
 }

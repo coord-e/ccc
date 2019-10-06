@@ -79,29 +79,45 @@ static void elim_branch(bool c, IRInst* inst) {
   resize_RegVec(inst->ras, 0);
 }
 
-static bool copy_propagation(Env* env, IRInst* inst, IRInst* def, Reg** out) {
-  Reg* r2 = get_RegVec(def->ras, 0);
-  if (r2->kind == REG_FIXED) {
-    // TODO: Remove this after implementation of split in reg_alloc
-    return false;
-  }
-
-  BitSet* set = copy_BitSet(r2->definitions);
+static Reg* obtain_propagated_reg(Env* env, IRInst* inst, IRInst* def, Reg* r) {
+  BitSet* set = copy_BitSet(r->definitions);
   and_BitSet(set, inst->reach_in);
 
   if (count_BitSet(set) == 0) {
-    Reg* escape_reg = new_reg(env, r2->size);
-    IRInst* mov     = new_move(env, escape_reg, r2);
+    Reg* escape_reg = new_reg(env, r->size);
+    IRInst* mov     = new_move(env, escape_reg, r);
 
     IRInstListIterator* it = get_iterator_IRInstList(env->f->instructions, def->local_id);
     insert_IRInstListIterator(env->f->instructions, it, mov);
 
-    *out = escape_reg;
+    return escape_reg;
   } else {
-    *out = copy_Reg(r2);
+    return copy_Reg(r);
   }
   release_BitSet(set);
+}
 
+static bool copy_propagation(Env* env, IRInst* inst, IRInst* def, Reg** out) {
+  Reg* r = get_RegVec(def->ras, 0);
+  if (r->kind == REG_FIXED) {
+    // TODO: Remove this after implementation of split in reg_alloc
+    return false;
+  }
+
+  *out = obtain_propagated_reg(env, inst, def, r);
+  return true;
+}
+
+static bool copy_propagation2(Env* env, IRInst* inst, IRInst* def, Reg** out0, Reg** out1) {
+  Reg* r0 = get_RegVec(def->ras, 0);
+  Reg* r1 = get_RegVec(def->ras, 0);
+  if (r0->kind == REG_FIXED || r1->kind == REG_FIXED) {
+    // TODO: Remove this after implementation of split in reg_alloc
+    return false;
+  }
+
+  *out0 = obtain_propagated_reg(env, inst, def, r0);
+  *out1 = obtain_propagated_reg(env, inst, def, r1);
   return true;
 }
 
@@ -249,6 +265,19 @@ static void perform_propagation(Env* env, IRInst* inst) {
           if (copy_propagation(env, inst, def, &rr)) {
             release_Reg(get_RegVec(inst->ras, 0));
             set_RegVec(inst->ras, 0, rr);
+          }
+          break;
+        }
+        case IR_CMP: {
+          Reg *r0, *r1;
+          if (copy_propagation2(env, inst, def, &r0, &r1)) {
+            release_Reg(get_RegVec(inst->ras, 0));
+            set_RegVec(inst->ras, 0, r0);
+            release_Reg(get_RegVec(inst->ras, 1));
+            set_RegVec(inst->ras, 1, r1);
+
+            inst->kind         = IR_BR_CMP;
+            inst->predicate_op = def->predicate_op;
           }
           break;
         }

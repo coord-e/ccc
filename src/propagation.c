@@ -67,7 +67,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
   IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* r      = get_RegVec(inst->ras, i);
-    IRInst* def = r->irreplaceable ? NULL : obtain_definition(f, inst->reach_in, r);
+    IRInst* def = r->sticky ? NULL : obtain_definition(f, inst->reach_in, r);
     // `def` is possibly null
     push_IRInstVec(defs, def);
   }

@@ -48,8 +48,8 @@ static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
 }
 
 static Reg* new_fixed_reg(Env* env, unsigned id, DataSize size) {
-  Reg* r           = new_fixed_Reg(size, env->reg_count++, id);
-  r->irreplaceable = true;
+  Reg* r    = new_fixed_Reg(size, env->reg_count++, id);
+  r->sticky = true;
   set_BitSet(env->used_fixed_regs, id, true);
   return r;
 }
@@ -162,8 +162,8 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
           break;
         }
         default: {
-          rd->irreplaceable = true;
-          IRInst* i1        = new_move(env, rd, lhs);
+          rd->sticky = true;
+          IRInst* i1 = new_move(env, rd, lhs);
           release_Reg(lhs);
 
           set_RegVec(inst->ras, 0, copy_Reg(rd));

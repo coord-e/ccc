@@ -79,6 +79,32 @@ static void elim_branch(bool c, IRInst* inst) {
   resize_RegVec(inst->ras, 0);
 }
 
+static bool copy_propagation(Env* env, IRInst* inst, IRInst* def, Reg** out) {
+  Reg* r2 = get_RegVec(def->ras, 0);
+  if (r2->kind == REG_FIXED) {
+    // TODO: Remove this after implementation of split in reg_alloc
+    return false;
+  }
+
+  BitSet* set = copy_BitSet(r2->definitions);
+  and_BitSet(set, inst->reach_in);
+
+  if (count_BitSet(set) == 0) {
+    Reg* escape_reg = new_reg(env, r2->size);
+    IRInst* mov     = new_move(env, escape_reg, r2);
+
+    IRInstListIterator* it = get_iterator_IRInstList(env->f->instructions, def->local_id);
+    insert_IRInstListIterator(env->f->instructions, it, mov);
+
+    *out = escape_reg;
+  } else {
+    *out = copy_Reg(r2);
+  }
+  release_BitSet(set);
+
+  return true;
+}
+
 static void perform_propagation(Env* env, IRInst* inst) {
   switch (inst->kind) {
     case IR_MOV: {
@@ -201,24 +227,12 @@ static void perform_propagation(Env* env, IRInst* inst) {
         break;
       }
 
-      Reg* r2     = get_RegVec(def->ras, 0);
-      BitSet* set = copy_BitSet(r2->definitions);
-      and_BitSet(set, inst->reach_in);
-
-      inst->kind = IR_MOV;
-      if (count_BitSet(set) == 0) {
-        Reg* escape_reg = new_reg(env, r2->size);
-        IRInst* mov     = new_move(env, escape_reg, r2);
+      Reg* rr;
+      if (copy_propagation(env, inst, def, &rr)) {
+        inst->kind = IR_MOV;
         release_Reg(get_RegVec(inst->ras, 0));
-        set_RegVec(inst->ras, 0, escape_reg);
-
-        IRInstListIterator* it = get_iterator_IRInstList(env->f->instructions, def->local_id);
-        insert_IRInstListIterator(env->f->instructions, it, mov);
-      } else {
-        release_Reg(get_RegVec(inst->ras, 0));
-        set_RegVec(inst->ras, 0, copy_Reg(r2));
+        set_RegVec(inst->ras, 0, rr);
       }
-      release_BitSet(set);
 
       break;
     }
@@ -228,19 +242,19 @@ static void perform_propagation(Env* env, IRInst* inst) {
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
+
     IRInst* def;
     if (!get_one_def(env, ra, &def)) {
       continue;
     }
+    if (def->kind != IR_MOV) {
+      continue;
+    }
 
-    if (def->kind == IR_MOV) {
-      Reg* r = get_RegVec(def->ras, 0);
-      if (r->kind == REG_FIXED) {
-        // TODO: Remove this after implementation of split in reg_alloc
-        continue;
-      }
+    Reg* rr;
+    if (copy_propagation(env, inst, def, &rr)) {
       release_Reg(get_RegVec(inst->ras, i));
-      set_RegVec(inst->ras, i, copy_Reg(r));
+      set_RegVec(inst->ras, i, rr);
     }
   }
 }

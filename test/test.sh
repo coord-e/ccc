@@ -20,7 +20,7 @@ function try() {
     local tmp_ir2="$(mktemp --suffix .gv)"
 
     echo "$input" > "$tmp_in"
-    "$CCC" "$tmp_in" \
+    "$CCC" "$tmp_in" -O3 \
       -o "$tmp_asm" \
       --emit-tokens "$tmp_tks" \
       --emit-ast1 "$tmp_ast1" \

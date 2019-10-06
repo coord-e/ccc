@@ -284,6 +284,20 @@ static void compute_global_reach_sets(Function* ir) {
   release_BSVec(lasts);
 }
 
+static void compute_reg_defs(Function* f, IRInst* inst) {
+  for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
+    Reg* r = get_RegVec(inst->ras, i);
+
+    BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
+    and_BitSet(defs, inst->reach_in);
+
+    if (r->definitions != NULL) {
+      release_BitSet(r->definitions);
+    }
+    r->definitions = defs;
+  }
+}
+
 static void compute_inst_reach_sets(Function* ir) {
   for (BBListIterator* it1 = front_BBList(ir->blocks); !is_nil_BBListIterator(it1);
        it1                 = next_BBListIterator(it1)) {
@@ -298,6 +312,8 @@ static void compute_inst_reach_sets(Function* ir) {
         release_BitSet(inst->reach_in);
       }
       inst->reach_in = copy_BitSet(reach);
+
+      compute_reg_defs(ir, inst);
 
       if (inst->rd == NULL) {
         continue;

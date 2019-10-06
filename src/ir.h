@@ -41,6 +41,8 @@ typedef enum {
   IR_BR_CMP_IMM,
 } IRInstKind;
 
+typedef struct IRInst IRInst;
+
 typedef enum {
   REG_VIRT,
   REG_REAL,
@@ -54,6 +56,7 @@ typedef struct {
   DataSize size;
 
   bool sticky;
+  BitSet* definitions;
 } Reg;
 
 Reg* new_Reg(RegKind, DataSize);
@@ -73,7 +76,7 @@ typedef enum {
   GN_DATA,
 } GlobalNameKind;
 
-typedef struct IRInst {
+struct IRInst {
   IRInstKind kind;
 
   unsigned local_id;   // unique in `Function`
@@ -107,7 +110,7 @@ typedef struct IRInst {
   BitSet* live_out;   // owned, ditto
   BitSet* reach_in;   // owned, ditto
   BitSet* reach_out;  // owned, ditto
-} IRInst;
+};
 
 IRInst* new_inst(unsigned local_id, unsigned global_id, IRInstKind);
 void release_inst(IRInst*);

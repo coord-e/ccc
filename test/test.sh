@@ -718,5 +718,33 @@ int main() {
     return func(0);
 }
 EOF
+try_ 12 <<EOF
+int f (int a) {
+  _Bool c = a < 10;
+  if (c) {
+    return 12;
+  } else {
+    return 24;
+  }
+}
+
+int main(int argc, char** argv) {
+  return f(5);
+}
+EOF
+try_ 24 <<EOF
+int f (int a, int b) {
+  _Bool c = a < b;
+  if (c) {
+    return 12;
+  } else {
+    return 24;
+  }
+}
+
+int main(int argc, char** argv) {
+  return f(5, 2);
+}
+EOF
 
 echo OK

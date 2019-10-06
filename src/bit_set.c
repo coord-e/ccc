@@ -1,4 +1,5 @@
 #include "bit_set.h"
+#include "error.h"
 #include "vector.h"
 
 #include <stdint.h>
@@ -128,6 +129,28 @@ unsigned count_BitSet(const BitSet* s) {
     }
   }
   return res;
+}
+
+// most significant set bit
+unsigned mssb_BitSet(const BitSet* s) {
+  assert(count_BitSet(s) != 0);
+  for (unsigned j = length_U64Vec(s->data); j > 0; j--) {
+    unsigned i = j - 1;
+    uint64_t d = get_U64Vec(s->data, i);
+    if (d == 0) {
+      continue;
+    }
+
+    // TODO: faster count
+    unsigned mssb = 0;
+    while (d) {
+      d >>= 1;
+      mssb++;
+    }
+
+    return mssb - 1 + i * block_size;
+  }
+  CCC_UNREACHABLE;
 }
 
 void print_BitSet(FILE* p, const BitSet* s) {

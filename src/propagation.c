@@ -217,10 +217,10 @@ static void perform_propagation(Env* env, IRInst* inst) {
       break;
     }
     case IR_TRUNC: {
-      Reg* r1 = get_RegVec(inst->ras, 0);
+      Reg* opr = get_RegVec(inst->ras, 0);
 
       IRInst* def;
-      if (!get_one_def(env, r1, &def)) {
+      if (!get_one_def(env, opr, &def)) {
         break;
       }
       if (def->kind != IR_ZEXT) {
@@ -234,6 +234,38 @@ static void perform_propagation(Env* env, IRInst* inst) {
         set_RegVec(inst->ras, 0, rr);
       }
 
+      break;
+    }
+    case IR_BR: {
+      Reg* opr = get_RegVec(inst->ras, 0);
+
+      IRInst* def;
+      if (!get_one_def(env, opr, &def)) {
+        break;
+      }
+      switch (def->kind) {
+        case IR_ZEXT: {
+          Reg* rr;
+          if (copy_propagation(env, inst, def, &rr)) {
+            release_Reg(get_RegVec(inst->ras, 0));
+            set_RegVec(inst->ras, 0, rr);
+          }
+          break;
+        }
+        case IR_CMP_IMM: {
+          Reg* rr;
+          if (copy_propagation(env, inst, def, &rr)) {
+            inst->kind         = IR_BR_CMP_IMM;
+            inst->predicate_op = def->predicate_op;
+            inst->imm          = def->imm;
+            release_Reg(get_RegVec(inst->ras, 0));
+            set_RegVec(inst->ras, 0, rr);
+          }
+          break;
+        }
+        default:
+          break;
+      }
       break;
     }
     default:

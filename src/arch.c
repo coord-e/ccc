@@ -48,8 +48,7 @@ static void finish_Env(Env* env, unsigned* inst_count, Function* f) {
 }
 
 static Reg* new_fixed_reg(Env* env, unsigned id, DataSize size) {
-  Reg* r    = new_fixed_Reg(size, env->reg_count++, id);
-  r->sticky = true;
+  Reg* r = new_fixed_Reg(size, env->reg_count++, id);
   set_BitSet(env->used_fixed_regs, id, true);
   return r;
 }
@@ -108,9 +107,9 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
           IRInst* i1 = new_move(env, rax, lhs);
           IRInst* i3 = new_move(env, rd, rax);
 
-          inst->rd = copy_Reg(rax);
-          set_RegVec(inst->ras, 0, copy_Reg(rax));
-          release_Reg(rax);
+          rax->sticky = true;
+          inst->rd    = copy_Reg(rax);
+          set_RegVec(inst->ras, 0, rax);
 
           insert_IRInstListIterator(list, it, i1);
           insert_IRInstListIterator(list, next_IRInstListIterator(it), i3);
@@ -122,10 +121,10 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
           IRInst* i1 = new_move(env, rax, lhs);
           IRInst* i3 = new_move(env, rd, rdx);
 
-          inst->rd = copy_Reg(rdx);
-          set_RegVec(inst->ras, 0, copy_Reg(rax));
-          release_Reg(rax);
-          release_Reg(rdx);
+          rdx->sticky = true;
+          rax->sticky = true;
+          inst->rd    = rdx;
+          set_RegVec(inst->ras, 0, rax);
 
           insert_IRInstListIterator(list, it, i1);
           insert_IRInstListIterator(list, next_IRInstListIterator(it), i3);
@@ -154,6 +153,8 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
           Reg* rcx2  = rcx_fixed_reg(env, SIZE_BYTE);
           IRInst* i2 = new_move(env, rd, lhs);
 
+          rd->sticky   = true;
+          rcx2->sticky = true;
           set_RegVec(inst->ras, 0, copy_Reg(rd));
           set_RegVec(inst->ras, 1, rcx2);
 
@@ -162,10 +163,10 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
           break;
         }
         default: {
-          rd->sticky = true;
           IRInst* i1 = new_move(env, rd, lhs);
           release_Reg(lhs);
 
+          rd->sticky = true;
           set_RegVec(inst->ras, 0, copy_Reg(rd));
 
           insert_IRInstListIterator(list, it, i1);
@@ -178,7 +179,10 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
       Reg* rd    = inst->rd;
       Reg* opr   = get_RegVec(inst->ras, 0);
       IRInst* i1 = new_move(env, rd, opr);
+
+      rd->sticky = true;
       set_RegVec(inst->ras, 0, copy_Reg(rd));
+
       insert_IRInstListIterator(list, it, i1);
       break;
     }
@@ -201,12 +205,15 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
       if (rd != NULL) {
         ret = rax_fixed_reg(env, rd->size);
       }
-      inst->rd = copy_Reg(ret);
+      inst->rd         = copy_Reg(ret);
+      inst->rd->sticky = true;
 
       for (unsigned i = 1; i < length_RegVec(inst->ras); i++) {
-        Reg* r = get_RegVec(inst->ras, i);
-        Reg* p = nth_arg_fixed_reg(env, i - 1, r->size);
-        set_RegVec(inst->ras, i, copy_Reg(p));
+        Reg* r       = get_RegVec(inst->ras, i);
+        Reg* p       = nth_arg_fixed_reg(env, i - 1, r->size);
+        Reg* ra_i    = copy_Reg(p);
+        ra_i->sticky = true;
+        set_RegVec(inst->ras, i, ra_i);
         insert_IRInstListIterator(list, it, new_move(env, p, r));
         release_Reg(p);
         release_Reg(r);
@@ -232,12 +239,11 @@ static void walk_insts(Env* env, IRInstList* list, IRInstListIterator* it) {
       Reg* ra    = get_RegVec(inst->ras, 0);
       Reg* rax   = rax_fixed_reg(env, ra->size);
       IRInst* i1 = new_move(env, rax, ra);
-
-      set_RegVec(inst->ras, 0, copy_Reg(rax));
-      insert_IRInstListIterator(list, it, i1);
-
-      release_Reg(rax);
       release_Reg(ra);
+
+      rax->sticky = true;
+      set_RegVec(inst->ras, 0, rax);
+      insert_IRInstListIterator(list, it, i1);
       break;
     default:
       break;

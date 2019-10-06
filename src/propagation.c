@@ -5,16 +5,24 @@ static bool is_propagatable(Reg* r) {
   return r->one_def != NULL && !r->sticky;
 }
 
-static bool get_imm(Reg* r, long* out) {
-  if (!is_propagatable(r)) {
-    return false;
-  }
-  if (r->one_def->kind == IR_IMM) {
-    *out = r->one_def->imm;
+static bool get_one_def(Reg* r, IRInst** out) {
+  if (is_propagatable(r)) {
+    *out = r->one_def;
     return true;
   } else {
     return false;
   }
+}
+
+static bool get_imm(Reg* r, long* out) {
+  IRInst* def;
+  if (get_one_def(r, &def)) {
+    if (def->kind == IR_IMM) {
+      *out = def->imm;
+      return true;
+    }
+  }
+  return false;
 }
 
 static BasicBlock* find_parent_block(IRInst* inst) {
@@ -164,12 +172,13 @@ static void perform_propagation(Function* f, IRInst* inst) {
 
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
-    if (!is_propagatable(ra)) {
+    IRInst* def;
+    if (!get_one_def(ra, &def)) {
       continue;
     }
 
-    if (ra->one_def->kind == IR_MOV) {
-      Reg* r = get_RegVec(ra->one_def->ras, 0);
+    if (def->kind == IR_MOV) {
+      Reg* r = get_RegVec(def->ras, 0);
       if (r->kind == REG_FIXED) {
         // TODO: Remove this after implementation of split in reg_alloc
         continue;

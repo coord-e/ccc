@@ -1,22 +1,19 @@
 #include "propagation.h"
 #include "util.h"
 
-static bool is_propagatable(Reg* r) {
-  return r->one_def != NULL && !r->sticky;
-}
-
-static bool get_one_def(Reg* r, IRInst** out) {
-  if (is_propagatable(r)) {
-    *out = r->one_def;
+static bool get_one_def(Function* f, Reg* r, IRInst** out) {
+  if (count_BitSet(r->definitions) == 1 && !r->sticky) {
+    unsigned inst_id = mssb_BitSet(r->definitions);
+    *out             = get_IRInstList(f->instructions, inst_id);
     return true;
   } else {
     return false;
   }
 }
 
-static bool get_imm(Reg* r, long* out) {
+static bool get_imm(Function* f, Reg* r, long* out) {
   IRInst* def;
-  if (get_one_def(r, &def)) {
+  if (get_one_def(f, r, &def)) {
     if (def->kind == IR_IMM) {
       *out = def->imm;
       return true;
@@ -61,7 +58,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* r = get_RegVec(inst->ras, 0);
 
       long imm;
-      if (get_imm(r, &imm)) {
+      if (get_imm(f, r, &imm)) {
         inst->kind = IR_IMM;
         inst->imm  = imm;
         resize_RegVec(inst->ras, 0);
@@ -73,8 +70,8 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* rhs = get_RegVec(inst->ras, 1);
 
       long lhs_imm, rhs_imm;
-      if (get_imm(rhs, &rhs_imm)) {
-        if (get_imm(lhs, &lhs_imm)) {
+      if (get_imm(f, rhs, &rhs_imm)) {
+        if (get_imm(f, lhs, &lhs_imm)) {
           // foldable
           long c     = eval_ArithOp(inst->binary_op, lhs_imm, rhs_imm);
           inst->kind = IR_IMM;
@@ -94,8 +91,8 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* rhs = get_RegVec(inst->ras, 1);
 
       long lhs_imm, rhs_imm;
-      if (get_imm(rhs, &rhs_imm)) {
-        if (get_imm(lhs, &lhs_imm)) {
+      if (get_imm(f, rhs, &rhs_imm)) {
+        if (get_imm(f, lhs, &lhs_imm)) {
           // foldable
           bool c     = eval_CompareOp(inst->predicate_op, lhs_imm, rhs_imm);
           inst->kind = IR_IMM;
@@ -115,8 +112,8 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* rhs = get_RegVec(inst->ras, 1);
 
       long lhs_imm, rhs_imm;
-      if (get_imm(rhs, &rhs_imm)) {
-        if (get_imm(lhs, &lhs_imm)) {
+      if (get_imm(f, rhs, &rhs_imm)) {
+        if (get_imm(f, lhs, &lhs_imm)) {
           // foldable
           bool c = eval_CompareOp(inst->predicate_op, lhs_imm, rhs_imm);
           elim_branch(c, inst);
@@ -133,7 +130,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* lhs = get_RegVec(inst->ras, 0);
 
       long lhs_imm;
-      if (get_imm(lhs, &lhs_imm)) {
+      if (get_imm(f, lhs, &lhs_imm)) {
         // foldable
         long c     = eval_ArithOp(inst->binary_op, lhs_imm, inst->imm);
         inst->kind = IR_IMM;
@@ -146,7 +143,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* lhs = get_RegVec(inst->ras, 0);
 
       long lhs_imm;
-      if (get_imm(lhs, &lhs_imm)) {
+      if (get_imm(f, lhs, &lhs_imm)) {
         // foldable
         bool c     = eval_CompareOp(inst->predicate_op, lhs_imm, inst->imm);
         inst->kind = IR_IMM;
@@ -159,7 +156,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
       Reg* lhs = get_RegVec(inst->ras, 0);
 
       long lhs_imm;
-      if (get_imm(lhs, &lhs_imm)) {
+      if (get_imm(f, lhs, &lhs_imm)) {
         // foldable
         bool c = eval_CompareOp(inst->predicate_op, lhs_imm, inst->imm);
         elim_branch(c, inst);
@@ -173,7 +170,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* ra = get_RegVec(inst->ras, i);
     IRInst* def;
-    if (!get_one_def(ra, &def)) {
+    if (!get_one_def(f, ra, &def)) {
       continue;
     }
 

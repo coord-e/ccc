@@ -33,6 +33,9 @@ Reg* new_fixed_Reg(DataSize size, unsigned virtual, unsigned real) {
 Reg* copy_Reg(Reg* r) {
   Reg* new = new_Reg(r->kind, r->size);
   *new     = *r;
+  if (r->definitions != NULL) {
+    new->definitions = copy_BitSet(r->definitions);
+  }
   return new;
 }
 
@@ -47,6 +50,11 @@ IRInst* new_inst(unsigned local, unsigned global, IRInstKind kind) {
 }
 
 void release_Reg(Reg* r) {
+  if (r == NULL) {
+    return;
+  }
+
+  release_BitSet(r->definitions);
   free(r);
 }
 

@@ -56,7 +56,7 @@ typedef struct {
   DataSize size;
 
   bool sticky;
-  IRInst* one_def;  // not owned, nullable
+  BitSet* definitions;
 } Reg;
 
 Reg* new_Reg(RegKind, DataSize);

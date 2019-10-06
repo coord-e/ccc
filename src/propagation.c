@@ -255,11 +255,20 @@ static void perform_propagation(Env* env, IRInst* inst) {
         case IR_CMP_IMM: {
           Reg* rr;
           if (copy_propagation(env, inst, def, &rr)) {
-            inst->kind         = IR_BR_CMP_IMM;
-            inst->predicate_op = def->predicate_op;
-            inst->imm          = def->imm;
             release_Reg(get_RegVec(inst->ras, 0));
             set_RegVec(inst->ras, 0, rr);
+
+            if (def->imm == 0 && def->predicate_op == CMP_EQ) {
+              BasicBlock* tmp = inst->then_;
+              inst->then_     = inst->else_;
+              inst->else_     = tmp;
+            } else if (def->imm == 0 && def->predicate_op == CMP_NE) {
+              // nothing to change
+            } else {
+              inst->kind         = IR_BR_CMP_IMM;
+              inst->predicate_op = def->predicate_op;
+              inst->imm          = def->imm;
+            }
           }
           break;
         }

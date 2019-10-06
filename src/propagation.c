@@ -188,6 +188,10 @@ static void perform_propagation(Function* f, IRInst* inst) {
 
     if (def->kind == IR_MOV) {
       Reg* r = get_RegVec(def->ras, 0);
+      if (r->kind == REG_FIXED) {
+        // TODO: Remove this after implementation of split in reg_alloc
+        continue;
+      }
       release_Reg(get_RegVec(inst->ras, i));
       set_RegVec(inst->ras, i, copy_Reg(r));
     }

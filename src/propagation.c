@@ -5,7 +5,6 @@ static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
   BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
   and_BitSet(defs, reach);
 
-  assert(count_BitSet(defs) != 0);
   if (count_BitSet(defs) != 1) {
     return NULL;
   }
@@ -67,7 +66,7 @@ static void perform_propagation(Function* f, IRInst* inst) {
   IRInstVec* defs = new_IRInstVec(length_RegVec(inst->ras));
   for (unsigned i = 0; i < length_RegVec(inst->ras); i++) {
     Reg* r      = get_RegVec(inst->ras, i);
-    IRInst* def = r->irreplaceable ? NULL : obtain_definition(f, inst->reach_in, r);
+    IRInst* def = r->sticky ? NULL : obtain_definition(f, inst->reach_in, r);
     // `def` is possibly null
     push_IRInstVec(defs, def);
   }
@@ -189,9 +188,6 @@ static void perform_propagation(Function* f, IRInst* inst) {
 
     if (def->kind == IR_MOV) {
       Reg* r = get_RegVec(def->ras, 0);
-      if (r->irreplaceable) {
-        break;
-      }
       release_Reg(get_RegVec(inst->ras, i));
       set_RegVec(inst->ras, i, copy_Reg(r));
     }

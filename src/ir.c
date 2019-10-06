@@ -1318,7 +1318,7 @@ static void print_reg(FILE* p, Reg* r) {
     default:
       CCC_UNREACHABLE;
   }
-  if (r->irreplaceable) {
+  if (r->sticky) {
     fputs("!", p);
   }
 }

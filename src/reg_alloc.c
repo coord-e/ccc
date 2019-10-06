@@ -153,7 +153,7 @@ static void expire_old_intervals(Env* env, Interval* target_iv) {
   while (!is_nil_UIIListIterator(it)) {
     unsigned virtual = data_UIIListIterator(it);
     Interval* intv   = interval_of(env, virtual);
-    if (intv->to >= target_iv->from) {
+    if (intv->to > target_iv->from) {
       return;
     }
     // NOTE: obtain `it` earlier because `release_reg` modifies active list

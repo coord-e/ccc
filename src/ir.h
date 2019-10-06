@@ -52,7 +52,8 @@ typedef struct {
   unsigned virtual;
   unsigned real;
   DataSize size;
-  bool irreplaceable;
+
+  bool sticky;
 } Reg;
 
 Reg* new_Reg(RegKind, DataSize);

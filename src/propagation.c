@@ -110,7 +110,7 @@ static bool copy_propagation(Env* env, IRInst* inst, IRInst* def, Reg** out) {
 
 static bool copy_propagation2(Env* env, IRInst* inst, IRInst* def, Reg** out0, Reg** out1) {
   Reg* r0 = get_RegVec(def->ras, 0);
-  Reg* r1 = get_RegVec(def->ras, 0);
+  Reg* r1 = get_RegVec(def->ras, 1);
   if (r0->kind == REG_FIXED || r1->kind == REG_FIXED) {
     // TODO: Remove this after implementation of split in reg_alloc
     return false;
@@ -273,8 +273,7 @@ static void perform_propagation(Env* env, IRInst* inst) {
           if (copy_propagation2(env, inst, def, &r0, &r1)) {
             release_Reg(get_RegVec(inst->ras, 0));
             set_RegVec(inst->ras, 0, r0);
-            release_Reg(get_RegVec(inst->ras, 1));
-            set_RegVec(inst->ras, 1, r1);
+            push_RegVec(inst->ras, r1);
 
             inst->kind         = IR_BR_CMP;
             inst->predicate_op = def->predicate_op;

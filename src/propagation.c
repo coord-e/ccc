@@ -5,7 +5,6 @@ static IRInst* obtain_definition(Function* f, BitSet* reach, Reg* r) {
   BitSet* defs = copy_BitSet(get_BSVec(f->definitions, r->virtual));
   and_BitSet(defs, reach);
 
-  assert(count_BitSet(defs) != 0);
   if (count_BitSet(defs) != 1) {
     return NULL;
   }

@@ -127,8 +127,6 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeItera
 
   IRInst* h = data_IRInstRangeIterator(it);
   switch (h->kind) {
-    case IR_NOP:
-      break;
     case IR_IMM:
       emit(p, "mov %s, %d", reg_of(h->rd), h->imm);
       break;

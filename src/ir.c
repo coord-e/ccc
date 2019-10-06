@@ -1365,9 +1365,6 @@ static void print_inst(FILE* p, IRInst* i) {
     case IR_ARG:
       fprintf(p, "ARG %d", i->argument_idx);
       break;
-    case IR_NOP:
-      fprintf(p, "NOP");
-      break;
     case IR_IMM:
       fprintf(p, "IMM %d", i->imm);
       break;

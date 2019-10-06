@@ -1,6 +1,7 @@
 #include "dead_code_elim.h"
 
-static void perform_dce(IRInst* inst) {
+static void perform_dce(IRInstList* list, IRInstListIterator* it) {
+  IRInst* inst = data_IRInstListIterator(it);
   if (inst->rd == NULL) {
     return;
   }
@@ -15,17 +16,15 @@ static void perform_dce(IRInst* inst) {
     return;
   }
 
-  release_Reg(inst->rd);
-  inst->rd = NULL;
-  resize_RegVec(inst->ras, 0);
-  inst->kind = IR_NOP;
+  remove_IRInstListIterator(list, it);
 }
 
 static void dead_code_elim_function(Function* f) {
-  for (IRInstListIterator* it = back_IRInstList(f->instructions); !is_nil_IRInstListIterator(it);
-       it                     = prev_IRInstListIterator(it)) {
-    IRInst* inst = data_IRInstListIterator(it);
-    perform_dce(inst);
+  IRInstListIterator* it = front_IRInstList(f->instructions);
+  while (!is_nil_IRInstListIterator(it)) {
+    IRInstListIterator* next = next_IRInstListIterator(it);
+    perform_dce(f->instructions, it);
+    it = next;
   }
 }
 

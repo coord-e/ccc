@@ -35,7 +35,6 @@ typedef enum {
   IR_ZEXT,
   IR_TRUNC,
   IR_GLOBAL_ADDR,
-  IR_NOP,
   IR_BIN_IMM,
   IR_CMP_IMM,
   IR_BR_CMP,

@@ -111,9 +111,11 @@ static void emit_prologue(FILE* p, Function* f) {
   emit(p, "mov rbp, rsp");
   emit(p, "sub rsp, %d", f->stack_count);
   emit_save_regs(p, f->used_regs, false);
-  emit_(p, "jmp ");
-  id_label_name(p, f->entry->global_id);
-  fprintf(p, "\n");
+  if (!is_next_bb(front_BBList(f->blocks), f->entry->global_id)) {
+    emit_(p, "jmp ");
+    id_label_name(p, f->entry->global_id);
+    fprintf(p, "\n");
+  }
 }
 
 static void emit_epilogue(FILE* p, Function* f) {
@@ -124,7 +126,7 @@ static void emit_epilogue(FILE* p, Function* f) {
 
 static void codegen_bin(FILE* p, IRInst* inst);
 static void codegen_cmp(FILE* p, IRInst* inst);
-static void codegen_br_cmp(FILE* p, IRInst* inst);
+static void codegen_br_cmp(FILE* p, BBListIterator* next_it, IRInst* inst);
 static void codegen_una(FILE* p, IRInst* inst);
 
 static void codegen_insts(FILE* p,
@@ -225,7 +227,7 @@ static void codegen_insts(FILE* p,
       break;
     case IR_BR_CMP:
     case IR_BR_CMP_IMM:
-      codegen_br_cmp(p, h);
+      codegen_br_cmp(p, next_it, h);
       break;
     case IR_GLOBAL_ADDR:
       switch (h->global_kind) {
@@ -256,7 +258,7 @@ static void codegen_insts(FILE* p,
   codegen_insts(p, f, bb, next_it, next_IRInstRangeIterator(it));
 }
 
-static void codegen_br_cmp(FILE* p, IRInst* inst) {
+static void codegen_br_cmp(FILE* p, BBListIterator* next_bb_it, IRInst* inst) {
   Reg* lhs = get_RegVec(inst->ras, 0);
 
   switch (inst->kind) {
@@ -297,9 +299,11 @@ static void codegen_br_cmp(FILE* p, IRInst* inst) {
   }
   id_label_name(p, inst->then_->global_id);
   fprintf(p, "\n");
-  emit_(p, "jmp ");
-  id_label_name(p, inst->else_->global_id);
-  fprintf(p, "\n");
+  if (!is_next_bb(next_bb_it, inst->else_->global_id)) {
+    emit_(p, "jmp ");
+    id_label_name(p, inst->else_->global_id);
+    fprintf(p, "\n");
+  }
 }
 
 static void codegen_cmp(FILE* p, IRInst* inst) {

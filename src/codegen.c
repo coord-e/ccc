@@ -216,10 +216,10 @@ static void codegen_insts(FILE* p,
     case IR_BR:
       assert(!bb->is_call_bb);
       emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
-      emit_(p, "je ");
-      id_label_name(p, h->else_->global_id);
+      emit_(p, "jne ");
+      id_label_name(p, h->then_->global_id);
       fprintf(p, "\n");
-      emit_jump_to(p, h->then_, next_it);
+      emit_jump_to(p, h->else_, next_it);
       break;
     case IR_BR_CMP:
     case IR_BR_CMP_IMM:

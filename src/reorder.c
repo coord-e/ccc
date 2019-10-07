@@ -30,7 +30,15 @@ void traverse_blocks(Env* env, BasicBlock* b) {
   }
   set_BitSet(env->visited, b->local_id, true);
 
+  IRInst* last_inst = last_IRInstRange(b->instructions);
+  if (last_inst->then_ != NULL) {
+    // priorize else branch to get best result in codegen
+    // NOTE: traversing then first, because blocks are pushed in reverse order here
+    traverse_blocks(env, last_inst->then_);
+  }
+
   traverse_bblist(env, front_BBRefList(b->succs));
+
   push_front_BBList(env->bbs, b);
 }
 

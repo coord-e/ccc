@@ -99,6 +99,13 @@ static void emit_restore_regs(FILE* p, BitSet* bs, bool scratch_filter_switch) {
   }
 }
 
+static bool is_next_bb(BBListIterator* next_it, unsigned expected_id) {
+  if (is_nil_BBListIterator(next_it)) {
+    return false;
+  }
+  return data_BBListIterator(next_it)->global_id == expected_id;
+}
+
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
@@ -113,11 +120,6 @@ static void emit_epilogue(FILE* p, Function* f) {
   emit_restore_regs(p, f->used_regs, false);
   emit(p, "mov rsp, rbp");
   emit(p, "pop rbp");
-}
-
-static bool is_next_bb(BBListIterator* next_it, unsigned expected_id) {
-  assert(!is_nil_BBListIterator(next_it));
-  return data_BBListIterator(next_it)->global_id == expected_id;
 }
 
 static void codegen_bin(FILE* p, IRInst* inst);

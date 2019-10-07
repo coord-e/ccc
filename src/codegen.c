@@ -106,16 +106,20 @@ static bool is_next_bb(BBListIterator* next_it, unsigned expected_id) {
   return data_BBListIterator(next_it)->global_id == expected_id;
 }
 
+static void emit_jump_to(FILE* p, BasicBlock* dst, BBListIterator* next_it) {
+  if (!is_next_bb(next_it, dst->global_id)) {
+    emit_(p, "jmp ");
+    id_label_name(p, dst->global_id);
+    fprintf(p, "\n");
+  }
+}
+
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit(p, "sub rsp, %d", f->stack_count);
   emit_save_regs(p, f->used_regs, false);
-  if (!is_next_bb(front_BBList(f->blocks), f->entry->global_id)) {
-    emit_(p, "jmp ");
-    id_label_name(p, f->entry->global_id);
-    fprintf(p, "\n");
-  }
+  emit_jump_to(p, f->entry, front_BBList(f->blocks));
 }
 
 static void emit_epilogue(FILE* p, Function* f) {
@@ -207,11 +211,7 @@ static void codegen_insts(FILE* p,
       if (bb->is_call_bb) {
         emit_restore_regs(p, bb->should_preserve, true);
       }
-      if (!is_next_bb(next_it, h->jump->global_id)) {
-        emit_(p, "jmp ");
-        id_label_name(p, h->jump->global_id);
-        fprintf(p, "\n");
-      }
+      emit_jump_to(p, h->jump, next_it);
       break;
     case IR_BR:
       assert(!bb->is_call_bb);
@@ -219,11 +219,7 @@ static void codegen_insts(FILE* p,
       emit_(p, "je ");
       id_label_name(p, h->else_->global_id);
       fprintf(p, "\n");
-      if (!is_next_bb(next_it, h->then_->global_id)) {
-        emit_(p, "jmp ");
-        id_label_name(p, h->then_->global_id);
-        fprintf(p, "\n");
-      }
+      emit_jump_to(p, h->then_, next_it);
       break;
     case IR_BR_CMP:
     case IR_BR_CMP_IMM:
@@ -299,11 +295,7 @@ static void codegen_br_cmp(FILE* p, BBListIterator* next_bb_it, IRInst* inst) {
   }
   id_label_name(p, inst->then_->global_id);
   fprintf(p, "\n");
-  if (!is_next_bb(next_bb_it, inst->else_->global_id)) {
-    emit_(p, "jmp ");
-    id_label_name(p, inst->else_->global_id);
-    fprintf(p, "\n");
-  }
+  emit_jump_to(p, inst->else_, next_bb_it);
 }
 
 static void codegen_cmp(FILE* p, IRInst* inst) {

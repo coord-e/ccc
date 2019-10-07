@@ -99,14 +99,27 @@ static void emit_restore_regs(FILE* p, BitSet* bs, bool scratch_filter_switch) {
   }
 }
 
+static bool is_next_bb(BBListIterator* next_it, unsigned expected_id) {
+  if (is_nil_BBListIterator(next_it)) {
+    return false;
+  }
+  return data_BBListIterator(next_it)->global_id == expected_id;
+}
+
+static void emit_jump_to(FILE* p, BasicBlock* dst, BBListIterator* next_it) {
+  if (!is_next_bb(next_it, dst->global_id)) {
+    emit_(p, "jmp ");
+    id_label_name(p, dst->global_id);
+    fprintf(p, "\n");
+  }
+}
+
 static void emit_prologue(FILE* p, Function* f) {
   emit(p, "push rbp");
   emit(p, "mov rbp, rsp");
   emit(p, "sub rsp, %d", f->stack_count);
   emit_save_regs(p, f->used_regs, false);
-  emit_(p, "jmp ");
-  id_label_name(p, f->entry->global_id);
-  fprintf(p, "\n");
+  emit_jump_to(p, f->entry, front_BBList(f->blocks));
 }
 
 static void emit_epilogue(FILE* p, Function* f) {
@@ -117,10 +130,14 @@ static void emit_epilogue(FILE* p, Function* f) {
 
 static void codegen_bin(FILE* p, IRInst* inst);
 static void codegen_cmp(FILE* p, IRInst* inst);
-static void codegen_br_cmp(FILE* p, IRInst* inst);
+static void codegen_br_cmp(FILE* p, BBListIterator* next_it, IRInst* inst);
 static void codegen_una(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeIterator* it) {
+static void codegen_insts(FILE* p,
+                          Function* f,
+                          BasicBlock* bb,
+                          BBListIterator* next_it,
+                          IRInstRangeIterator* it) {
   if (is_nil_IRInstRangeIterator(it)) {
     return;
   }
@@ -194,23 +211,19 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeItera
       if (bb->is_call_bb) {
         emit_restore_regs(p, bb->should_preserve, true);
       }
-      emit_(p, "jmp ");
-      id_label_name(p, h->jump->global_id);
-      fprintf(p, "\n");
+      emit_jump_to(p, h->jump, next_it);
       break;
     case IR_BR:
       assert(!bb->is_call_bb);
       emit(p, "cmp %s, 0", nth_reg_of(0, h->ras));
-      emit_(p, "je ");
-      id_label_name(p, h->else_->global_id);
-      fprintf(p, "\n");
-      emit_(p, "jmp ");
+      emit_(p, "jne ");
       id_label_name(p, h->then_->global_id);
       fprintf(p, "\n");
+      emit_jump_to(p, h->else_, next_it);
       break;
     case IR_BR_CMP:
     case IR_BR_CMP_IMM:
-      codegen_br_cmp(p, h);
+      codegen_br_cmp(p, next_it, h);
       break;
     case IR_GLOBAL_ADDR:
       switch (h->global_kind) {
@@ -238,10 +251,10 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeItera
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, bb, next_IRInstRangeIterator(it));
+  codegen_insts(p, f, bb, next_it, next_IRInstRangeIterator(it));
 }
 
-static void codegen_br_cmp(FILE* p, IRInst* inst) {
+static void codegen_br_cmp(FILE* p, BBListIterator* next_bb_it, IRInst* inst) {
   Reg* lhs = get_RegVec(inst->ras, 0);
 
   switch (inst->kind) {
@@ -282,9 +295,7 @@ static void codegen_br_cmp(FILE* p, IRInst* inst) {
   }
   id_label_name(p, inst->then_->global_id);
   fprintf(p, "\n");
-  emit_(p, "jmp ");
-  id_label_name(p, inst->else_->global_id);
-  fprintf(p, "\n");
+  emit_jump_to(p, inst->else_, next_bb_it);
 }
 
 static void codegen_cmp(FILE* p, IRInst* inst) {
@@ -433,11 +444,12 @@ static void codegen_blocks(FILE* p, Function* f, BBListIterator* it) {
     return;
   }
 
-  BasicBlock* b = data_BBListIterator(it);
+  BasicBlock* b        = data_BBListIterator(it);
+  BBListIterator* next = next_BBListIterator(it);
 
-  codegen_insts(p, f, b, front_IRInstRange(b->instructions));
+  codegen_insts(p, f, b, next, front_IRInstRange(b->instructions));
 
-  codegen_blocks(p, f, next_BBListIterator(it));
+  codegen_blocks(p, f, next);
 }
 
 static void codegen_functions(FILE* p, FunctionList* l) {

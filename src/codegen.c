@@ -115,12 +115,21 @@ static void emit_epilogue(FILE* p, Function* f) {
   emit(p, "pop rbp");
 }
 
+static bool is_next_bb(BBListIterator* next_it, unsigned expected_id) {
+  assert(!is_nil_BBListIterator(next_it));
+  return data_BBListIterator(next_it)->global_id == expected_id;
+}
+
 static void codegen_bin(FILE* p, IRInst* inst);
 static void codegen_cmp(FILE* p, IRInst* inst);
 static void codegen_br_cmp(FILE* p, IRInst* inst);
 static void codegen_una(FILE* p, IRInst* inst);
 
-static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeIterator* it) {
+static void codegen_insts(FILE* p,
+                          Function* f,
+                          BasicBlock* bb,
+                          BBListIterator* next_it,
+                          IRInstRangeIterator* it) {
   if (is_nil_IRInstRangeIterator(it)) {
     return;
   }
@@ -194,9 +203,11 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeItera
       if (bb->is_call_bb) {
         emit_restore_regs(p, bb->should_preserve, true);
       }
-      emit_(p, "jmp ");
-      id_label_name(p, h->jump->global_id);
-      fprintf(p, "\n");
+      if (!is_next_bb(next_it, h->jump->global_id)) {
+        emit_(p, "jmp ");
+        id_label_name(p, h->jump->global_id);
+        fprintf(p, "\n");
+      }
       break;
     case IR_BR:
       assert(!bb->is_call_bb);
@@ -204,9 +215,11 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeItera
       emit_(p, "je ");
       id_label_name(p, h->else_->global_id);
       fprintf(p, "\n");
-      emit_(p, "jmp ");
-      id_label_name(p, h->then_->global_id);
-      fprintf(p, "\n");
+      if (!is_next_bb(next_it, h->then_->global_id)) {
+        emit_(p, "jmp ");
+        id_label_name(p, h->then_->global_id);
+        fprintf(p, "\n");
+      }
       break;
     case IR_BR_CMP:
     case IR_BR_CMP_IMM:
@@ -238,7 +251,7 @@ static void codegen_insts(FILE* p, Function* f, BasicBlock* bb, IRInstRangeItera
       CCC_UNREACHABLE;
   }
 
-  codegen_insts(p, f, bb, next_IRInstRangeIterator(it));
+  codegen_insts(p, f, bb, next_it, next_IRInstRangeIterator(it));
 }
 
 static void codegen_br_cmp(FILE* p, IRInst* inst) {
@@ -433,11 +446,12 @@ static void codegen_blocks(FILE* p, Function* f, BBListIterator* it) {
     return;
   }
 
-  BasicBlock* b = data_BBListIterator(it);
+  BasicBlock* b        = data_BBListIterator(it);
+  BBListIterator* next = next_BBListIterator(it);
 
-  codegen_insts(p, f, b, front_IRInstRange(b->instructions));
+  codegen_insts(p, f, b, next, front_IRInstRange(b->instructions));
 
-  codegen_blocks(p, f, next_BBListIterator(it));
+  codegen_blocks(p, f, next);
 }
 
 static void codegen_functions(FILE* p, FunctionList* l) {
